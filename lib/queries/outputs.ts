@@ -1,5 +1,19 @@
 import { createServiceClient } from '@/lib/supabase/service'
 
+export async function getAllOutputsForOrg(organizationId: string) {
+  const supabase = createServiceClient()
+
+  const { data, error } = await supabase
+    .from('outputs')
+    .select('id, brief, content, content_type_id, project_id, created_at, updated_at, content_types(name), projects(name)')
+    .eq('organization_id', organizationId)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+
+  if (error) return []
+  return data
+}
+
 export async function getOutputsForProject(projectId: string, organizationId: string) {
   const supabase = createServiceClient()
 

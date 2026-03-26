@@ -11,6 +11,7 @@ interface Template {
   slug: string
   name: string
   description: string
+  base_prompt: string
 }
 
 interface ContentType {

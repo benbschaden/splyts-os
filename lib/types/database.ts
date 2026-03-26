@@ -14,6 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      author_profiles: {
+        Row: {
+          created_at: string
+          created_by: string
+          deleted_at: string | null
+          id: string
+          name: string
+          organization_id: string
+          personal_pillars: string | null
+          platform_notes: string | null
+          role: string | null
+          tone: string | null
+          updated_at: string
+          voice: string | null
+          writing_style: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          deleted_at?: string | null
+          id?: string
+          name: string
+          organization_id: string
+          personal_pillars?: string | null
+          platform_notes?: string | null
+          role?: string | null
+          tone?: string | null
+          updated_at?: string
+          voice?: string | null
+          writing_style?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          deleted_at?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          personal_pillars?: string | null
+          platform_notes?: string | null
+          role?: string | null
+          tone?: string | null
+          updated_at?: string
+          voice?: string | null
+          writing_style?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "author_profiles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "author_profiles_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brand_context: {
         Row: {
           company_name: string

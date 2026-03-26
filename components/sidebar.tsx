@@ -22,12 +22,22 @@ export function Sidebar({ orgName, userName, avatarUrl, email }: SidebarProps) {
 
   return (
     <div className="flex h-screen w-60 flex-col border-r border-border bg-background">
-      <div className="flex h-14 items-center border-b border-border px-4">
+      <div className="flex h-14 items-center justify-between border-b border-border px-4">
         <Link
           href="/dashboard"
-          className="text-sm font-semibold tracking-tight text-foreground hover:opacity-70 transition-opacity"
+          className="text-sm font-semibold tracking-tight text-foreground hover:opacity-70 transition-opacity truncate"
         >
           {orgName}
+        </Link>
+        <Link href="/dashboard/settings/profile" className="shrink-0 ml-2">
+          <div className="h-7 w-7 rounded-full overflow-hidden bg-muted flex items-center justify-center ring-1 ring-border hover:ring-foreground/30 transition-all">
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatarUrl} alt={userName} className="h-full w-full object-cover" />
+            ) : (
+              <span className="text-[11px] font-semibold text-muted-foreground">{initials}</span>
+            )}
+          </div>
         </Link>
       </div>
 
@@ -61,27 +71,6 @@ export function Sidebar({ orgName, userName, avatarUrl, email }: SidebarProps) {
             {item.name}
           </Link>
         ))}
-
-        {/* User avatar + name */}
-        <Link
-          href="/dashboard/settings/profile"
-          className={cn(
-            'flex items-center gap-2.5 rounded-md px-3 py-2 transition-colors',
-            'hover:bg-accent',
-          )}
-        >
-          <div className="h-6 w-6 shrink-0 rounded-full overflow-hidden bg-muted flex items-center justify-center ring-1 ring-border">
-            {avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={avatarUrl} alt={userName} className="h-full w-full object-cover" />
-            ) : (
-              <span className="text-[10px] font-semibold text-muted-foreground">{initials}</span>
-            )}
-          </div>
-          <span className="text-sm font-medium text-muted-foreground truncate">
-            {userName || email}
-          </span>
-        </Link>
 
         <form action="/api/auth/signout" method="post">
           <button

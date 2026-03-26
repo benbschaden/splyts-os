@@ -8,8 +8,9 @@ export async function getOrganizationForUser(userId: string) {
     .from('organization_members')
     .select('organization_id, role')
     .eq('user_id', userId)
+    .order('created_at', { ascending: false })
     .limit(1)
-    .single()
+    .maybeSingle()
 
   if (!membership) return null
 
@@ -18,7 +19,7 @@ export async function getOrganizationForUser(userId: string) {
     .select('id, name')
     .eq('id', membership.organization_id)
     .is('deleted_at', null)
-    .single()
+    .maybeSingle()
 
   if (!org) return null
 

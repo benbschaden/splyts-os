@@ -10,12 +10,16 @@ const bottomNavigation = [
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
 
-export function Sidebar() {
+interface SidebarProps {
+  orgName: string
+}
+
+export function Sidebar({ orgName }: SidebarProps) {
   return (
     <div className="flex h-screen w-60 flex-col border-r border-border bg-background">
       <div className="flex h-14 items-center border-b border-border px-4">
         <span className="text-sm font-semibold tracking-tight text-foreground">
-          Company OS
+          {orgName}
         </span>
       </div>
 

@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
 const tabs = [
+  { name: 'Profile', href: '/dashboard/settings/profile' },
   { name: 'Brand', href: '/dashboard/settings/brand' },
   { name: 'Authors', href: '/dashboard/settings/authors' },
 ]

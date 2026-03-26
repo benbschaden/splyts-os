@@ -18,9 +18,12 @@ export function Sidebar({ orgName }: SidebarProps) {
   return (
     <div className="flex h-screen w-60 flex-col border-r border-border bg-background">
       <div className="flex h-14 items-center border-b border-border px-4">
-        <span className="text-sm font-semibold tracking-tight text-foreground">
+        <Link
+          href="/dashboard"
+          className="text-sm font-semibold tracking-tight text-foreground hover:opacity-70 transition-opacity"
+        >
           {orgName}
-        </span>
+        </Link>
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 p-3">

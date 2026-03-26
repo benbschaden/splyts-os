@@ -15,25 +15,30 @@ export function OrgSetupForm() {
     setLoading(true)
     setError(null)
 
-    const res = await fetch('/api/organizations', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
-    })
+    try {
+      const res = await fetch('/api/organizations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      })
 
-    if (!res.ok) {
-      const json = await res.json()
-      setError(
-        typeof json.error === 'string'
-          ? json.error
-          : 'Something went wrong. Please try again.',
-      )
+      if (!res.ok) {
+        let message = 'Something went wrong. Please try again.'
+        try {
+          const json = await res.json()
+          if (typeof json.error === 'string') message = json.error
+        } catch {}
+        setError(message)
+        setLoading(false)
+        return
+      }
+
+      router.push('/dashboard')
+      router.refresh()
+    } catch {
+      setError('Network error. Please try again.')
       setLoading(false)
-      return
     }
-
-    router.push('/dashboard')
-    router.refresh()
   }
 
   return (

@@ -12,9 +12,14 @@ const bottomNavigation = [
 
 interface SidebarProps {
   orgName: string
+  userName: string
+  avatarUrl: string | null
+  email: string
 }
 
-export function Sidebar({ orgName }: SidebarProps) {
+export function Sidebar({ orgName, userName, avatarUrl, email }: SidebarProps) {
+  const initials = userName?.[0]?.toUpperCase() ?? email?.[0]?.toUpperCase() ?? '?'
+
   return (
     <div className="flex h-screen w-60 flex-col border-r border-border bg-background">
       <div className="flex h-14 items-center border-b border-border px-4">
@@ -56,6 +61,28 @@ export function Sidebar({ orgName }: SidebarProps) {
             {item.name}
           </Link>
         ))}
+
+        {/* User avatar + name */}
+        <Link
+          href="/dashboard/settings/profile"
+          className={cn(
+            'flex items-center gap-2.5 rounded-md px-3 py-2 transition-colors',
+            'hover:bg-accent',
+          )}
+        >
+          <div className="h-6 w-6 shrink-0 rounded-full overflow-hidden bg-muted flex items-center justify-center ring-1 ring-border">
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatarUrl} alt={userName} className="h-full w-full object-cover" />
+            ) : (
+              <span className="text-[10px] font-semibold text-muted-foreground">{initials}</span>
+            )}
+          </div>
+          <span className="text-sm font-medium text-muted-foreground truncate">
+            {userName || email}
+          </span>
+        </Link>
+
         <form action="/api/auth/signout" method="post">
           <button
             type="submit"

@@ -21,9 +21,8 @@ export default async function DashboardPage() {
     getUserProfile(user.id),
   ])
 
-  const userName = profile?.full_name?.trim()
-    || user.email?.split('@')[0]
-    || ''
+  const fullName = profile?.full_name?.trim() || user.email?.split('@')[0] || ''
+  const userName = fullName.split(' ')[0]
 
   return <ProjectsList projects={projects} userName={userName} />
 }

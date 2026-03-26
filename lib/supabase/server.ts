@@ -1,8 +1,11 @@
+import { cache } from 'react'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import type { Database } from '@/lib/types/database'
 
-export async function createClient() {
+// Wrapped with React cache() so multiple calls within a single render
+// (e.g. layout + page) share one instance and one cookie read.
+export const createClient = cache(async function createClient() {
   const cookieStore = await cookies()
 
   return createServerClient<Database>(
@@ -25,4 +28,4 @@ export async function createClient() {
       },
     },
   )
-}
+})

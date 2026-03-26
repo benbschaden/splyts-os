@@ -1,9 +1,12 @@
+import { cache } from 'react'
 import { createServiceClient } from '@/lib/supabase/service'
 
+// Wrapped with React cache() so multiple calls within a single render
+// (e.g. dashboard layout + page) share one DB round-trip.
 // Uses service client — trusted server-side lookup, not user-initiated.
 // RLS on organization_members cannot be used here because this function
 // is called to determine IF the user has an org (before RLS can help).
-export async function getOrganizationForUser(userId: string) {
+export const getOrganizationForUser = cache(async function getOrganizationForUser(userId: string) {
   const supabase = createServiceClient()
 
   const { data: membership } = await supabase
@@ -30,7 +33,7 @@ export async function getOrganizationForUser(userId: string) {
     name: org.name,
     role: membership.role,
   }
-}
+})
 
 // Uses service role to bypass RLS — valid because this is a trusted first-time
 // setup operation where the user has no org yet and cannot pass RLS checks.

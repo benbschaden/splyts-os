@@ -1,0 +1,72 @@
+---
+description: Performance rules for server components and data fetching
+globs: app/**/*.tsx, lib/**/*.ts
+alwaysApply: true
+---
+
+# Performance
+
+## Deduplicate server-side fetches with React cache()
+
+Any function called in both a layout and a page (or multiple pages in the same render tree) MUST be wrapped with `cache()` from React:
+
+```ts
+import { cache } from 'react'
+
+export const getOrganizationForUser = cache(async (userId: string) => {
+  // ...
+})
+```
+
+This prevents duplicate database calls within a single render. Without it, layout + page each fire separate round-trips for the same data.
+
+**Functions that must always be cached:**
+- `createClient()` in `lib/supabase/server.ts`
+- `getOrganizationForUser()` in `lib/queries/organizations.ts`
+- Any query function used in both a layout and its child pages
+
+## Parallel fetches with Promise.all
+
+When a page needs multiple independent pieces of data, fetch them in parallel:
+
+```ts
+// ✅ Correct — parallel
+const [projects, brandContext] = await Promise.all([
+  getProjectsForOrg(org.id),
+  getBrandContext(org.id),
+])
+
+// ❌ Wrong — sequential, each waits for the previous
+const projects = await getProjectsForOrg(org.id)
+const brandContext = await getBrandContext(org.id)
+```
+
+Only use sequential awaits when the second fetch genuinely depends on the result of the first.
+
+## Use force-dynamic only where needed
+
+`export const dynamic = 'force-dynamic'` disables all caching. Only use it on pages where data changes frequently and must always be fresh (e.g. project list, generated outputs).
+
+For stable data (brand context, content types, author profiles), use a short revalidation window instead:
+
+```ts
+export const revalidate = 60 // revalidate every 60 seconds
+```
+
+## Never fetch the same data twice in layout + page
+
+The layout already fetches `user` and `org`. Pages must not repeat these lookups. With `cache()` applied to `createClient` and `getOrganizationForUser`, the deduplication is automatic — but never add a redundant call just to be safe.
+
+## No N+1 queries
+
+Never fetch inside a loop. If you need related data for a list, fetch it in one query with a join or a single `IN` clause.
+
+```ts
+// ❌ Wrong — N+1
+for (const project of projects) {
+  const outputs = await getOutputsForProject(project.id)
+}
+
+// ✅ Correct — single query
+const outputs = await getOutputsForProjects(projects.map(p => p.id))
+```

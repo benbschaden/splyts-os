@@ -1,13 +1,14 @@
 import Link from 'next/link'
-import { FolderOpen, Settings, LogOut } from 'lucide-react'
+import { FolderOpen, Megaphone, Settings, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navigation = [
   { name: 'Projects', href: '/dashboard', icon: FolderOpen },
+  { name: 'Marketing', href: '/dashboard/marketing', icon: Megaphone },
 ]
 
 const bottomNavigation = [
-  { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+  { name: 'Settings', href: '/dashboard/settings/profile', icon: Settings },
 ]
 
 interface SidebarProps {

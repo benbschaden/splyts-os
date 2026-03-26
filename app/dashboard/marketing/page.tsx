@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
 
-export default function OldBrandPage() {
+export default function MarketingPage() {
   redirect('/dashboard/marketing/brand')
 }

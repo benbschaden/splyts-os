@@ -2,18 +2,19 @@ import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
 const tabs = [
-  { name: 'Profile', href: '/dashboard/settings/profile' },
+  { name: 'Brand', href: '/dashboard/marketing/brand' },
+  { name: 'Authors', href: '/dashboard/marketing/authors' },
+  { name: 'Content Types', href: '/dashboard/marketing/content-types' },
 ]
 
-export default function SettingsLayout({ children }: { children: React.ReactNode }) {
+export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-14 items-center border-b border-border px-6">
-        <h1 className="text-sm font-semibold text-foreground">Account</h1>
+        <h1 className="text-sm font-semibold text-foreground">Marketing</h1>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Settings sub-nav */}
         <aside className="w-48 shrink-0 border-r border-border p-3">
           <nav className="flex flex-col gap-0.5">
             {tabs.map((tab) => (

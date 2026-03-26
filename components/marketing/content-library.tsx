@@ -1,7 +1,6 @@
 'use client'
 
 import { Sparkles, FileText } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 
 export function ContentLibrary() {
   return (
@@ -11,16 +10,15 @@ export function ContentLibrary() {
           <h2 className="text-sm font-semibold text-foreground">Content</h2>
           <p className="text-sm text-muted-foreground">Your generated content lives here.</p>
         </div>
-        <Button
-          size="sm"
-          className="gap-1.5"
+        <button
           onClick={() => {
             // TODO: open generate content dialog
           }}
+          className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background transition-opacity hover:opacity-80"
         >
           <Sparkles className="h-3.5 w-3.5" />
           Generate
-        </Button>
+        </button>
       </div>
 
       <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border py-20 text-center">
@@ -33,17 +31,15 @@ export function ContentLibrary() {
             Hit Generate to create your first piece of content.
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="mt-2 gap-1.5"
+        <button
           onClick={() => {
             // TODO: open generate content dialog
           }}
+          className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
         >
           <Sparkles className="h-3.5 w-3.5" />
           Generate content
-        </Button>
+        </button>
       </div>
     </div>
   )

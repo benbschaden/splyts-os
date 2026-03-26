@@ -18,7 +18,7 @@ export default async function ProfileSettingsPage() {
       <div className="space-y-1">
         <h2 className="text-sm font-semibold text-foreground">Profile</h2>
         <p className="text-sm text-muted-foreground">
-          Your personal details. Only you can see and edit this.
+          Your personal details. Visible to everyone in your organisation.
         </p>
       </div>
 

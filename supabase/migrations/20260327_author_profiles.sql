@@ -30,7 +30,7 @@ CREATE INDEX author_profiles_org_idx ON author_profiles (organization_id)
 -- Auto-update updated_at on change
 CREATE TRIGGER author_profiles_updated_at
   BEFORE UPDATE ON author_profiles
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- -------------------------------------------------------
 -- RLS

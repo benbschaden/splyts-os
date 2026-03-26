@@ -5,12 +5,40 @@ Feature: AI Content Generation
     And brand context is configured for my organisation
     And at least one active content type exists
     When I click "Generate Content"
+    And I select an author ("Company" or a named author profile)
     And I select a content type (e.g. "LinkedIn Post")
     And I enter a brief (e.g. "Announcing our new training load feature for coaches")
     And I click Generate
-    Then the AI generates output using: brand context + content type rules + brief
+    Then the AI generates output using: brand context + author voice + content type rules + brief
     And the output is saved to this project
     And I am shown the generated content immediately
+
+  Scenario: Author selection — Company is always the default
+    Given I open the generate content form
+    Then "Company" is pre-selected in the author dropdown
+    And it is always the first option regardless of how many author profiles exist
+
+  Scenario: Author selection — named authors appear when profiles exist
+    Given one or more author profiles have been added in Settings > Authors
+    When I open the generate content form
+    Then I see "Company" plus each author profile listed below it in the author dropdown
+
+  Scenario: Author selection — no author profiles added
+    Given no author profiles have been created
+    When I open the generate content form
+    Then only "Company" appears in the author dropdown
+    And generation proceeds normally using company brand context voice and tone
+
+  Scenario: Generating as Company
+    Given I select "Company" as the author
+    Then the AI uses the voice and tone fields from brand context
+    And no personal author context is injected
+
+  Scenario: Generating as a named author
+    Given I select a named author (e.g. "Ben Schaden")
+    Then the AI injects that author's voice, tone, writing style, personal pillars, and platform notes
+    And the brand context (mission, vision, north star, pillars, audience) is still injected
+    And the content type rules are still applied
 
   Scenario: Admin generates content (same flow as member)
     Given I am logged in as an admin
@@ -26,6 +54,7 @@ Feature: AI Content Generation
     Given brand context has not been configured
     When I open the generate content form
     Then I see a blocking message: "Brand context must be configured before generating content"
+    And a link to Settings > Brand is shown to admins only
     And the Generate button is disabled
 
   Scenario: No active content types exist
@@ -35,10 +64,10 @@ Feature: AI Content Generation
     And the Generate button is disabled
 
   Scenario: AI generation fails
-    Given I have filled in a brief and clicked Generate
+    Given I have filled in all fields and clicked Generate
     When the AI API returns an error
     Then I see: "Generation failed. Please try again."
-    And my brief is preserved so I do not have to retype it
+    And my brief, author selection, and content type selection are preserved
     And I can click Generate again
 
   Scenario: Multiple generations for the same project

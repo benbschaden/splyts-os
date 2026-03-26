@@ -32,6 +32,7 @@ export default async function DashboardLayout({
         userName={displayName}
         avatarUrl={profile?.avatar_url ?? null}
         email={user.email ?? ''}
+        isAdmin={org.role === 'admin'}
       />
       <main className="flex-1 overflow-y-auto">
         {children}

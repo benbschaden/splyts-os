@@ -1,3 +1,6 @@
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
+import { getOrganizationForUser } from '@/lib/queries/organizations'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
@@ -5,7 +8,27 @@ const tabs = [
   { name: 'Profile', href: '/dashboard/settings/profile' },
 ]
 
-export default function SettingsLayout({ children }: { children: React.ReactNode }) {
+export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const org = await getOrganizationForUser(user.id)
+  if (!org) redirect('/setup')
+
+  if (org.role !== 'admin') {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="text-center space-y-2">
+          <p className="text-sm font-medium text-foreground">You do not have permission to view this page.</p>
+          <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+            ← Back to dashboard
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-14 items-center border-b border-border px-6">
@@ -13,7 +36,6 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Settings sub-nav */}
         <aside className="w-48 shrink-0 border-r border-border p-3">
           <nav className="flex flex-col gap-0.5">
             {tabs.map((tab) => (

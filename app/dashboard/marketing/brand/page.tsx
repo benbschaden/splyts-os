@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getBrandContext } from '@/lib/queries/brand-context'
 import { BrandContextForm } from '@/components/settings/brand-context-form'
+import { AccessDenied } from '@/components/shared/access-denied'
 
 export default async function BrandPage() {
   const supabase = await createClient()
@@ -14,6 +15,10 @@ export default async function BrandPage() {
 
   const org = await getOrganizationForUser(user.id)
   if (!org) redirect('/setup')
+
+  if (org.role !== 'admin') {
+    return <AccessDenied message="You do not have permission to edit brand settings." backHref="/dashboard/marketing" backLabel="Back to Marketing" />
+  }
 
   const context = await getBrandContext(org.id)
 

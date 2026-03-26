@@ -16,9 +16,10 @@ interface SidebarProps {
   userName: string
   avatarUrl: string | null
   email: string
+  isAdmin: boolean
 }
 
-export function Sidebar({ orgName, userName, avatarUrl, email }: SidebarProps) {
+export function Sidebar({ orgName, userName, avatarUrl, email, isAdmin }: SidebarProps) {
   const displayName = userName || email?.split('@')[0] || ''
   const initials = displayName?.[0]?.toUpperCase() ?? '?'
 
@@ -74,7 +75,7 @@ export function Sidebar({ orgName, userName, avatarUrl, email }: SidebarProps) {
 
       {/* Bottom nav */}
       <div className="flex flex-col gap-0.5 border-t border-border p-3">
-        {bottomNavigation.map((item) => (
+        {isAdmin && bottomNavigation.map((item) => (
           <Link
             key={item.name}
             href={item.href}

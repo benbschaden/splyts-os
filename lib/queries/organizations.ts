@@ -59,5 +59,24 @@ export async function createOrganization(name: string, userId: string) {
     return { organization: null, error: 'Failed to assign admin role' }
   }
 
+  // Seed default projects from org_project_seeds table.
+  // Details live in the database — no project names hardcoded here.
+  const { data: seeds } = await supabase
+    .from('org_project_seeds')
+    .select('name, description')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true })
+
+  if (seeds && seeds.length > 0) {
+    await supabase.from('projects').insert(
+      seeds.map((seed) => ({
+        name: seed.name,
+        description: seed.description,
+        organization_id: org.id,
+        created_by: userId,
+      })),
+    )
+  }
+
   return { organization: org, error: null }
 }

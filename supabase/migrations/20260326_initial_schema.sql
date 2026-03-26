@@ -7,32 +7,21 @@
 -- ============================================================
 
 -- -------------------------------------------------------
--- ORGANIZATIONS
--- -------------------------------------------------------
-CREATE TABLE organizations (
-  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name         TEXT NOT NULL,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-  deleted_at   TIMESTAMPTZ
-);
-
-ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
-
--- Members can read their own org
-CREATE POLICY "org_select" ON organizations
-  FOR SELECT
-  USING (
-    id IN (
-      SELECT organization_id FROM organization_members
-      WHERE user_id = auth.uid()
-    )
-  );
-
--- -------------------------------------------------------
--- ORGANIZATION MEMBERS
+-- TYPES
 -- -------------------------------------------------------
 CREATE TYPE member_role AS ENUM ('admin', 'member');
+
+-- -------------------------------------------------------
+-- TABLES (created first, policies added after all tables exist)
+-- -------------------------------------------------------
+
+CREATE TABLE organizations (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name       TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  deleted_at TIMESTAMPTZ
+);
 
 CREATE TABLE organization_members (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -43,31 +32,6 @@ CREATE TABLE organization_members (
   UNIQUE (organization_id, user_id)
 );
 
-ALTER TABLE organization_members ENABLE ROW LEVEL SECURITY;
-
--- Members can read membership rows for their own org
-CREATE POLICY "org_members_select" ON organization_members
-  FOR SELECT
-  USING (
-    organization_id IN (
-      SELECT organization_id FROM organization_members
-      WHERE user_id = auth.uid()
-    )
-  );
-
--- Admins can insert new members into their org
-CREATE POLICY "org_members_insert_admin" ON organization_members
-  FOR INSERT
-  WITH CHECK (
-    organization_id IN (
-      SELECT organization_id FROM organization_members
-      WHERE user_id = auth.uid() AND role = 'admin'
-    )
-  );
-
--- -------------------------------------------------------
--- PROJECTS
--- -------------------------------------------------------
 CREATE TABLE projects (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -79,8 +43,121 @@ CREATE TABLE projects (
   deleted_at      TIMESTAMPTZ
 );
 
-ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+CREATE TABLE brand_context (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL UNIQUE REFERENCES organizations(id) ON DELETE CASCADE,
+  company_name    TEXT NOT NULL,
+  mission         TEXT NOT NULL,
+  vision          TEXT NOT NULL,
+  north_star      TEXT NOT NULL,
+  voice           TEXT NOT NULL,
+  tone            TEXT NOT NULL,
+  pillars         TEXT NOT NULL,
+  target_audience TEXT NOT NULL,
+  values          TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
+CREATE TABLE content_type_templates (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug        TEXT NOT NULL UNIQUE,
+  name        TEXT NOT NULL,
+  description TEXT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE content_types (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  template_id     UUID NOT NULL REFERENCES content_type_templates(id),
+  name            TEXT NOT NULL,
+  custom_rules    TEXT NOT NULL,
+  is_active       BOOLEAN NOT NULL DEFAULT true,
+  created_by      UUID NOT NULL REFERENCES auth.users(id),
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  deleted_at      TIMESTAMPTZ
+);
+
+CREATE TABLE outputs (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  project_id      UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  content_type_id UUID NOT NULL REFERENCES content_types(id),
+  brief           TEXT NOT NULL,
+  content         TEXT NOT NULL,
+  created_by      UUID NOT NULL REFERENCES auth.users(id),
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  deleted_at      TIMESTAMPTZ
+);
+
+CREATE TABLE project_items (
+  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  item_id    UUID NOT NULL,
+  item_type  TEXT NOT NULL CHECK (item_type IN ('output')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (project_id, item_id, item_type)
+);
+
+-- -------------------------------------------------------
+-- INDEXES
+-- -------------------------------------------------------
+CREATE INDEX idx_projects_organization_id ON projects(organization_id);
+CREATE INDEX idx_projects_updated_at ON projects(updated_at DESC);
+CREATE INDEX idx_content_types_organization_id ON content_types(organization_id);
+CREATE INDEX idx_outputs_project_id ON outputs(project_id);
+CREATE INDEX idx_outputs_organization_id ON outputs(organization_id);
+CREATE INDEX idx_outputs_created_at ON outputs(created_at DESC);
+
+-- -------------------------------------------------------
+-- ENABLE RLS (all tables)
+-- -------------------------------------------------------
+ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE organization_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE brand_context ENABLE ROW LEVEL SECURITY;
+ALTER TABLE content_type_templates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE content_types ENABLE ROW LEVEL SECURITY;
+ALTER TABLE outputs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE project_items ENABLE ROW LEVEL SECURITY;
+
+-- -------------------------------------------------------
+-- RLS POLICIES
+-- (all tables exist at this point)
+-- -------------------------------------------------------
+
+-- organizations
+CREATE POLICY "org_select" ON organizations
+  FOR SELECT
+  USING (
+    id IN (
+      SELECT organization_id FROM organization_members
+      WHERE user_id = auth.uid()
+    )
+  );
+
+-- organization_members
+CREATE POLICY "org_members_select" ON organization_members
+  FOR SELECT
+  USING (
+    organization_id IN (
+      SELECT organization_id FROM organization_members
+      WHERE user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "org_members_insert_admin" ON organization_members
+  FOR INSERT
+  WITH CHECK (
+    organization_id IN (
+      SELECT organization_id FROM organization_members
+      WHERE user_id = auth.uid() AND role = 'admin'
+    )
+  );
+
+-- projects
 CREATE POLICY "projects_select" ON projects
   FOR SELECT
   USING (
@@ -118,32 +195,7 @@ CREATE POLICY "projects_delete_admin" ON projects
     )
   );
 
-CREATE INDEX idx_projects_organization_id ON projects(organization_id);
-CREATE INDEX idx_projects_updated_at ON projects(updated_at DESC);
-
--- -------------------------------------------------------
--- BRAND CONTEXT
--- One row per organization. Upserted, never duplicated.
--- -------------------------------------------------------
-CREATE TABLE brand_context (
-  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id  UUID NOT NULL UNIQUE REFERENCES organizations(id) ON DELETE CASCADE,
-  company_name     TEXT NOT NULL,
-  mission          TEXT NOT NULL,
-  vision           TEXT NOT NULL,
-  north_star       TEXT NOT NULL,
-  voice            TEXT NOT NULL,
-  tone             TEXT NOT NULL,
-  pillars          TEXT NOT NULL,
-  target_audience  TEXT NOT NULL,
-  values           TEXT,
-  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-ALTER TABLE brand_context ENABLE ROW LEVEL SECURITY;
-
--- All members can read brand context
+-- brand_context
 CREATE POLICY "brand_context_select" ON brand_context
   FOR SELECT
   USING (
@@ -153,7 +205,6 @@ CREATE POLICY "brand_context_select" ON brand_context
     )
   );
 
--- Only admins can insert or update brand context
 CREATE POLICY "brand_context_insert_admin" ON brand_context
   FOR INSERT
   WITH CHECK (
@@ -172,51 +223,12 @@ CREATE POLICY "brand_context_update_admin" ON brand_context
     )
   );
 
--- -------------------------------------------------------
--- CONTENT TYPE TEMPLATES
--- System-level base templates. Read-only for all users.
--- -------------------------------------------------------
-CREATE TABLE content_type_templates (
-  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  slug         TEXT NOT NULL UNIQUE,
-  name         TEXT NOT NULL,
-  description  TEXT NOT NULL,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-ALTER TABLE content_type_templates ENABLE ROW LEVEL SECURITY;
-
--- All authenticated users can read templates
+-- content_type_templates (read-only for all authenticated users)
 CREATE POLICY "templates_select" ON content_type_templates
   FOR SELECT
   USING (auth.uid() IS NOT NULL);
 
--- Seed the three base templates
-INSERT INTO content_type_templates (slug, name, description) VALUES
-  ('social-post',  'Social Post',  'Short-form, single message, hook-driven'),
-  ('video-script', 'Video Script', 'Cold open, sections, spoken-word CTA'),
-  ('long-form',    'Long Form',    'Headline, intro, body sections, conclusion');
-
--- -------------------------------------------------------
--- CONTENT TYPES
--- Admin-created types based on base templates.
--- -------------------------------------------------------
-CREATE TABLE content_types (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  template_id     UUID NOT NULL REFERENCES content_type_templates(id),
-  name            TEXT NOT NULL,
-  custom_rules    TEXT NOT NULL,
-  is_active       BOOLEAN NOT NULL DEFAULT true,
-  created_by      UUID NOT NULL REFERENCES auth.users(id),
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  deleted_at      TIMESTAMPTZ
-);
-
-ALTER TABLE content_types ENABLE ROW LEVEL SECURITY;
-
--- All members can read active content types for their org
+-- content_types
 CREATE POLICY "content_types_select" ON content_types
   FOR SELECT
   USING (
@@ -227,7 +239,6 @@ CREATE POLICY "content_types_select" ON content_types
     AND deleted_at IS NULL
   );
 
--- Only admins can create, update, or delete content types
 CREATE POLICY "content_types_insert_admin" ON content_types
   FOR INSERT
   WITH CHECK (
@@ -255,29 +266,7 @@ CREATE POLICY "content_types_delete_admin" ON content_types
     )
   );
 
-CREATE INDEX idx_content_types_organization_id ON content_types(organization_id);
-
--- -------------------------------------------------------
--- OUTPUTS
--- All AI-generated content. Always linked to a project
--- and the content type used to generate it.
--- -------------------------------------------------------
-CREATE TABLE outputs (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  project_id      UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  content_type_id UUID NOT NULL REFERENCES content_types(id),
-  brief           TEXT NOT NULL,
-  content         TEXT NOT NULL,
-  created_by      UUID NOT NULL REFERENCES auth.users(id),
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  deleted_at      TIMESTAMPTZ
-);
-
-ALTER TABLE outputs ENABLE ROW LEVEL SECURITY;
-
--- All members can read outputs for their org
+-- outputs
 CREATE POLICY "outputs_select" ON outputs
   FOR SELECT
   USING (
@@ -288,7 +277,6 @@ CREATE POLICY "outputs_select" ON outputs
     AND deleted_at IS NULL
   );
 
--- All members can insert outputs
 CREATE POLICY "outputs_insert" ON outputs
   FOR INSERT
   WITH CHECK (
@@ -298,7 +286,6 @@ CREATE POLICY "outputs_insert" ON outputs
     )
   );
 
--- All members can update outputs (edit generated content)
 CREATE POLICY "outputs_update" ON outputs
   FOR UPDATE
   USING (
@@ -308,7 +295,6 @@ CREATE POLICY "outputs_update" ON outputs
     )
   );
 
--- All members can soft-delete outputs
 CREATE POLICY "outputs_delete" ON outputs
   FOR DELETE
   USING (
@@ -318,25 +304,7 @@ CREATE POLICY "outputs_delete" ON outputs
     )
   );
 
-CREATE INDEX idx_outputs_project_id ON outputs(project_id);
-CREATE INDEX idx_outputs_organization_id ON outputs(organization_id);
-CREATE INDEX idx_outputs_created_at ON outputs(created_at DESC);
-
--- -------------------------------------------------------
--- PROJECT ITEMS (many-to-many)
--- Links any item to one or more projects.
--- Supports future item types beyond outputs.
--- -------------------------------------------------------
-CREATE TABLE project_items (
-  project_id  UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  item_id     UUID NOT NULL,
-  item_type   TEXT NOT NULL CHECK (item_type IN ('output')),
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  PRIMARY KEY (project_id, item_id, item_type)
-);
-
-ALTER TABLE project_items ENABLE ROW LEVEL SECURITY;
-
+-- project_items
 CREATE POLICY "project_items_select" ON project_items
   FOR SELECT
   USING (
@@ -368,7 +336,7 @@ CREATE POLICY "project_items_delete" ON project_items
   );
 
 -- -------------------------------------------------------
--- UPDATED_AT triggers
+-- UPDATED_AT TRIGGERS
 -- -------------------------------------------------------
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
@@ -397,3 +365,11 @@ CREATE TRIGGER content_types_updated_at
 CREATE TRIGGER outputs_updated_at
   BEFORE UPDATE ON outputs
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- -------------------------------------------------------
+-- SEED: base content type templates
+-- -------------------------------------------------------
+INSERT INTO content_type_templates (slug, name, description) VALUES
+  ('social-post',  'Social Post',  'Short-form, single message, hook-driven'),
+  ('video-script', 'Video Script', 'Cold open, sections, spoken-word CTA'),
+  ('long-form',    'Long Form',    'Headline, intro, body sections, conclusion');

@@ -21,7 +21,8 @@ export async function GET(request: NextRequest) {
         )
       }
 
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      // New invited user — send to welcome to set their name before dashboard
+      return NextResponse.redirect(new URL('/welcome', request.url))
     }
 
     if (!error) {

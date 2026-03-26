@@ -21,6 +21,9 @@ export default async function DashboardLayout({
 
   if (!org) redirect('/setup')
 
+  // New members who haven't completed their profile yet
+  if (!profile?.full_name?.trim()) redirect('/welcome')
+
   const displayName = profile?.full_name?.trim().split(' ')[0]
     || user.email?.split('@')[0]
     || ''

@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 
 export async function getOrganizationForUser(userId: string) {
   const supabase = await createClient()
@@ -28,8 +29,10 @@ export async function getOrganizationForUser(userId: string) {
   }
 }
 
+// Uses service role to bypass RLS — valid because this is a trusted first-time
+// setup operation where the user has no org yet and cannot pass RLS checks.
 export async function createOrganization(name: string, userId: string) {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   const { data: org, error: orgError } = await supabase
     .from('organizations')

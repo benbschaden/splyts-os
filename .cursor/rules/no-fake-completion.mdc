@@ -1,0 +1,31 @@
+---
+description: Never fake completion — all code must be fully implemented
+alwaysApply: true
+---
+
+# No Fake Completion
+
+## Never claim something is done if it is not fully functional.
+
+If a function, endpoint, or feature is requested:
+- It must be fully implemented
+- No placeholder logic
+- No silent stubs
+- No unimplemented branches
+- No `// TODO: implement` in production paths
+- No `throw new Error("not implemented")`
+
+## Before finishing any task:
+- Ensure all referenced functions exist
+- Ensure all branches return meaningful values
+- Remove placeholder comments from execution paths
+- Verify error handling is real, not empty catch blocks
+
+## If something cannot be fully implemented:
+- Stop
+- Explain exactly what is missing and why
+- Ask for clarification before continuing
+
+## Allowed exceptions:
+- Scaffold-only tasks explicitly requested by the user
+- Future work sections clearly outside production code paths

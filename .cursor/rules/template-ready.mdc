@@ -1,0 +1,55 @@
+---
+description: Code must be identity-agnostic — all company identity lives in the database
+alwaysApply: true
+---
+
+# Template-Ready Code
+
+## The principle
+This is a generic company OS product. All identity — company names, brand content, team names, preferences — lives in the database, never in the code.
+
+## Identity is DATA, not code
+
+```typescript
+// ❌ BAD — identity hardcoded
+const APP_TITLE = 'Acme Operations'
+const BRAND_VOICE = 'We are a training intelligence company...'
+
+// ✅ GOOD — identity from database
+const { data: org } = await supabase
+  .from('organizations')
+  .select('name')
+  .eq('id', organizationId)
+  .single()
+```
+
+## Code uses generic terms
+In application code (components, routes, lib), use:
+- `organization`, `team`, `company` — never a specific company name
+- `user`, `member`, `admin` — never a specific person's name
+- `brand`, `context` — never company-specific brand references
+
+Exceptions: README, docs, and `.cursor/rules/` may reference specific names for context.
+
+## No identity-specific conditional logic
+
+```typescript
+// ❌ NEVER
+if (org.name === 'Acme') { showSpecialFeature() }
+if (user.email === 'jane@acme.com') { showAdminPanel() }
+
+// ✅ GOOD — behavior driven by database config and roles
+if (org.features?.includes('advanced_generation')) { showSpecialFeature() }
+if (membership.role === 'admin') { showAdminPanel() }
+```
+
+## The template test
+Before any major feature, ask: "If a different company deployed this with a fresh Supabase and signed up their team, would everything work for them?"
+
+Deploying a new instance requires:
+1. New Supabase project
+2. New Vercel deployment
+3. Update `.env` with new credentials
+4. Sign up through the UI
+
+Zero code changes. If code changes are needed, something identity-specific leaked in.

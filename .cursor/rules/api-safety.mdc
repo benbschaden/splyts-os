@@ -1,0 +1,40 @@
+---
+description: API safety — error sanitization, request validation, auth enforcement
+globs: app/api/**/*.ts
+alwaysApply: false
+---
+
+# API Safety Rules
+
+## Error sanitization
+Never return raw Supabase or Postgres errors to the client. They leak table names, column names, RLS policy names, and constraint names.
+
+```typescript
+// ❌ BAD — leaks internals
+return Response.json({ error: error.message }, { status: 500 })
+
+// ✅ GOOD — safe generic message, full error logged server-side
+console.error('[generate] Supabase error:', error)
+return Response.json({ error: 'Failed to save output' }, { status: 500 })
+```
+
+## Request validation
+Validate body types and required fields at the top of every route. Return 400 with a clear message if invalid.
+
+```typescript
+const { organizationId, brief, type } = await req.json()
+if (!organizationId || !brief || !type) {
+  return Response.json({ error: 'organizationId, brief, and type are required' }, { status: 400 })
+}
+```
+
+## Auth enforcement
+Every route that accesses user data must verify the session first. Never trust client-supplied user IDs.
+
+```typescript
+const { data: { user } } = await supabase.auth.getUser()
+if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+```
+
+## Never log secrets
+Never log API keys, tokens, session data, or Supabase service role keys — even in development.

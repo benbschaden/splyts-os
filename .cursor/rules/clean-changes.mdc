@@ -1,0 +1,54 @@
+---
+description: Read before writing, replace don't duplicate, clean up after every change
+alwaysApply: true
+---
+
+# Clean Changes
+
+## Read Before Writing
+Before modifying any file, read the entire file — not just the area around the change. Understand what exists before adding anything.
+
+Before creating a new function, search the codebase for existing functions that do something similar. If one exists, modify it — do not create a duplicate.
+
+```typescript
+// ❌ BAD — wrote generatePost() without checking, didn't notice createPost() already exists
+export function generatePost(brief: string) { ... }
+export function createPost(brief: string) { ... }  // orphaned, does 90% the same thing
+
+// ✅ GOOD — found createPost(), renamed and extended it
+export function generatePost(brief: string) { ... }  // old createPost removed
+```
+
+## Replace, Don't Stack
+When changing logic, remove what you're replacing. Never leave the old version:
+- Sitting below the new version
+- Commented out "just in case"
+- Renamed with a `_old` or `_backup` suffix
+- Still exported but no longer called
+
+If the old code is still needed somewhere, trace every call site and update them. If it's not needed, delete it.
+
+## After Every Change, Clean Up
+Before considering a task done, check the files you touched for:
+- Unused imports at the top of the file
+- Functions that are no longer called by anything
+- Variables that are assigned but never read
+- Types or interfaces that nothing references
+- Commented-out code blocks
+
+Remove all of them. Dead code is not "safe to keep around." It confuses future AI sessions, increases file size, and creates false leads when debugging.
+
+## One Version of Every Piece of Logic
+There must never be two functions, two components, or two code paths that do the same thing. If you find a duplicate while working:
+- Determine which version is correct
+- Delete the other
+- Update all call sites
+
+## When Fixing a Bug
+Before writing a fix:
+1. Read the entire file the bug is in
+2. Read the files that call into and out of it
+3. Understand the full flow, not just the broken line
+4. Write a fix that fits coherently into the existing structure
+
+Never patch a symptom without understanding the cause. A targeted fix in the right place is always better than a workaround bolted on top.

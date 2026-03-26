@@ -1,0 +1,29 @@
+---
+description: Summarize every change in plain English after completing it
+alwaysApply: true
+---
+
+# Explain What You Built
+
+## After every completed feature or fix, provide a plain-English summary:
+
+1. **What was built** — one sentence describing the feature or fix
+2. **Files created or changed** — list each file and what it does in one line
+3. **How it connects** — how the new code fits into the existing system
+4. **What to test** — the specific user action to verify it works
+
+## Example:
+
+> **Built:** Generate social post endpoint
+>
+> **Files:**
+> - `app/api/ai/generate/route.ts` — API route that takes a brief and returns generated content
+> - `lib/ai/prompts.ts` — added `generateSocialPost` prompt template
+> - `lib/ai/generate.ts` — added `callAnthropic` function
+>
+> **Connects to:** Called by the Generate button on the project page. Uses brand context from the database.
+>
+> **Test:** Go to a project, type a brief, click Generate, verify output appears.
+
+## Why this matters
+The project owner does not read code. This summary is the only way they understand what changed. Without it, the codebase becomes a black box.

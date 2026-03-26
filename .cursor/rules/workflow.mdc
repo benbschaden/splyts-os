@@ -1,0 +1,35 @@
+---
+description: Development workflow — Gherkin-first, one feature at a time
+alwaysApply: true
+---
+
+# Workflow
+
+## Gherkin First
+Every feature must have a Gherkin scenario written in `docs/features/` before any code is written.
+
+```gherkin
+Feature: [Feature name]
+  Scenario: [What the user does]
+    Given [starting state]
+    When [action taken]
+    Then [expected result]
+```
+
+If the user asks to build something without a Gherkin scenario, ask them to write one first.
+
+## One Feature at a Time
+- Build exactly what the current Gherkin scenario describes — nothing more
+- Do not add features, improvements, or "nice to haves" that aren't in the spec
+- When a feature is complete and tested against its Gherkin, commit before starting the next
+
+## Commits
+Use conventional commit format:
+```
+feat: add generate social post endpoint
+fix: brand context not saving on update
+chore: add supabase migration for outputs table
+```
+
+## Scope Discipline
+If a new idea comes up mid-feature, stop. Do not build it. Note it for later. Finish the current feature first.

@@ -1,0 +1,25 @@
+---
+description: When something breaks — diagnose first, revert if needed, never pile fixes
+alwaysApply: true
+---
+
+# Fix Before Adding
+
+## When something is broken:
+
+1. **Stop** — do not add more code on top of broken code
+2. **Diagnose** — identify the exact cause before proposing a fix
+3. **Explain** — describe what broke and why in plain English
+4. **Consider reverting** — if the last change caused the break, reverting may be faster and safer than patching
+5. **Fix the root cause** — not the symptom. If the fix is a workaround, say so.
+
+## Never:
+- Add try/catch around broken code to hide the error
+- Disable a feature to "fix" a bug
+- Say "this might fix it" — diagnose first, then be specific
+- Make multiple speculative changes at once hoping one works
+
+## If you cannot diagnose:
+- Say what you checked and what you ruled out
+- Suggest specific debugging steps (logs, breakpoints, test cases)
+- Ask for more information rather than guessing

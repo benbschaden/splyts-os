@@ -1,0 +1,49 @@
+---
+description: Testing discipline — required for API routes and business logic
+globs: app/api/**,lib/**
+alwaysApply: false
+---
+
+# Testing Discipline
+
+## MUST write tests when creating or modifying:
+- API route handlers (test request → response for happy path + error cases)
+- AI generation logic (test that prompts are assembled correctly)
+- Any pure function that transforms data
+- Auth and access control logic
+
+## SHOULD write tests when:
+- Adding new utility functions in `lib/`
+- Refactoring logic into smaller units
+
+## NOT required for:
+- React component layout and styling
+- Page files that only compose components
+- Config files
+
+## Test structure
+- Keep tests next to what they test: `lib/ai/generate.test.ts` alongside `lib/ai/generate.ts`
+- 3–5 test cases per function: happy path, edge case, error case
+- Prefer fast unit tests over integration tests
+- Use clear test names that describe the behavior, not the implementation
+
+```typescript
+// ✅ GOOD
+test('returns 401 when no session exists', async () => { ... })
+test('generates social post using brand voice', async () => { ... })
+
+// ❌ BAD
+test('test1', async () => { ... })
+test('should work', async () => { ... })
+```
+
+## Before finishing any feature that touches API or logic:
+Run `npm test` and confirm all tests pass. Never skip this step.
+
+## Never disable a failing test
+If a test fails:
+- Fix the code that broke it, or
+- Fix the test if the behavior intentionally changed, or
+- Delete both the test and the feature it covers
+
+Never comment out a test. Never add `.skip`. Never wrap a failing assertion in a try/catch to silence it. A disabled test is worse than no test — it gives false confidence that something is covered when it isn't.

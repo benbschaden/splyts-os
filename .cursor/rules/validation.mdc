@@ -1,0 +1,80 @@
+---
+description: Runtime validation with Zod at every boundary — API input, external responses, critical DB results
+globs: app/api/**,lib/**
+alwaysApply: false
+---
+
+# Runtime Validation
+
+## Why
+TypeScript types disappear at runtime. A request body typed as `{ organizationId: string }` can actually be `{ organizationId: undefined }` or `{ organizationId: 42 }`. Without runtime validation, these pass silently and cause bugs deep in the call stack.
+
+## Zod at Every API Input
+Every API route must validate its request body with a Zod schema before using any value.
+
+```typescript
+import { z } from 'zod'
+
+const GenerateInput = z.object({
+  organizationId: z.string().uuid(),
+  brief: z.string().min(1).max(5000),
+  type: z.enum(['social', 'script', 'email']),
+})
+
+export async function POST(req: Request) {
+  const parsed = GenerateInput.safeParse(await req.json())
+  if (!parsed.success) {
+    return Response.json({ error: 'Invalid input', details: parsed.error.flatten().fieldErrors }, { status: 400 })
+  }
+  const { organizationId, brief, type } = parsed.data
+  // organizationId is guaranteed to be a valid UUID string here
+}
+```
+
+## Never trust `req.json()` directly
+```typescript
+// ❌ BAD — no validation, any shape passes
+const { organizationId, brief } = await req.json()
+
+// ✅ GOOD — validated, typed, safe
+const parsed = InputSchema.safeParse(await req.json())
+```
+
+## Schema location
+- Schemas used by a single route: define at the top of the route file
+- Schemas shared across routes: define in `lib/schemas/<domain>.ts`
+- Never scatter the same schema definition across multiple files
+
+## Validate external API responses
+When calling Anthropic or any external service, validate the response shape before using it:
+
+```typescript
+const AiResponse = z.object({
+  content: z.array(z.object({
+    text: z.string(),
+  })).min(1),
+})
+
+const raw = await anthropic.messages.create({ ... })
+const parsed = AiResponse.safeParse(raw)
+if (!parsed.success) {
+  console.error('[generate] Unexpected AI response shape:', raw)
+  return Response.json({ error: 'Generation failed' }, { status: 502 })
+}
+```
+
+## Validate critical database results
+For queries where a missing or malformed result would break logic, validate:
+
+```typescript
+const OrgResult = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  brand_context: z.object({ voice: z.string() }).nullable(),
+})
+
+const { data } = await supabase.from('organizations').select('id, name, brand_context').eq('id', orgId).single()
+const org = OrgResult.safeParse(data)
+```
+
+Not every query needs this — use it for results that feed into AI prompts, auth decisions, or multi-step logic where a bad shape would cascade.

@@ -1,0 +1,61 @@
+---
+description: Strict data isolation between organizations — zero leakage
+alwaysApply: true
+---
+
+# Data Isolation (Zero Tolerance)
+
+## The principle
+Every organization's data is completely invisible to every other organization. This is not a feature — it is a hard security requirement. There are no exceptions.
+
+## Organization isolation
+All content belongs to an organization. Users only see organizations they are members of. A user who is not in `organization_members` for an org cannot see any of its data.
+
+## Every table must have RLS
+Row Level Security is enabled on every table that holds company data. No exceptions, no "we'll add it later." RLS is added in the same migration that creates the table.
+
+```sql
+ALTER TABLE outputs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users see their own orgs only"
+  ON outputs FOR ALL
+  USING (
+    organization_id IN (
+      SELECT organization_id FROM organization_members
+      WHERE user_id = auth.uid()
+    )
+  );
+```
+
+## Every query must scope by organization
+RLS is the database-level wall. Application code adds a second wall — every query filters by `organization_id`. Never rely on RLS alone.
+
+## API routes must verify membership
+Every API route that reads or writes data must:
+1. Verify the session exists (`auth.getUser()`)
+2. Verify the authenticated user is a member of the requested organization
+3. Never trust client-supplied user IDs for authorization
+
+## Error messages must not leak
+Never return errors that reveal whether another organization exists. Return the same error for "not found" and "not yours."
+
+```typescript
+// ❌ BAD — reveals the resource exists
+return Response.json({ error: 'You do not have access to this organization' }, { status: 403 })
+
+// ✅ GOOD
+return Response.json({ error: 'Not found' }, { status: 404 })
+```
+
+## Service role key usage
+The Supabase service role key bypasses RLS. It must ONLY be used in:
+- Database migrations and admin scripts (never in the app)
+- Background jobs that explicitly need cross-org access (must be documented and approved)
+
+Never use the service role key in API routes that serve user requests.
+
+## External API isolation
+The external API (`app/api/external/`) authenticates by API key, not user session. Each API key is scoped to a specific organization. External endpoints must still filter by `organization_id` — the API key grants access to one org only, never all orgs.
+
+## Before shipping any feature:
+Ask: "If two different companies are both using this system, can either see, infer, or access anything about the other?" If the answer is anything other than a definitive no, the feature is not ready.

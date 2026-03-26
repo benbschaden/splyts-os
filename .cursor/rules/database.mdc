@@ -1,0 +1,87 @@
+---
+description: Supabase and database rules — always org-scoped, migrations only
+globs: **/*.ts,**/*.tsx
+alwaysApply: false
+---
+
+# Database Rules
+
+## Always Scope by Organization
+Every query against content tables must filter by `organization_id`. No exceptions.
+
+```typescript
+// ❌ BAD — leaks data across orgs
+const { data } = await supabase.from('outputs').select('*')
+
+// ✅ GOOD — org-scoped, specific columns
+const { data } = await supabase
+  .from('outputs')
+  .select('id, title, content, type, created_at')
+  .eq('organization_id', organizationId)
+```
+
+## Supabase Clients
+- Browser client: `lib/supabase/client.ts` — use in Client Components
+- Server client: `lib/supabase/server.ts` — use in API routes and Server Components
+- Never create a Supabase client anywhere else
+
+## This Supabase Is Company-Only
+This database contains only company data. Personal user data does not belong here — that lives in a separate system (hub-os) with its own database. Never add tables or features for personal/private user content.
+
+## Schema Changes
+- All schema changes go in `supabase/migrations/` as SQL files
+- Never modify the schema through the Supabase dashboard UI
+- After every migration, regenerate types: `supabase gen types typescript --local > lib/types/database.ts`
+
+### Migration file format
+- Filename: `YYYYMMDD_description_in_snake_case.sql` (e.g. `20260323_initial_schema.sql`)
+- Use today's date. Never backdate or reuse a migration filename.
+- One logical change per migration. Do not combine unrelated schema changes.
+- Migrations must be reversible when practical — avoid destructive changes without a backfill plan.
+
+## No Schema Redesigns Without Approval
+Do not propose or implement schema redesigns by default:
+- No large normalization/denormalization projects
+- No moving or renaming columns/tables without explicit approval
+- No breaking changes without a migration plan and risk assessment
+
+If performance issues arise: recommend indexes and query fixes first. Schema changes are a last resort.
+
+### New columns and indexes
+For any new column used in queries or filters, consider whether an index is needed before shipping.
+
+## RLS
+Row Level Security is enforced at the database level. Queries must also scope by `organization_id` as a second layer — never rely on RLS alone. RLS must be added in the same migration that creates any table — never deferred.
+
+## Soft Deletes
+Use `deleted_at TIMESTAMPTZ` for deletion. Never hard-delete content rows. Always filter `WHERE deleted_at IS NULL` in queries.
+
+## Performance
+
+### Never `select('*')`
+Always list the columns you need. `select('*')` fetches every column — including large text fields and future columns you don't need. It's slower, uses more memory, and risks sending sensitive fields to the client.
+
+```typescript
+// ❌ BAD
+.select('*')
+
+// ✅ GOOD
+.select('id, title, content, type, created_at')
+```
+
+### Always paginate lists
+Any query that returns multiple rows must accept `limit` and `offset` (or range). Default to 50 rows. Never return unbounded result sets.
+
+```typescript
+// ❌ BAD — returns every row
+.select('id, title')
+.eq('organization_id', orgId)
+
+// ✅ GOOD — bounded
+.select('id, title', { count: 'exact' })
+.eq('organization_id', orgId)
+.range(offset, offset + limit - 1)
+```
+
+### Avoid N+1 queries
+If you need related data, use Supabase joins or fetch it in a single query — never loop over results and query inside the loop.

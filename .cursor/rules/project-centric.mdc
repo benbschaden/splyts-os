@@ -1,0 +1,74 @@
+---
+description: Everything attaches to projects — no folders, no file trees, metadata and views instead
+alwaysApply: true
+---
+
+# Project-Centric Architecture
+
+## The principle
+Projects are the primary object. Everything — documents, outputs, emails, tasks, discussions — attaches to projects. There are no folders.
+
+## Projects, not folders
+
+```sql
+-- ❌ NEVER — folder hierarchy
+CREATE TABLE folders (
+  id UUID PRIMARY KEY,
+  parent_id UUID REFERENCES folders(id),
+  name TEXT
+);
+
+-- ❌ NEVER — file-in-folder
+CREATE TABLE documents (
+  id UUID PRIMARY KEY,
+  folder_id UUID REFERENCES folders(id)
+);
+
+-- ✅ CORRECT — content links to projects via join table
+CREATE TABLE project_items (
+  project_id UUID REFERENCES projects(id),
+  item_id UUID,
+  item_type TEXT,  -- 'output', 'document', 'email', 'task', 'discussion'
+  PRIMARY KEY (project_id, item_id, item_type)
+);
+```
+
+## Multi-project linking
+A single item can belong to multiple projects. A brief that's relevant to both "Onboarding" and "Content Strategy" links to both — no duplication, no "which folder does it go in?" problem.
+
+## Metadata replaces folders
+Instead of organizing by location, organize by attributes:
+
+```typescript
+// Every content type has these fields
+type ContentMetadata = {
+  type: string        // 'brief', 'report', 'social-post', 'script', 'research'
+  status: string      // 'draft', 'review', 'published', 'archived'
+  tags: string[]      // freeform tags for cross-cutting concerns
+  created_at: string
+  updated_at: string
+}
+```
+
+## Views replace navigation
+Users never ask "where is this file stored?" They ask:
+- Show me everything for Project X
+- Show me all briefs
+- Show me all content published this week
+- Show me recent outputs tagged "social"
+- Search for "onboarding metrics"
+
+Build views and filters, not folder trees.
+
+## The unassigned bucket
+Not everything starts linked to a project. Raw uploads, quick captures, and incoming emails start in an "unassigned" state. The user (or AI) links them to projects during review. Unassigned items are first-class — visible, searchable, and surfaced for processing.
+
+## Search is primary retrieval
+Search must work across all content types from day one. When a user searches "brand voice," they should find: the brand context document, outputs that mention it, emails discussing it, and any related notes. Search is not an afterthought — it's the primary way people find things.
+
+## Hard rules for the data model
+- No `folder_id`, `path`, or `parent_id` columns that create a folder hierarchy
+- No `directory` or `location` concepts in the schema
+- All content links to projects via a many-to-many join table
+- All content has `type`, `status`, and `tags` metadata
+- The UI never renders a folder tree — only project views, type filters, and search

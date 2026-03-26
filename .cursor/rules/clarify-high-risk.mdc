@@ -1,0 +1,29 @@
+---
+description: Clarify before high-risk changes; use safe defaults otherwise
+alwaysApply: true
+---
+
+# Clarify Before High-Risk Changes
+
+## Default behavior
+- Prefer progress over paralysis
+- Use safe, conservative defaults when details are missing
+- State any assumptions explicitly at the top of the response
+
+## MUST ask before proceeding when:
+- Auth or access control is affected
+- Database migrations could cause data loss or lockouts
+- API keys or secrets are touched
+- A refactor would move or rename many files
+- Changes could break login or onboarding flows
+- RLS policies are being added, changed, or removed
+
+## SHOULD ask (or present options) when:
+- UX flows or copy are unclear
+- There are competing architecture approaches
+- Requirements are ambiguous enough to change behavior
+
+## If clarification is not possible:
+- Provide a best-guess implementation
+- Clearly label all assumptions
+- Provide a short checklist to validate before using in production

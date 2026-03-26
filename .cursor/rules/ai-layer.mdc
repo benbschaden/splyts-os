@@ -1,0 +1,32 @@
+---
+description: AI layer rules — prompts file, server-only, brand context always injected
+globs: **/ai/**,**/api/**
+alwaysApply: false
+---
+
+# AI Layer Rules
+
+## Prompts Live in One Place
+All prompt strings must be defined in `lib/ai/prompts.ts` (or `lib/ai/prompts/` as a folder with one file per prompt type once the single file exceeds 300 lines). Never write prompt strings inline in API routes or components.
+
+```typescript
+// ❌ BAD — prompt hardcoded in route
+const response = await anthropic.messages.create({
+  messages: [{ role: 'user', content: `Write a LinkedIn post about ${topic}` }]
+})
+
+// ✅ GOOD — prompt from prompts.ts
+import { prompts } from '@/lib/ai/prompts'
+const response = await anthropic.messages.create({
+  messages: [{ role: 'user', content: prompts.generateSocialPost(brandContext, platform, brief) }]
+})
+```
+
+## Server Only
+AI calls happen in API routes only (`app/api/`). Never call Anthropic or OpenAI from a Client Component. API keys must never be exposed to the browser.
+
+## Brand Context Always Injected
+Every generation prompt must include `brand_context` from the database. Never generate content without it.
+
+## Model is a Variable
+The model name (`claude-3-5-haiku-...`, `claude-sonnet-...`) is a constant in `lib/ai/generate.ts`, not scattered across files. Changing the model means changing one line.

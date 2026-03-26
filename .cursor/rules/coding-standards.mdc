@@ -1,0 +1,74 @@
+---
+description: TypeScript and code quality standards
+globs: **/*.ts,**/*.tsx
+alwaysApply: false
+---
+
+# Coding Standards
+
+## TypeScript
+- Strict mode always — never use `any`
+- Prefer explicit return types on functions
+- Use `type` for object shapes, `interface` only when extension is needed
+
+```typescript
+// ❌ BAD
+const process = (data: any) => data.value
+
+// ✅ GOOD
+const process = (data: BrandContext): string => data.voice
+```
+
+## Naming — Format
+- Files: `kebab-case.ts`
+- Components: `PascalCase`
+- Functions and variables: `camelCase`
+- Constants: `UPPER_SNAKE_CASE`
+- Database columns: `snake_case`
+
+## Naming — Precision
+Names must communicate intent. The codebase is read by AI in future sessions — vague names lead to vague suggestions.
+
+```typescript
+// ❌ BAD — generic, says nothing about intent
+const data = await getData()
+const result = process(data)
+const flag = check(user)
+
+// ✅ GOOD — reads like prose
+const brandContext = await fetchBrandContext(organizationId)
+const generatedPost = assembleAndGenerate(brandContext, brief)
+const hasOrgAccess = await verifyMembership(userId, organizationId)
+```
+
+**Functions** say what they do: `fetchBrandContext`, `createOutput`, `verifyMembership` — not `get`, `do`, `handle`.
+
+**Booleans** read as yes/no questions: `isLoading`, `hasAccess`, `canGenerate` — not `loading`, `access`, `generate`.
+
+**Event handlers** name the trigger: `onSubmitBrief`, `handleGenerateClick` — not `doThing`, `go`.
+
+**Collections** are plural, items are singular: `outputs` (array), `output` (single item) — not `data`, `item`, `result`.
+
+## File Size
+- TypeScript files: stay under 300 lines
+- Soft ceiling: 400 lines — if exceeded, propose a split before adding more
+- Hard ceiling: never allow a file to exceed 600 lines without explicit approval
+- One clear responsibility per file — UI, logic, and data fetching never mixed in one file
+
+### Feature-based splitting
+When a file grows, split by responsibility into a feature folder:
+```
+generate/
+  GenerateForm.tsx       ← UI only
+  useGenerate.ts         ← logic/state hook
+  generate-actions.ts    ← server actions or fetch calls
+```
+
+### Before adding to an existing file
+Check the line count. If over 300 lines, extract first — don't append.
+
+## Error and Loading States
+Every data-fetching component must handle three states: loading, error, and success. Never render data without handling the other two.
+
+## Comments
+Only comment non-obvious intent. Never comment what the code already says.

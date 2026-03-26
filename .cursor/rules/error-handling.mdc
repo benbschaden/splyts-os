@@ -1,0 +1,69 @@
+---
+description: Structured error types — define once, handle the same way everywhere
+globs: app/api/**,lib/**
+alwaysApply: false
+---
+
+# Error Handling
+
+## Define application errors in one place
+
+```typescript
+// lib/errors.ts
+export class AppError extends Error {
+  constructor(
+    message: string,
+    public code: 'NOT_FOUND' | 'UNAUTHORIZED' | 'FORBIDDEN' | 'VALIDATION' | 'INTERNAL',
+    public status: number
+  ) {
+    super(message)
+    this.name = 'AppError'
+  }
+}
+```
+
+Use these in lib functions and query functions:
+
+```typescript
+// lib/queries/organizations.ts
+const { data, error } = await supabase.from('organizations')...
+if (error || !data) throw new AppError('Organization not found', 'NOT_FOUND', 404)
+```
+
+## Handle errors the same way in every route
+
+```typescript
+// Every route handler follows this pattern
+export async function POST(req: Request) {
+  try {
+    // validate, auth, business logic...
+    return Response.json({ data: result })
+  } catch (error) {
+    if (error instanceof AppError) {
+      return Response.json({ error: error.message }, { status: error.status })
+    }
+    console.error('[route-name] Unexpected error:', error)
+    return Response.json({ error: 'Internal error' }, { status: 500 })
+  }
+}
+```
+
+## Hard rules
+- Never throw raw strings: `throw 'not found'` — always use `AppError`
+- Never return different error shapes from different endpoints
+- Never swallow errors silently — either handle them or let them propagate
+- Always log unexpected errors (non-AppError) with the route name for tracing
+- Known errors (`AppError`) get their message returned to the client
+- Unknown errors always return `'Internal error'` — never expose the raw message
+
+## Error codes map to HTTP status
+| Code | Status | When |
+|------|--------|------|
+| `UNAUTHORIZED` | 401 | No session or invalid token |
+| `FORBIDDEN` | 403 | Authenticated but not allowed (use 404 instead if existence should be hidden) |
+| `NOT_FOUND` | 404 | Resource doesn't exist or user doesn't have access |
+| `VALIDATION` | 400 | Input failed Zod validation or business rule |
+| `INTERNAL` | 500 | Unexpected failures |
+
+## Prefer 404 over 403
+Per `data-isolation.mdc`, never reveal that a resource exists but belongs to someone else. Return 404 for both "doesn't exist" and "not yours."

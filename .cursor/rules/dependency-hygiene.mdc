@@ -1,0 +1,29 @@
+---
+description: Keep dependencies minimal, current, and audited
+alwaysApply: true
+---
+
+# Dependency Hygiene
+
+## Minimal dependencies
+Only add a package if it provides significant value that would take substantial effort to build. Prefer the platform (native browser APIs, Node built-ins) over libraries when reasonable.
+
+## No version pinning to old releases
+When adding a dependency, always install the latest stable version. Never copy a version number from memory or examples — use `npm install <package>` to get the current release.
+
+## Security
+If `npm audit` reports vulnerabilities, address them before shipping. Do not ignore audit warnings.
+
+## Monthly check (manual, not enforced by AI)
+Once a month, run:
+```bash
+npm outdated
+npm audit
+```
+Update packages that have minor/patch releases. For major version bumps, review the changelog before updating.
+
+## When updating dependencies:
+- Update one package at a time
+- Run tests after each update
+- Commit each update separately
+- Never batch multiple major version bumps into one commit

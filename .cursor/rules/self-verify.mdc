@@ -1,0 +1,26 @@
+---
+description: Verify your own work after every feature — build, test, report
+alwaysApply: true
+---
+
+# Self-Verification
+
+## After completing any feature or fix:
+
+1. **Run the build** — `npm run build` must pass with zero errors
+2. **Run type check** — no TypeScript errors allowed
+3. **Test what you built** — if it's an API route, call it. If it's a page, confirm it renders.
+4. **Report what you verified** — state exactly what you checked and the result
+
+## If the build fails:
+- Fix it before claiming the task is done
+- Never say "this should work" — verify it does
+
+## If you cannot verify (e.g. needs real API keys):
+- Say exactly what you could not test
+- Provide the specific manual steps needed to verify
+
+## Never skip verification because:
+- "It's a small change" — small changes break things
+- "It's the same pattern as before" — patterns have edge cases
+- "I'll fix it in the next step" — next step may never come

@@ -1,0 +1,51 @@
+---
+description: Before building any feature, check the product roadmap and design for what's coming
+alwaysApply: true
+---
+
+# Future Awareness
+
+## The rule
+Before building any feature, read `docs/product-vision.md` and check whether the feature being built will need to connect to or support anything in a later phase.
+
+## What this means in practice
+
+### Before designing a data model
+Check: will this table need to relate to content types added in later phases?
+
+Example: Building the `outputs` table in V1. The roadmap says Phase 2 adds documents and Phase 5 adds tasks. All three are project-linked content. So:
+- Use a consistent structure across content tables (project link, type, status, tags, metadata)
+- Use a many-to-many join table for project linking (not a single `project_id` column) — because Phase 2 documents need multi-project linking
+- Don't build the documents or tasks tables yet — just make sure `outputs` doesn't use a pattern that would conflict
+
+### Before designing an API endpoint
+Check: will other features need similar endpoints?
+
+Example: Building `GET /api/outputs`. The roadmap says documents and discussions are coming. So:
+- Use a consistent response shape now that works for any content type later
+- Use consistent pagination, filtering, and search patterns
+- Don't build `/api/documents` — just don't make `/api/outputs` a one-off pattern
+
+### Before designing UI
+Check: will this screen need to accommodate more content types?
+
+Example: Building the project detail page for V1. The roadmap says documents, tasks, and discussions will attach to projects later. So:
+- Design the project page with a tabbed or sectioned layout that can hold more sections
+- Don't hardcode "Outputs" as the only content area — use a pattern that extends
+- Don't build the other tabs yet
+
+## What this rule does NOT do
+- It does not build future features early
+- It does not add unused columns, tables, or code "just in case"
+- It does not slow down the current feature
+- It does not add complexity to V1
+
+## What it does
+- It prevents painting yourself into a corner
+- It leaves the right seams open for extension
+- It makes Phase 2 a smooth addition, not a rewrite of Phase 1
+
+## After building, call it out
+In the change explanation (see `explain-changes.mdc`), include a section:
+
+> **Future-proofing:** [what decisions were made with later phases in mind, and which phase they support]

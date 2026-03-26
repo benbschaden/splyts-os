@@ -1,0 +1,85 @@
+---
+description: All database access through typed query functions — never raw queries in route handlers
+globs: app/api/**,lib/**
+alwaysApply: false
+---
+
+# Query Patterns
+
+## The rule
+Never write raw Supabase queries in API route handlers. All data access goes through typed query functions in `lib/queries/`.
+
+## Why
+Org-scoping, soft-delete filtering, and column selection must happen on every query. Putting them in reusable functions means they can't be forgotten. A route handler that calls `getOutputs()` gets correct scoping automatically.
+
+## Structure
+```
+lib/queries/
+  organizations.ts       ← org lookup, membership checks
+  outputs.ts             ← CRUD for generated outputs
+  brand-context.ts       ← brand context read/write
+```
+
+One file per domain. Each file exports typed async functions.
+
+## What a query function looks like
+
+```typescript
+// lib/queries/outputs.ts
+import { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/lib/types/database'
+
+type OutputRow = Database['public']['Tables']['outputs']['Row']
+
+export async function getOutputsByOrg(
+  supabase: SupabaseClient,
+  organizationId: string,
+  options?: { limit?: number; offset?: number }
+) {
+  const limit = options?.limit ?? 50
+  const offset = options?.offset ?? 0
+
+  return supabase
+    .from('outputs')
+    .select('id, title, content, type, created_at', { count: 'exact' })
+    .eq('organization_id', organizationId)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+}
+
+export async function createOutput(
+  supabase: SupabaseClient,
+  organizationId: string,
+  input: { title: string; content: string; type: string }
+) {
+  return supabase
+    .from('outputs')
+    .insert({ organization_id: organizationId, ...input })
+    .select('id, title, content, type, created_at')
+    .single()
+}
+```
+
+## What a route handler looks like
+
+```typescript
+// app/api/outputs/route.ts
+import { getOutputsByOrg } from '@/lib/queries/outputs'
+
+export async function GET(req: Request) {
+  // auth check, membership check...
+  const { data, count } = await getOutputsByOrg(supabase, organizationId, { limit, offset })
+  return Response.json({ data, count })
+}
+```
+
+Route handlers are thin: validate input, check auth, call a query function, return a response.
+
+## Hard rules
+- Never call `.from('table')` directly in a route handler — always go through `lib/queries/`
+- Every query function receives `supabase` as its first argument (for proper auth context)
+- Every query function scopes by `organization_id` — no exceptions
+- Every query function filters `deleted_at IS NULL` on soft-delete tables
+- Every query function selects specific columns — never `select('*')`
+- List functions always accept `limit` and `offset` with sensible defaults

@@ -1,0 +1,178 @@
+---
+description: Security hardening — headers, CORS, rate limiting, HTTPS, injection prevention, sessions
+alwaysApply: true
+---
+
+# Security
+
+## 1. Security Headers
+Set these headers on all responses. Configure in `next.config.js` or middleware.
+
+```typescript
+// middleware.ts or next.config.js headers
+{
+  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co",
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'X-XSS-Protection': '1; mode=block',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
+}
+```
+
+Never weaken CSP to allow `unsafe-eval` or wildcard origins. If a library requires it, find an alternative.
+
+## 2. CORS Policy
+API routes must only accept requests from your own domain. Never use `Access-Control-Allow-Origin: *` on authenticated endpoints.
+
+```typescript
+const allowedOrigins = [
+  process.env.NEXT_PUBLIC_APP_URL,
+]
+
+function corsHeaders(req: Request) {
+  const origin = req.headers.get('origin')
+  if (origin && allowedOrigins.includes(origin)) {
+    return {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key',
+    }
+  }
+  return {}
+}
+```
+
+External API routes (`app/api/external/`) may allow specific additional origins if needed, but never `*`.
+
+## 3. Rate Limiting
+Every API route must be rate-limited. Especially:
+- **AI generation endpoints** — prevent burning through Anthropic credits
+- **Auth-related endpoints** — prevent brute force
+- **External API endpoints** — prevent abuse from external consumers
+
+Use middleware-based rate limiting (e.g. `upstash/ratelimit` with Redis, or Vercel's built-in edge rate limiting).
+
+```typescript
+// Recommended limits
+// Auth routes: 10 requests per minute per IP
+// AI generation: 20 requests per minute per user
+// External API: 60 requests per minute per API key
+// General API: 100 requests per minute per user
+```
+
+Never ship an API route without rate limiting. An unprotected AI endpoint is a direct path to a massive bill.
+
+## 4. HTTPS Enforcement
+All communication must be over HTTPS. No exceptions.
+
+- Vercel enforces HTTPS on deployed apps automatically
+- External API calls from or to this system must verify the URL starts with `https://`
+- Never allow `http://` URLs in environment variables for production (except `localhost` for local dev)
+
+```typescript
+// ❌ BAD — allows HTTP in production
+const apiUrl = process.env.EXTERNAL_API_URL
+
+// ✅ GOOD — verify HTTPS
+const apiUrl = process.env.EXTERNAL_API_URL
+if (process.env.NODE_ENV === 'production' && !apiUrl?.startsWith('https://')) {
+  throw new Error('External API URL must use HTTPS in production')
+}
+```
+
+## 5. No Raw SQL
+Never construct SQL strings manually. Always use the Supabase client (which parameterizes queries) or Supabase RPC with typed parameters.
+
+```typescript
+// ❌ NEVER — SQL injection risk
+const { data } = await supabase.rpc('search', {
+  query: `SELECT * FROM outputs WHERE title LIKE '%${userInput}%'`
+})
+
+// ✅ GOOD — parameterized via Supabase client
+const { data } = await supabase
+  .from('outputs')
+  .select('id, title')
+  .ilike('title', `%${userInput}%`)
+
+// ✅ GOOD — if using RPC, pass parameters separately
+const { data } = await supabase.rpc('search_outputs', {
+  search_term: userInput
+})
+```
+
+If a database function (RPC) is needed, write it as a Postgres function in a migration with parameterized inputs — never pass raw SQL from application code.
+
+## 6. CSRF Protection
+Mutation routes (POST, PATCH, DELETE) must verify the request comes from your app, not a malicious third-party site.
+
+- Check the `Origin` header matches your domain
+- For sensitive actions (password change, role changes, data deletion), require re-authentication or a confirmation step
+
+```typescript
+function verifyCsrf(req: Request): boolean {
+  const origin = req.headers.get('origin')
+  return origin === process.env.NEXT_PUBLIC_APP_URL
+}
+```
+
+GET requests must never perform mutations — they are inherently vulnerable to CSRF via simple links and image tags.
+
+## 7. API Key Standards
+For the external API and any inter-service communication:
+
+- Keys must be cryptographically random, minimum 32 characters
+- Generate with: `openssl rand -base64 32`
+- Store only in `.env.local` and Vercel dashboard — never in code, never in git
+- Rotate keys every 90 days, or immediately if compromised
+- Use constant-time comparison to prevent timing attacks
+
+```typescript
+import { timingSafeEqual } from 'crypto'
+
+function verifyApiKey(provided: string, expected: string): boolean {
+  const a = Buffer.from(provided)
+  const b = Buffer.from(expected)
+  if (a.length !== b.length) return false
+  return timingSafeEqual(a, b)
+}
+```
+
+## 8. Session Management
+Rely on Supabase Auth for all session management. Never build custom session logic.
+
+- Never store session tokens in localStorage — use Supabase's cookie-based auth
+- Never create custom JWT signing or verification
+- Session duration is configured in Supabase dashboard — not in application code
+- On password change or account compromise, invalidate all sessions via Supabase admin API
+- Always call `supabase.auth.getUser()` (server-side verification) — never rely on `supabase.auth.getSession()` alone in API routes, as session tokens can be spoofed
+
+## 9. Dependency Vulnerability Scanning
+Beyond monthly manual audits (see `dependency-hygiene.mdc`):
+
+- Enable GitHub Dependabot or similar automated scanning on the repository
+- Never merge a PR that introduces a known critical or high severity vulnerability
+- Before every production deploy, run `npm audit --audit-level=high` — if it fails, fix before deploying
+- Pin exact versions in `package-lock.json` (committed to git) to prevent supply chain attacks from patched packages
+
+## 10. File Upload Security (Phase 2+)
+When document uploads are added:
+
+- Validate file types server-side — never trust the client-reported MIME type
+- Enforce file size limits (e.g. 50MB max per file)
+- Store files in Supabase Storage with private buckets — never serve user-uploaded files from your domain
+- Use signed URLs with expiration for downloads — never permanent public URLs
+- Never execute or render uploaded files server-side (no server-side PDF rendering from user files)
+- Scan for malware if budget allows (e.g. ClamAV or a cloud scanning service)
+
+```typescript
+// ❌ BAD — serves user file from your domain
+app.get('/files/:id', (req, res) => res.sendFile(filePath))
+
+// ✅ GOOD — signed URL from Supabase Storage
+const { data } = await supabase.storage
+  .from('documents')
+  .createSignedUrl(filePath, 3600) // expires in 1 hour
+```

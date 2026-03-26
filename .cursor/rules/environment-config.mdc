@@ -1,0 +1,41 @@
+---
+description: Environment variables and config — never hardcode, .env.local only
+globs: **/.env*,app/api/**,lib/**
+alwaysApply: false
+---
+
+# Environment and Config Rules
+
+## Never hardcode
+Never hardcode API URLs, Supabase URLs, API keys, or model names in route handlers or components.
+
+```typescript
+// ❌ BAD
+const supabase = createClient('https://xyz.supabase.co', 'eyJ...')
+
+// ✅ GOOD
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+```
+
+## Environment variable rules
+- Secrets live in `.env.local` (gitignored) or Vercel dashboard — never in source code
+- `.env.example` is the only env file committed to git — no real values, ever
+- `NEXT_PUBLIC_` prefix only for variables that must be readable in the browser
+- `SUPABASE_SERVICE_ROLE_KEY` is server-only — never use `NEXT_PUBLIC_` on it
+
+## AI model name
+The Anthropic model name is a constant in `lib/ai/generate.ts`. Never scatter it across files.
+
+```typescript
+// lib/ai/generate.ts
+const MODEL = 'claude-3-5-haiku-20241022'
+```
+
+## Adding new environment variables
+1. Add to `.env.local` locally
+2. Add to `.env.example` with an empty value and a comment
+3. Add to Vercel dashboard for production
+4. Never create new `.env` files beyond `.env.local` and `.env.example`

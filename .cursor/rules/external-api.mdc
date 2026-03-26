@@ -1,0 +1,75 @@
+---
+description: Read-only external API for trusted consumers — API key auth, specific endpoints only
+globs: app/api/external/**
+alwaysApply: false
+---
+
+# External API
+
+## What this is
+A set of read-only endpoints that trusted external systems (like hub-os) can call to fetch company data. This allows founders/owners to view company data in their personal dashboard without the company database being shared.
+
+## Authentication
+External API routes use an API key — not a user session. The key is stored in the consumer's `.env` and validated on every request.
+
+```typescript
+// app/api/external/middleware.ts (or at top of each external route)
+const apiKey = req.headers.get('x-api-key')
+if (!apiKey || apiKey !== process.env.EXTERNAL_API_KEY) {
+  return Response.json({ error: 'Unauthorized' }, { status: 401 })
+}
+```
+
+The `EXTERNAL_API_KEY` is generated once, stored in this system's `.env`, and shared with the external consumer's `.env`. Rotate it if compromised.
+
+## Endpoints live under `app/api/external/`
+
+```
+app/api/external/
+  brand-context/route.ts    ← GET brand context for an org
+  outputs/route.ts          ← GET recent outputs for an org
+  team/route.ts             ← GET team member list (names/roles only)
+```
+
+Never mix external API routes with internal routes. External routes always live under `app/api/external/`.
+
+## Hard rules
+
+### Read-only
+External API endpoints must only serve GET requests. No POST, PATCH, PUT, DELETE. No mutations of any kind. The external consumer can view company data but never modify it.
+
+```typescript
+// ❌ NEVER in an external route
+export async function POST(req: Request) { ... }
+
+// ✅ ONLY
+export async function GET(req: Request) { ... }
+```
+
+### Scoped response
+Only return fields the external consumer needs to display. Never return full database rows, internal IDs that aren't needed, or sensitive fields.
+
+```typescript
+// ❌ BAD — returns everything
+const { data } = await supabase.from('brand_context').select('*')
+
+// ✅ GOOD — only what's needed for display
+const { data } = await supabase
+  .from('brand_context')
+  .select('voice, tone, pillars, target_audience')
+  .eq('organization_id', orgId)
+  .single()
+```
+
+### No user data
+External endpoints never return individual user emails, passwords, session data, or personal information. Team endpoints return names and roles only.
+
+### Rate limiting
+External endpoints should include basic rate limiting. Even trusted consumers shouldn't be able to hammer the API.
+
+## Adding a new external endpoint
+1. Create under `app/api/external/<feature>/route.ts`
+2. Validate API key at the top
+3. GET only — reject all other methods
+4. Select only the fields needed for display
+5. Document what the endpoint returns in this rule or in `docs/`

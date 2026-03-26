@@ -1,0 +1,62 @@
+---
+description: Feature-based API and lib structure — no catch-all files
+globs: app/api/**,lib/**
+alwaysApply: false
+---
+
+# API and Lib Structure
+
+## API routes are feature-based
+Each feature gets its own folder under `app/api/`:
+
+```
+app/api/
+  brand-context/route.ts     ← GET + PATCH brand context
+  outputs/route.ts           ← GET + POST outputs
+  ai/
+    generate/route.ts        ← POST generate content
+    summarize/route.ts       ← POST summarize (future)
+```
+
+## Shared server logic goes in `lib/<domain>/`
+```
+lib/
+  supabase/
+    client.ts                ← browser Supabase client
+    server.ts                ← server Supabase client (API routes)
+  ai/
+    prompts.ts               ← all prompts
+    generate.ts              ← AI call logic
+  types/
+    database.ts              ← generated from Supabase schema
+```
+
+## Hard rules
+- Never create a top-level `utils.ts` or `helpers.ts` catch-all file
+- Never put shared logic directly inside a `route.ts` file — extract to `lib/`
+- Never mix unrelated endpoints in the same folder
+- If logic is used by more than one route, it belongs in `lib/`
+
+## Response shape — one contract, always
+Every API route returns the same shape. No exceptions.
+
+```typescript
+// Single item success
+Response.json({ data: output })
+
+// List success (always include count for pagination)
+Response.json({ data: outputs, count: totalCount })
+
+// Error
+Response.json({ error: 'Human-readable message' }, { status: 4xx | 5xx })
+
+// Validation error (optional details)
+Response.json({ error: 'Invalid input', details: fieldErrors }, { status: 400 })
+```
+
+Never return raw arrays, never invent new wrapper keys (`result`, `output`, `items`), never mix shapes between endpoints. The frontend relies on `data` for success and `error` for failure — always.
+
+## Adding a new endpoint
+1. Create a feature folder under `app/api/`
+2. Extract any reusable logic to `lib/<domain>/`
+3. Keep `route.ts` thin — it handles HTTP, auth check, calls lib, returns response

@@ -1,0 +1,33 @@
+---
+description: Never refactor unless explicitly asked — no surprise reorganization
+alwaysApply: true
+---
+
+# No Refactoring Without Permission
+
+## Do not refactor, reorganize, or rename existing code unless explicitly asked.
+
+This includes:
+- Renaming files, functions, or variables for "clarity"
+- Moving files to "better" locations
+- Restructuring folders
+- Rewriting working code in a "cleaner" style
+- Extracting code into new files when the current file is under the size limit
+- Combining files that "belong together"
+
+## When building a new feature:
+- Add new code. Do not touch code that already works unless the feature requires it.
+- If existing code needs a change to support the feature, change only the minimum needed.
+- If you believe a refactor would help, say so and wait for approval. Do not do it.
+
+## When explicitly asked to refactor:
+- List every file that will change and what will change before starting
+- Make the refactor in its own commit, separate from feature work
+- Never refactor and add a feature in the same change
+
+## Rewrites
+Never rewrite a working section of the codebase from scratch. "Start over" on a module, page, or system is almost always worse than incremental improvement. If something feels like it needs a rewrite:
+- Identify the specific problems (not "it's messy" — what exactly is broken or slow?)
+- Propose targeted fixes for each specific problem
+- Implement one fix at a time, with tests, committed separately
+- A rewrite replaces working code with untested code. Targeted fixes preserve what works.

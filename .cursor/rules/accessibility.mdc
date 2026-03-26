@@ -1,0 +1,52 @@
+---
+description: Accessibility basics — semantic HTML, keyboard navigation, labels
+globs: **/*.tsx
+alwaysApply: false
+---
+
+# Accessibility
+
+## Semantic HTML
+Use the right element for the job. Never fake interactivity with divs.
+
+```tsx
+// ❌ BAD — div pretending to be a button
+<div onClick={handleClick} className="btn">Generate</div>
+
+// ✅ GOOD — real button
+<button onClick={handleClick} className="btn">Generate</button>
+```
+
+- `<button>` for actions
+- `<a>` for navigation (with `href`)
+- `<input>`, `<select>`, `<textarea>` for form inputs
+- `<nav>`, `<main>`, `<aside>`, `<header>` for page structure
+- `<h1>` through `<h6>` in order — never skip heading levels
+
+## Every form input has a label
+
+```tsx
+// ❌ BAD — no label, screen readers can't identify the field
+<input type="text" placeholder="Enter brief..." />
+
+// ✅ GOOD — associated label
+<label htmlFor="brief">Brief</label>
+<input id="brief" type="text" placeholder="Enter brief..." />
+
+// ✅ ALSO GOOD — visually hidden label when design doesn't show one
+<label htmlFor="brief" className="sr-only">Brief</label>
+<input id="brief" type="text" placeholder="Enter brief..." />
+```
+
+## Keyboard navigation
+- Every interactive element must be reachable with Tab
+- Pressing Enter or Space on a focused button must trigger its action
+- Never remove the focus outline without providing an alternative visible focus indicator
+
+## Images
+- Meaningful images: `<img alt="Description of what the image shows" />`
+- Decorative images: `<img alt="" role="presentation" />`
+- Never leave `alt` undefined
+
+## Color
+Never use color as the only way to convey information (e.g. red text for errors). Always pair color with text, icons, or other visual cues.

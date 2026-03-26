@@ -1,0 +1,45 @@
+---
+description: Core engineering rules — definition of done, safety, dependencies
+alwaysApply: true
+---
+
+# Core Engineering Rules
+
+## Before any multi-file change
+List every file that will be touched and why before implementing. No surprises.
+
+## Definition of done
+- Builds without errors
+- No obvious security regressions
+- All error paths handled — no silent failures, no empty catch blocks
+- Loading and error states present in any UI that fetches data
+
+## Dependencies
+- Do not introduce new packages or libraries unless explicitly requested
+- If a new dependency is needed, name it and explain why before adding it
+
+## Secrets
+- Never commit secrets, API keys, or tokens to any file
+- If a secret is spotted in code or history, stop and flag it immediately
+
+## Defensive null handling
+Every database call and external API call can return null, undefined, or an error. Handle it explicitly before using the result.
+
+```typescript
+// ❌ BAD — crashes if org is null or brand_context is missing
+const { data: org } = await getOrganization(supabase, orgId)
+const voice = org.brand_context.voice
+
+// ✅ GOOD — handled before use
+const { data: org, error } = await getOrganization(supabase, orgId)
+if (error || !org) {
+  throw new AppError('Organization not found', 'NOT_FOUND', 404)
+}
+const voice = org.brand_context?.voice ?? ''
+```
+
+Never assume a nested property exists. Use optional chaining (`?.`) for access and nullish coalescing (`??`) for defaults. If a null value means the operation cannot continue, return an error early — don't let it propagate.
+
+## Small, reviewable changes
+- Prefer small focused changes over large rewrites
+- If a change is large, propose a plan first and wait for approval

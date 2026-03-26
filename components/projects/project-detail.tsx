@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Pencil, Trash2, X, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { OutputsList } from '@/components/projects/outputs-list'
 
 interface Project {
   id: string
@@ -11,12 +12,43 @@ interface Project {
   description: string | null
 }
 
+interface Output {
+  id: string
+  brief: string
+  content: string
+  content_type_id: string
+  created_at: string
+  updated_at: string
+  content_types: { name: string } | null
+}
+
+interface Author {
+  id: string
+  name: string
+}
+
+interface ContentType {
+  id: string
+  name: string
+}
+
 interface ProjectDetailProps {
   project: Project
   isAdmin: boolean
+  outputs: Output[]
+  authors: Author[]
+  contentTypes: ContentType[]
+  hasBrandContext: boolean
 }
 
-export function ProjectDetail({ project, isAdmin }: ProjectDetailProps) {
+export function ProjectDetail({
+  project,
+  isAdmin,
+  outputs,
+  authors,
+  contentTypes,
+  hasBrandContext,
+}: ProjectDetailProps) {
   const router = useRouter()
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState(project.name)
@@ -178,27 +210,20 @@ export function ProjectDetail({ project, isAdmin }: ProjectDetailProps) {
             </div>
           </div>
         ) : (
-          <div className="max-w-xl space-y-6">
+          <div className="max-w-2xl space-y-6">
             {project.description && (
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {project.description}
               </p>
             )}
 
-            {/* Empty state for outputs */}
-            <div className="rounded-lg border border-dashed border-border p-10 text-center">
-              <p className="text-sm text-muted-foreground">
-                No content yet. Generate your first piece.
-              </p>
-              <button
-                className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-                onClick={() => {
-                  // Generate Content — coming next sprint
-                }}
-              >
-                Generate Content
-              </button>
-            </div>
+            <OutputsList
+              projectId={project.id}
+              initialOutputs={outputs}
+              authors={authors}
+              contentTypes={contentTypes}
+              hasBrandContext={hasBrandContext}
+            />
           </div>
         )}
       </div>

@@ -75,7 +75,7 @@ export function Sidebar({ orgName, userName, avatarUrl, email, isAdmin }: Sideba
 
       {/* Bottom nav */}
       <div className="flex flex-col gap-0.5 border-t border-border p-3">
-        {isAdmin && bottomNavigation.map((item) => (
+        {bottomNavigation.map((item) => (
           <Link
             key={item.name}
             href={item.href}

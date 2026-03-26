@@ -4,10 +4,6 @@ import { getOrganizationForUser } from '@/lib/queries/organizations'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
-const tabs = [
-  { name: 'Profile', href: '/dashboard/settings/profile' },
-]
-
 export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -16,18 +12,12 @@ export default async function SettingsLayout({ children }: { children: React.Rea
   const org = await getOrganizationForUser(user.id)
   if (!org) redirect('/setup')
 
-  if (org.role !== 'admin') {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-center space-y-2">
-          <p className="text-sm font-medium text-foreground">You do not have permission to view this page.</p>
-          <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-            ← Back to dashboard
-          </Link>
-        </div>
-      </div>
-    )
-  }
+  const isAdmin = org.role === 'admin'
+
+  const tabs = [
+    { name: 'Profile', href: '/dashboard/settings/profile' },
+    ...(isAdmin ? [{ name: 'Team', href: '/dashboard/settings/team' }] : []),
+  ]
 
   return (
     <div className="flex h-full flex-col">

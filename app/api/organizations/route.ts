@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-import { createOrganization } from '@/lib/queries/organizations'
+import { createOrganization, getOrganizationForUser } from '@/lib/queries/organizations'
 
 const createOrgSchema = z.object({
   name: z.string().min(1, 'Company name is required').max(100),
@@ -13,6 +13,12 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Guard: if user already has an org, return it rather than creating a duplicate
+  const existing = await getOrganizationForUser(user.id)
+  if (existing) {
+    return NextResponse.json({ data: existing }, { status: 200 })
   }
 
   const body = await request.json()

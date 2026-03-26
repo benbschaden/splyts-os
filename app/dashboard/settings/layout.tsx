@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 
 const tabs = [
   { name: 'Brand', href: '/dashboard/settings/brand' },
+  { name: 'Authors', href: '/dashboard/settings/authors' },
 ]
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {

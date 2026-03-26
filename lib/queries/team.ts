@@ -112,7 +112,7 @@ export async function acceptInvite(token: string, userId: string) {
       .insert({
         organization_id: invite.organization_id,
         user_id: userId,
-        role: invite.role,
+        role: invite.role as 'admin' | 'member',
       })
     if (memberError) return { error: 'Failed to join organisation' }
   }

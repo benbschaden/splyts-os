@@ -135,6 +135,7 @@ export type Database = {
       }
       content_type_templates: {
         Row: {
+          base_prompt: string
           created_at: string
           description: string
           id: string
@@ -142,6 +143,7 @@ export type Database = {
           slug: string
         }
         Insert: {
+          base_prompt?: string
           created_at?: string
           description: string
           id?: string
@@ -149,6 +151,7 @@ export type Database = {
           slug: string
         }
         Update: {
+          base_prompt?: string
           created_at?: string
           description?: string
           id?: string

@@ -5,7 +5,7 @@ export async function getContentTypeTemplates() {
 
   const { data, error } = await supabase
     .from('content_type_templates')
-    .select('id, slug, name, description')
+    .select('id, slug, name, description, base_prompt')
     .order('name', { ascending: true })
 
   if (error) return []

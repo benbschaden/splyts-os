@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X } from 'lucide-react'
+import { X, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Template {
@@ -9,6 +9,7 @@ interface Template {
   slug: string
   name: string
   description: string
+  base_prompt: string
 }
 
 interface ContentType {
@@ -26,6 +27,12 @@ interface ContentTypeDialogProps {
   editing?: ContentType | null
 }
 
+const DEFAULT_CUSTOM_RULES: Record<string, string> = {
+  'social-post':   'Professional but approachable tone. Max 280 characters for Twitter/X; up to 1,200 for LinkedIn. End with a question or a clear CTA. No hashtags unless specified.',
+  'video-script':  'Conversational, energetic tone. Total runtime 60–90 seconds (approx. 150–225 words). Hook must be under 3 seconds. End CTA: direct viewers to the link in bio.',
+  'long-form':     'Authoritative but accessible tone. Target 800–1,200 words. Include one concrete example per section. Avoid jargon. End with a clear takeaway the reader can act on.',
+}
+
 export function ContentTypeDialog({
   open,
   onClose,
@@ -40,6 +47,8 @@ export function ContentTypeDialog({
   const [saving, setSaving] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
 
+  const selectedTemplate = templates.find((t) => t.id === templateId) ?? null
+
   useEffect(() => {
     if (open) {
       if (editing) {
@@ -47,14 +56,22 @@ export function ContentTypeDialog({
         setTemplateId(editing.template_id)
         setCustomRules(editing.custom_rules)
       } else {
+        const first = templates[0] ?? null
         setName('')
-        setTemplateId(templates[0]?.id ?? '')
-        setCustomRules('')
+        setTemplateId(first?.id ?? '')
+        setCustomRules(first ? (DEFAULT_CUSTOM_RULES[first.slug] ?? '') : '')
       }
       setErrors({})
       setServerError(null)
     }
   }, [open, editing, templates])
+
+  function handleTemplateChange(id: string) {
+    const t = templates.find((t) => t.id === id)
+    setTemplateId(id)
+    if (t) setCustomRules(DEFAULT_CUSTOM_RULES[t.slug] ?? '')
+    setErrors((p) => ({ ...p, template_id: '', custom_rules: '' }))
+  }
 
   function validate() {
     const next: Record<string, string> = {}
@@ -115,20 +132,20 @@ export function ContentTypeDialog({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           {/* Name */}
           <div className="space-y-1.5">
             <label htmlFor="ct-name" className="text-sm font-medium text-foreground">
               Name
             </label>
             <p className="text-xs text-muted-foreground">
-              How this content type appears in the generation dropdown
+              How this content type appears in the generation dropdown.
             </p>
             <input
               id="ct-name"
               type="text"
               value={name}
-              onChange={(e) => { setName(e.target.value); setErrors(p => ({ ...p, name: '' })) }}
+              onChange={(e) => { setName(e.target.value); setErrors((p) => ({ ...p, name: '' })) }}
               disabled={saving}
               placeholder="e.g. LinkedIn Post, YouTube Script"
               className={cn(
@@ -140,12 +157,12 @@ export function ContentTypeDialog({
             {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
           </div>
 
-          {/* Base template — hidden when editing (can't change template) */}
+          {/* Base template — hidden when editing */}
           {!editing && (
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-foreground">Base template</label>
               <p className="text-xs text-muted-foreground">
-                Defines the structure. You customise the rules below.
+                Sets the structural rules. Your custom rules below are layered on top.
               </p>
               <div className="grid gap-2">
                 {templates.map((t) => (
@@ -163,7 +180,7 @@ export function ContentTypeDialog({
                       name="template"
                       value={t.id}
                       checked={templateId === t.id}
-                      onChange={() => { setTemplateId(t.id); setErrors(p => ({ ...p, template_id: '' })) }}
+                      onChange={() => handleTemplateChange(t.id)}
                       className="mt-0.5 shrink-0"
                     />
                     <div>
@@ -179,21 +196,35 @@ export function ContentTypeDialog({
             </div>
           )}
 
+          {/* Base prompt preview */}
+          {selectedTemplate?.base_prompt && (
+            <div className="rounded-md border border-border bg-muted/40 p-3 space-y-1.5">
+              <div className="flex items-center gap-1.5">
+                <Info className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <p className="text-xs font-medium text-muted-foreground">
+                  Structure baked into this template
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {selectedTemplate.base_prompt}
+              </p>
+            </div>
+          )}
+
           {/* Custom rules */}
           <div className="space-y-1.5">
             <label htmlFor="ct-rules" className="text-sm font-medium text-foreground">
               Custom rules
             </label>
             <p className="text-xs text-muted-foreground">
-              Platform-specific constraints, format, tone, length, CTAs — the AI follows these exactly
+              Platform-specific overrides: tone, length, CTAs, formatting. Edit the defaults below to match your needs.
             </p>
             <textarea
               id="ct-rules"
               value={customRules}
-              onChange={(e) => { setCustomRules(e.target.value); setErrors(p => ({ ...p, custom_rules: '' })) }}
+              onChange={(e) => { setCustomRules(e.target.value); setErrors((p) => ({ ...p, custom_rules: '' })) }}
               rows={5}
               disabled={saving}
-              placeholder="e.g. Professional tone. Max 1,200 characters. End with a question to engage the reader. No hashtags."
               className={cn(
                 'w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground resize-none',
                 'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 disabled:opacity-50',

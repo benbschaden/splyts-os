@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { FolderOpen, Plus } from 'lucide-react'
 import { NewProjectDialog } from './new-project-dialog'
 import { ProjectCard } from './project-card'
+import { Greeting } from '@/components/dashboard/greeting'
 import { cn } from '@/lib/utils'
 
 interface Project {
@@ -15,16 +16,19 @@ interface Project {
 
 interface ProjectsListProps {
   projects: Project[]
+  userName: string
 }
 
-export function ProjectsList({ projects }: ProjectsListProps) {
+export function ProjectsList({ projects, userName }: ProjectsListProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
 
   return (
     <>
       <div className="flex h-full flex-col">
-        <div className="flex h-14 items-center justify-between border-b border-border px-6">
-          <h1 className="text-sm font-semibold text-foreground">Projects</h1>
+        <Greeting name={userName} />
+
+        <div className="flex items-center justify-between border-t border-border px-8 py-4">
+          <h2 className="text-sm font-semibold text-foreground">Projects</h2>
           <button
             onClick={() => setDialogOpen(true)}
             className={cn(
@@ -56,7 +60,7 @@ export function ProjectsList({ projects }: ProjectsListProps) {
             </button>
           </div>
         ) : (
-          <div className="p-6">
+          <div className="px-8 pb-8">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {projects.map((project) => (
                 <ProjectCard

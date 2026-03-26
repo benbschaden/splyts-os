@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getProjectsForOrg } from '@/lib/queries/projects'
+import { getUserProfile } from '@/lib/queries/user-profile'
 import { ProjectsList } from '@/components/projects/projects-list'
 
 export default async function DashboardPage() {
@@ -15,7 +16,14 @@ export default async function DashboardPage() {
   const org = await getOrganizationForUser(user.id)
   if (!org) redirect('/setup')
 
-  const projects = await getProjectsForOrg(org.id)
+  const [projects, profile] = await Promise.all([
+    getProjectsForOrg(org.id),
+    getUserProfile(user.id),
+  ])
 
-  return <ProjectsList projects={projects} />
+  const userName = profile?.full_name?.trim()
+    || user.email?.split('@')[0]
+    || ''
+
+  return <ProjectsList projects={projects} userName={userName} />
 }

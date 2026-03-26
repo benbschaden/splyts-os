@@ -37,25 +37,6 @@ lib/
 - Never mix unrelated endpoints in the same folder
 - If logic is used by more than one route, it belongs in `lib/`
 
-## Response shape — one contract, always
-Every API route returns the same shape. No exceptions.
-
-```typescript
-// Single item success
-Response.json({ data: output })
-
-// List success (always include count for pagination)
-Response.json({ data: outputs, count: totalCount })
-
-// Error
-Response.json({ error: 'Human-readable message' }, { status: 4xx | 5xx })
-
-// Validation error (optional details)
-Response.json({ error: 'Invalid input', details: fieldErrors }, { status: 400 })
-```
-
-Never return raw arrays, never invent new wrapper keys (`result`, `output`, `items`), never mix shapes between endpoints. The frontend relies on `data` for success and `error` for failure — always.
-
 ## Adding a new endpoint
 1. Create a feature folder under `app/api/`
 2. Extract any reusable logic to `lib/<domain>/`

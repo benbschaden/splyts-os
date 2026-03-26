@@ -7,7 +7,7 @@ alwaysApply: false
 # AI Layer Rules
 
 ## Prompts Live in One Place
-All prompt strings must be defined in `lib/ai/prompts.ts` (or `lib/ai/prompts/` as a folder with one file per prompt type once the single file exceeds 300 lines). Never write prompt strings inline in API routes or components.
+All prompt strings must be defined in `lib/ai/prompts.ts`. Never write prompt strings inline in API routes or components.
 
 ```typescript
 // ❌ BAD — prompt hardcoded in route

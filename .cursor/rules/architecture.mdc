@@ -1,17 +1,12 @@
 ---
-description: Splyts OS architecture — stack, structure, and patterns
+description: SPLYTS OS architecture — stack, structure, and patterns
 alwaysApply: true
 ---
 
 # Architecture
 
 ## What This Is
-A company operating system for teams. Manage brand voice, generate content, coordinate team workflows — all in one dashboard. Employees log in and see their company workspace.
-
-## Who Uses This
-- Employees: access company brand context, generate content, view outputs
-- Admins/founders: manage team, configure brand, review all outputs
-- External consumers (hub-os): read-only API access to company data (see `external-api.mdc`)
+A multi-tenant company operating system for SPLYTS. Stores company knowledge, manages work, and generates outputs — replacing scattered docs, drives, and tools.
 
 ## Stack
 - **Frontend + API:** Next.js 14+ (App Router)
@@ -27,8 +22,7 @@ app/
   (dashboard)/           ← all authenticated pages
     layout.tsx           ← sidebar shell
     page.tsx             ← dashboard home
-  api/                   ← all API routes (AI calls live here)
-    external/            ← read-only endpoints for external consumers
+api/                     ← all API routes (AI calls live here)
 lib/
   supabase/
     client.ts            ← browser client
@@ -36,19 +30,17 @@ lib/
   ai/
     prompts.ts           ← ALL prompts live here, nowhere else
     generate.ts          ← AI call logic
-  queries/               ← typed database query functions
-  schemas/               ← shared Zod schemas
   types/
     database.ts          ← generated from Supabase schema
 components/              ← shared UI components
 supabase/migrations/     ← schema as code, never touch DB directly
 ```
 
-## Multi-Tenant
-All data is isolated by `organization_id`. Users only see organizations they are members of. See `database.mdc` for query rules and `data-isolation.mdc` for the zero-tolerance security rules.
+## Multi-Tenant Rule
+Every org's data is isolated by `organization_id`. See `database.mdc` for query rules.
 
 ## Reusability
-This codebase is a generic company OS product. All identity (company names, brand content) lives in the database, never in code. Deploying for a new company requires zero code changes — just a fresh Supabase and Vercel deployment. See `template-ready.mdc` for the hard rules.
+This codebase is a generic company OS platform. It contains zero company-specific code. Company identity (name, brand, voice) lives in the database as data rows, never as hardcoded strings. Copying this repo and pointing it at a new Supabase project creates a fully functional OS for a new company with zero code changes. See `template-ready.mdc` for the hard rules.
 
-## External API
-This system exposes a read-only external API for trusted consumers like hub-os. See `external-api.mdc` for the rules. This API is authenticated by API key, not user session, and only serves read operations.
+## Repo Independence
+This is a standalone company OS. It does not know about, depend on, or reference any other repo. A separate `hub-os` repo may connect to this system's database as a read-only consumer — but this repo has no knowledge of that connection. See `repo-boundary.mdc` and `independence-test.mdc` for enforcement.

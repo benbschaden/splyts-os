@@ -1,32 +1,24 @@
 ---
-description: What belongs in this repo and what does not — company features only
+description: Hard boundary — this repo is company-only, no personal code
 alwaysApply: true
 ---
 
 # Repo Boundary
 
-## This repo is: a company operating system
-Everything in this codebase serves teams and company operations. Brand management, content generation, team workflows, company-level AI features.
+## This repo connects to exactly ONE Supabase project — the company one.
 
-## What belongs here
-- Company brand context and voice configuration
-- AI-powered content generation (social posts, scripts, emails)
-- Team management (invites, roles, permissions)
-- Company outputs and content library
-- External read-only API for trusted consumers
-- Any feature a team member or admin would use
+### Never in this repo:
+- A second Supabase client pointing to a personal or external database
+- Personal-specific UI, pages, routes, or components
+- Environment variables for a personal Supabase project
+- References to `hub-os` in application code (imports, comments, conditionals)
+- The word "personal" in application code — if you're writing it, you're in the wrong repo
 
-## What does NOT belong here
-- Personal user features (journals, personal notes, private projects)
-- Personal data storage — personal data lives in a separate system (hub-os) with its own database
-- Features that only serve a single person rather than a team
-- Direct database connections to external systems — use the external API pattern instead
+### If asked to add personal features here:
+Stop. Explain that personal features belong in `hub-os`. Do not implement them.
 
-## The boundary test
-Before adding a feature, ask: "Would this feature make sense for any company using this product, or is it personal to one individual?"
+### If asked to connect a second database:
+Stop. Explain that this repo serves one organization's Supabase project. A second connection belongs in a different repo.
 
-If it's personal → it belongs in hub-os, not here.
-If it's company/team → it belongs here.
-
-## Data boundary
-This system has its own Supabase database containing only company data. It never reads from or writes to external databases directly. External systems access company data through the external API (`app/api/external/`).
+### The boundary is physical, not logical:
+This is not a permission check. This repo literally does not have credentials for any other database. The `.env` file has one set of Supabase keys. That's it.

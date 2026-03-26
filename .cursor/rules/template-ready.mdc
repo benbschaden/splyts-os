@@ -1,21 +1,22 @@
 ---
-description: Code must be identity-agnostic — all company identity lives in the database
+description: Code must be company-agnostic — copy repo + new DB = new company
 alwaysApply: true
 ---
 
 # Template-Ready Code
 
 ## The principle
-This is a generic company OS product. All identity — company names, brand content, team names, preferences — lives in the database, never in the code.
+This repo is a generic company OS. The company identity lives in the database, never in the code.
 
-## Identity is DATA, not code
+## Company identity is DATA, not code
+Company name, brand voice, messaging pillars, logo URL, platform preferences — all stored as rows in database tables. Never as hardcoded strings, constants, or config files.
 
 ```typescript
-// ❌ BAD — identity hardcoded
-const APP_TITLE = 'Acme Operations'
-const BRAND_VOICE = 'We are a training intelligence company...'
+// ❌ BAD — company name in code
+const APP_TITLE = 'SPLYTS OS'
+const BRAND_VOICE = 'Training intelligence company...'
 
-// ✅ GOOD — identity from database
+// ✅ GOOD — company identity from database
 const { data: org } = await supabase
   .from('organizations')
   .select('name')
@@ -25,31 +26,31 @@ const { data: org } = await supabase
 
 ## Code uses generic terms
 In application code (components, routes, lib), use:
-- `organization`, `team`, `company` — never a specific company name
-- `user`, `member`, `admin` — never a specific person's name
-- `brand`, `context` — never company-specific brand references
+- `organization`, not `SPLYTS` or any company name
+- `brand`, not company-specific brand references
+- `team`, not specific team member names
 
-Exceptions: README, docs, and `.cursor/rules/` may reference specific names for context.
+Exceptions: README, docs, comments explaining business context, and `.cursor/rules/` may reference the company name.
 
-## No identity-specific conditional logic
+## No company-specific conditional logic
+Never write logic that checks for a specific company:
 
 ```typescript
 // ❌ NEVER
-if (org.name === 'Acme') { showSpecialFeature() }
-if (user.email === 'jane@acme.com') { showAdminPanel() }
+if (org.name === 'SPLYTS') { showSpecialFeature() }
 
-// ✅ GOOD — behavior driven by database config and roles
+// ✅ GOOD — behavior driven by database config
 if (org.features?.includes('advanced_generation')) { showSpecialFeature() }
-if (membership.role === 'admin') { showAdminPanel() }
 ```
 
 ## The template test
-Before any major feature, ask: "If a different company deployed this with a fresh Supabase and signed up their team, would everything work for them?"
+Before any major feature, ask: "If I copied this repo, pointed it at an empty Supabase project, and signed up — would everything work?"
 
-Deploying a new instance requires:
+What should be required to start a new company with this codebase:
 1. New Supabase project
 2. New Vercel deployment
 3. Update `.env` with new credentials
-4. Sign up through the UI
+4. Update README
+5. Sign up through the UI — org auto-creates
 
-Zero code changes. If code changes are needed, something identity-specific leaked in.
+Zero code changes. If code changes are needed, something company-specific leaked in.

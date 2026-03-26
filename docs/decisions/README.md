@@ -3,7 +3,7 @@
 One file per decision. Written when a significant choice is made.
 
 ## Naming
-`ADR-NNN-short-title.md` — e.g. `ADR-001-single-supabase-project.md`
+`ADR-NNN-short-title.md` — e.g. `ADR-001-two-supabase-projects.md`
 
 ## Format
 ```markdown

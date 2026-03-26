@@ -5,6 +5,7 @@ const tabs = [
   { name: 'Profile', href: '/dashboard/settings/profile' },
   { name: 'Brand', href: '/dashboard/settings/brand' },
   { name: 'Authors', href: '/dashboard/settings/authors' },
+  { name: 'Content Types', href: '/dashboard/settings/content-types' },
 ]
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {

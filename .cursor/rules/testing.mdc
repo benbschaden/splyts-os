@@ -39,11 +39,3 @@ test('should work', async () => { ... })
 
 ## Before finishing any feature that touches API or logic:
 Run `npm test` and confirm all tests pass. Never skip this step.
-
-## Never disable a failing test
-If a test fails:
-- Fix the code that broke it, or
-- Fix the test if the behavior intentionally changed, or
-- Delete both the test and the feature it covers
-
-Never comment out a test. Never add `.skip`. Never wrap a failing assertion in a try/catch to silence it. A disabled test is worse than no test — it gives false confidence that something is covered when it isn't.

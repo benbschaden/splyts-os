@@ -8,6 +8,8 @@ const createSchema = z.object({
   name: z.string().min(1, 'Name is required').max(200),
   template_id: z.string().uuid('Invalid template'),
   custom_rules: z.string().min(1, 'Custom rules are required').max(3000),
+  platform: z.string().max(100).nullable().optional(),
+  cadence: z.string().max(200).nullable().optional(),
 })
 
 export async function GET() {
@@ -41,7 +43,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 })
   }
 
-  const { contentType, error } = await createContentType(org.id, user.id, parsed.data)
+  const { contentType, error } = await createContentType(org.id, user.id, {
+    ...parsed.data,
+    platform: parsed.data.platform ?? null,
+    cadence: parsed.data.cadence ?? null,
+  })
 
   if (error || !contentType) return NextResponse.json({ error }, { status: 500 })
   return NextResponse.json({ data: contentType }, { status: 201 })

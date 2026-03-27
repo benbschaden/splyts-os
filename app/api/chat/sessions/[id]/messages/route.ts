@@ -11,7 +11,6 @@ import { getAiVisibleProductFeatures } from '@/lib/queries/product-features'
 import { getProductRoadmapItems } from '@/lib/queries/product-roadmap'
 import { getCompanyMilestones } from '@/lib/queries/company-milestones'
 import { getCurrentGoals } from '@/lib/queries/current-goals'
-import { getPlatformGuidelines } from '@/lib/queries/platform-guidelines'
 import { getSharedDocuments } from '@/lib/queries/documents'
 import { buildChatSystemPrompt } from '@/lib/ai/prompts'
 import { DEFAULT_MODEL, getModelById } from '@/lib/ai/models'
@@ -117,7 +116,6 @@ export async function POST(
       product_roadmap: includeProductRoadmap = false,
       company_milestones: includeCompanyMilestones = false,
       current_goals: includeCurrentGoals = false,
-      platform_guidelines: includePlatformGuidelines = false,
       filed_documents: includeFiledDocs = false,
     } = config
     const model = getModelById(session.model_id) ?? DEFAULT_MODEL
@@ -132,7 +130,6 @@ export async function POST(
       roadmapItems,
       milestones,
       currentGoals,
-      platformGuidelines,
       sharedDocs,
       existingMessages,
     ] = await Promise.all([
@@ -144,7 +141,6 @@ export async function POST(
       includeProductRoadmap ? getProductRoadmapItems(org.id) : Promise.resolve([]),
       includeCompanyMilestones ? getCompanyMilestones(org.id) : Promise.resolve([]),
       includeCurrentGoals ? getCurrentGoals(org.id) : Promise.resolve(null),
-      includePlatformGuidelines ? getPlatformGuidelines(org.id) : Promise.resolve([]),
       includeFiledDocs ? getSharedDocuments(org.id) : Promise.resolve([]),
       getChatMessages(id),
     ])
@@ -187,14 +183,12 @@ export async function POST(
       productSections: augmentedSections,
       productFeatures,
       currentGoals,
-      platformGuidelines,
       filedDocs,
       includeBrand,
       includeBusinessPlan,
       includePersonas,
       includeProduct,
       includeCurrentGoals,
-      includePlatformGuidelines,
       includeFiledDocs,
     })
 

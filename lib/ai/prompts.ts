@@ -2,7 +2,6 @@ import { BUSINESS_PLAN_SECTIONS, getAiVisibleKeys, type BusinessPlanSections } f
 import { PRODUCT_SECTIONS, type ProductSections } from '@/lib/company/product-sections'
 import type { PersonaRow } from '@/lib/queries/personas'
 import type { ProductFeatureRow } from '@/lib/queries/product-features'
-import type { PlatformGuideline } from '@/lib/queries/platform-guidelines'
 import type { CurrentGoalsRow } from '@/lib/queries/current-goals'
 
 export type { BusinessPlanSections }
@@ -84,13 +83,6 @@ function buildCurrentGoalsBlock(goals: CurrentGoalsRow): string {
   return parts.join('\n')
 }
 
-function buildPlatformGuidelineBlock(guideline: PlatformGuideline): string {
-  const parts: string[] = [`Platform: ${guideline.platform_name}`, guideline.guidelines]
-  if (guideline.format_notes) parts.push(`Format notes: ${guideline.format_notes}`)
-  if (guideline.cadence) parts.push(`Cadence: ${guideline.cadence}`)
-  return parts.join('\n')
-}
-
 function buildTopPerformersBlock(
   outputs: { brief: string; content: string; reach: number; reach_metric: string }[],
 ): string {
@@ -107,21 +99,19 @@ export function buildChatSystemPrompt(params: {
   productSections: ProductSections | null
   productFeatures: ProductFeatureRow[]
   currentGoals: CurrentGoalsRow | null
-  platformGuidelines: PlatformGuideline[]
   filedDocs: { title: string; body: string }[]
   includeBrand: boolean
   includeBusinessPlan: boolean
   includePersonas: boolean
   includeProduct: boolean
   includeCurrentGoals: boolean
-  includePlatformGuidelines: boolean
   includeFiledDocs: boolean
 }): string {
   const {
     brand, businessPlanSections, personas, productSections, productFeatures,
-    currentGoals, platformGuidelines, filedDocs,
+    currentGoals, filedDocs,
     includeBrand, includeBusinessPlan, includePersonas, includeProduct,
-    includeCurrentGoals, includePlatformGuidelines, includeFiledDocs,
+    includeCurrentGoals, includeFiledDocs,
   } = params
 
   const lines: string[] = []
@@ -194,15 +184,6 @@ export function buildChatSystemPrompt(params: {
     }
   }
 
-  if (includePlatformGuidelines && platformGuidelines.length > 0) {
-    const aiVisible = platformGuidelines.filter((g) => g.include_in_ai)
-    if (aiVisible.length > 0) {
-      lines.push('[PLATFORM GUIDELINES]')
-      lines.push(aiVisible.map(buildPlatformGuidelineBlock).join('\n\n'))
-      lines.push('')
-    }
-  }
-
   if (includeFiledDocs && filedDocs.length > 0) {
     lines.push('[FILED DOCUMENTS]')
     filedDocs.slice(0, 3).forEach((doc) => {
@@ -238,17 +219,17 @@ export function buildGenerationSystemPrompt(params: {
   productSections: ProductSections | null
   productFeatures: ProductFeatureRow[]
   currentGoals: CurrentGoalsRow | null
-  matchedPlatformGuideline: PlatformGuideline | null
   topPerformers: { brief: string; content: string; reach: number; reach_metric: string }[]
   contentTypeName: string
   basePrompt: string
   customRules: string
+  cadence: string | null
   author: GenerationAuthor
 }): string {
   const {
     brand, businessPlanSections, personas, productSections, productFeatures,
-    currentGoals, matchedPlatformGuideline, topPerformers,
-    contentTypeName, basePrompt, customRules, author,
+    currentGoals, topPerformers,
+    contentTypeName, basePrompt, customRules, cadence, author,
   } = params
 
   const lines: string[] = []
@@ -350,17 +331,15 @@ export function buildGenerationSystemPrompt(params: {
     }
   }
 
-  // Platform guideline — only if content type has matched platform
-  if (matchedPlatformGuideline) {
-    addSection('PLATFORM GUIDELINES', buildPlatformGuidelineBlock(matchedPlatformGuideline))
-  }
-
   if (basePrompt) {
     addSection('CONTENT TYPE STRUCTURE', basePrompt)
   }
 
-  if (customRules) {
-    addSection('CONTENT RULES', customRules)
+  const rulesLines: string[] = []
+  if (customRules) rulesLines.push(customRules)
+  if (cadence) rulesLines.push(`Posting cadence: ${cadence}`)
+  if (rulesLines.length > 0) {
+    addSection('CONTENT RULES', rulesLines.join('\n'))
   }
 
   // Author

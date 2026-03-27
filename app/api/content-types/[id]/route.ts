@@ -8,6 +8,8 @@ const updateSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   custom_rules: z.string().min(1).max(3000).optional(),
   is_active: z.boolean().optional(),
+  platform: z.string().max(100).nullable().optional(),
+  cadence: z.string().max(200).nullable().optional(),
 })
 
 export async function PATCH(

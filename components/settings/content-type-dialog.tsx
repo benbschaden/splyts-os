@@ -17,6 +17,8 @@ interface ContentType {
   name: string
   custom_rules: string
   template_id: string
+  platform?: string | null
+  cadence?: string | null
 }
 
 interface ContentTypeDialogProps {
@@ -43,6 +45,8 @@ export function ContentTypeDialog({
   const [name, setName] = useState('')
   const [templateId, setTemplateId] = useState('')
   const [customRules, setCustomRules] = useState('')
+  const [platform, setPlatform] = useState('')
+  const [cadence, setCadence] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
@@ -55,11 +59,15 @@ export function ContentTypeDialog({
         setName(editing.name)
         setTemplateId(editing.template_id)
         setCustomRules(editing.custom_rules)
+        setPlatform(editing.platform ?? '')
+        setCadence(editing.cadence ?? '')
       } else {
         const first = templates[0] ?? null
         setName('')
         setTemplateId(first?.id ?? '')
         setCustomRules(first ? (DEFAULT_CUSTOM_RULES[first.slug] ?? '') : '')
+        setPlatform('')
+        setCadence('')
       }
       setErrors({})
       setServerError(null)
@@ -99,6 +107,8 @@ export function ContentTypeDialog({
         name: name.trim(),
         template_id: templateId,
         custom_rules: customRules.trim(),
+        platform: platform.trim() || null,
+        cadence: cadence.trim() || null,
       }),
     })
 
@@ -234,6 +244,44 @@ export function ContentTypeDialog({
             {errors.custom_rules && (
               <p className="text-xs text-destructive">{errors.custom_rules}</p>
             )}
+          </div>
+
+          {/* Platform + Cadence row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label htmlFor="ct-platform" className="text-sm font-medium text-foreground">
+                Platform <span className="text-muted-foreground font-normal">(optional)</span>
+              </label>
+              <input
+                id="ct-platform"
+                type="text"
+                value={platform}
+                onChange={(e) => setPlatform(e.target.value)}
+                disabled={saving}
+                placeholder="e.g. LinkedIn"
+                list="ct-platform-list"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 disabled:opacity-50"
+              />
+              <datalist id="ct-platform-list">
+                {['LinkedIn', 'Twitter/X', 'Instagram', 'YouTube', 'TikTok', 'Facebook', 'Newsletter', 'Blog', 'Podcast'].map((p) => (
+                  <option key={p} value={p} />
+                ))}
+              </datalist>
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="ct-cadence" className="text-sm font-medium text-foreground">
+                Cadence <span className="text-muted-foreground font-normal">(optional)</span>
+              </label>
+              <input
+                id="ct-cadence"
+                type="text"
+                value={cadence}
+                onChange={(e) => setCadence(e.target.value)}
+                disabled={saving}
+                placeholder="e.g. 3x per week"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 disabled:opacity-50"
+              />
+            </div>
           </div>
 
           {serverError && <p className="text-sm text-destructive">{serverError}</p>}

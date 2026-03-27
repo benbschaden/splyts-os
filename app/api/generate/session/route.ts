@@ -8,7 +8,6 @@ import { getPersonas } from '@/lib/queries/personas'
 import { getProductContext } from '@/lib/queries/product-context'
 import { getAiVisibleProductFeatures } from '@/lib/queries/product-features'
 import { getCurrentGoals } from '@/lib/queries/current-goals'
-import { getPlatformGuidelineByName } from '@/lib/queries/platform-guidelines'
 import { getTopPerformingOutputs } from '@/lib/queries/outputs'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getModelById, DEFAULT_MODEL } from '@/lib/ai/models'
@@ -74,7 +73,7 @@ export async function POST(request: Request): Promise<Response> {
       getTopPerformingOutputs(org.id, 3),
       db
         .from('content_types')
-        .select('id, name, custom_rules, template_id, platform, content_type_templates(base_prompt)')
+        .select('id, name, custom_rules, cadence, template_id, content_type_templates(base_prompt)')
         .eq('id', contentTypeId)
         .eq('organization_id', org.id)
         .eq('is_active', true)
@@ -90,12 +89,7 @@ export async function POST(request: Request): Promise<Response> {
     if (!contentType) return Response.json({ error: 'Content type not found' }, { status: 404 })
 
     const basePrompt = (contentType.content_type_templates as { base_prompt: string } | null)?.base_prompt ?? ''
-    const contentTypePlatform = (contentType as unknown as { platform?: string | null }).platform ?? null
-
-    // Fetch matched platform guideline
-    const matchedPlatformGuideline = contentTypePlatform
-      ? await getPlatformGuidelineByName(org.id, contentTypePlatform)
-      : null
+    const cadence = (contentType as unknown as { cadence?: string | null }).cadence ?? null
 
     // Resolve author
     let author: GenerationAuthor
@@ -122,11 +116,11 @@ export async function POST(request: Request): Promise<Response> {
       productSections: productContext?.sections ?? null,
       productFeatures,
       currentGoals,
-      matchedPlatformGuideline,
       topPerformers,
       contentTypeName: contentType.name,
       basePrompt,
       customRules: contentType.custom_rules,
+      cadence,
       author,
     })
 

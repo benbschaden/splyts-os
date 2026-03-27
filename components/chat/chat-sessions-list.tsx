@@ -20,7 +20,6 @@ const DEFAULT_CONTEXT: ContextConfig = {
   product_roadmap: false,
   company_milestones: false,
   current_goals: false,
-  platform_guidelines: false,
   filed_documents: false,
   browser: false,
 }
@@ -48,12 +47,11 @@ const CONTEXT_CATEGORIES = [
   },
   {
     label: 'Branding',
-    description: 'Brand voice, personas, platform rules',
-    keys: ['brand', 'personas', 'platform_guidelines'] as const,
+    description: 'Brand voice and personas',
+    keys: ['brand', 'personas'] as const,
     items: [
       { key: 'brand' as const, label: 'Brand & voice' },
       { key: 'personas' as const, label: 'Personas' },
-      { key: 'platform_guidelines' as const, label: 'Platform guidelines' },
     ],
   },
   {

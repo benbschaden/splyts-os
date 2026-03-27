@@ -32,8 +32,7 @@ const sections = [
     label: 'Content',
     description: 'Templates, platform rules, and scheduling tools.',
     items: [
-      { href: '/dashboard/company/content-types', name: 'Content types', desc: 'Templates and rules per format, with optional platform linking' },
-      { href: '/dashboard/company/platforms', name: 'Platform guidelines', desc: 'Tone, format and cadence per platform — injected when platform matches' },
+      { href: '/dashboard/company/content-types', name: 'Content types', desc: 'Templates and rules per format — includes platform, cadence, and custom guidelines' },
       { href: '/dashboard/company/calendar', name: 'Calendar', desc: 'Plan and track content across all platforms' },
     ],
   },

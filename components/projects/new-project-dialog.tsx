@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -8,17 +8,24 @@ import { cn } from '@/lib/utils'
 interface NewProjectDialogProps {
   open: boolean
   onClose: () => void
+  defaultCategory?: string
 }
 
 const KNOWN_CATEGORIES = ['Marketing', 'Engineering', 'HR', 'Sales', 'Operations', 'Finance', 'Product', 'Design', 'Legal', 'Customer Success']
 
-export function NewProjectDialog({ open, onClose }: NewProjectDialogProps) {
+export function NewProjectDialog({ open, onClose, defaultCategory }: NewProjectDialogProps) {
   const router = useRouter()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [category, setCategory] = useState('')
+  const [category, setCategory] = useState(defaultCategory ?? '')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (open) {
+      setCategory(defaultCategory ?? '')
+    }
+  }, [open, defaultCategory])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()

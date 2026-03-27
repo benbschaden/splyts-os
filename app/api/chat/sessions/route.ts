@@ -15,7 +15,6 @@ const createSchema = z.object({
     product_roadmap: z.boolean(),
     company_milestones: z.boolean(),
     current_goals: z.boolean(),
-    platform_guidelines: z.boolean(),
     filed_documents: z.boolean(),
   }).optional().default({
     brand: true,
@@ -26,7 +25,6 @@ const createSchema = z.object({
     product_roadmap: false,
     company_milestones: false,
     current_goals: false,
-    platform_guidelines: false,
     filed_documents: false,
   }),
 })

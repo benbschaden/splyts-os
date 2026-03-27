@@ -9,7 +9,6 @@ import { getPersonas, type PersonaRow } from '@/lib/queries/personas'
 import { getProductContext } from '@/lib/queries/product-context'
 import { getAiVisibleProductFeatures } from '@/lib/queries/product-features'
 import { getCurrentGoals } from '@/lib/queries/current-goals'
-import { getPlatformGuidelineByName } from '@/lib/queries/platform-guidelines'
 import { getTopPerformingOutputs } from '@/lib/queries/outputs'
 import { PRODUCT_SECTIONS } from '@/lib/company/product-sections'
 import { createServiceClient } from '@/lib/supabase/service'
@@ -91,18 +90,18 @@ function buildPrompt(params: {
   productContextText: string
   productFeaturesText: string
   currentGoalsText: string
-  platformGuidelineText: string
   topPerformersText: string
   basePrompt: string
   customRules: string
+  cadence: string | null
   author: AuthorParam
   brief: string
 }): string {
   const {
     brand, businessPlanContext, personasContext,
     productContextText, productFeaturesText, currentGoalsText,
-    platformGuidelineText, topPerformersText,
-    basePrompt, customRules, author, brief,
+    topPerformersText,
+    basePrompt, customRules, cadence, author, brief,
   } = params
 
   const lines: string[] = []
@@ -159,12 +158,6 @@ function buildPrompt(params: {
     lines.push(productFeaturesText)
   }
 
-  if (platformGuidelineText) {
-    lines.push('')
-    lines.push('[PLATFORM GUIDELINES]')
-    lines.push(platformGuidelineText)
-  }
-
   lines.push('')
   lines.push('[CONTENT STRUCTURE]')
   lines.push(basePrompt)
@@ -172,6 +165,7 @@ function buildPrompt(params: {
   lines.push('')
   lines.push('[CONTENT RULES]')
   lines.push(customRules)
+  if (cadence) lines.push(`Posting cadence: ${cadence}`)
 
   lines.push('')
   if (author.type === 'company') {
@@ -261,7 +255,7 @@ export async function POST(request: Request) {
   // Fetch content type + template
   const { data: contentType } = await db
     .from('content_types')
-    .select('id, name, custom_rules, template_id, content_type_templates(base_prompt)')
+    .select('id, name, custom_rules, cadence, template_id, content_type_templates(base_prompt)')
     .eq('id', contentTypeId)
     .eq('organization_id', org.id)
     .eq('is_active', true)
@@ -271,12 +265,7 @@ export async function POST(request: Request) {
   if (!contentType) return Response.json({ error: 'Content type not found' }, { status: 404 })
 
   const basePrompt = (contentType.content_type_templates as { base_prompt: string } | null)?.base_prompt ?? ''
-  const contentTypePlatform = (contentType as unknown as { platform?: string | null }).platform ?? null
-
-  // Fetch matched platform guideline if content type has a platform
-  const matchedPlatformGuideline = contentTypePlatform
-    ? await getPlatformGuidelineByName(org.id, contentTypePlatform)
-    : null
+  const cadence = (contentType as unknown as { cadence?: string | null }).cadence ?? null
 
   // Resolve author
   let authorParam: AuthorParam
@@ -327,16 +316,6 @@ export async function POST(request: Request) {
         .join('\n')
     : ''
 
-  // Build platform guideline text
-  const platformGuidelineText = matchedPlatformGuideline
-    ? [
-        `Platform: ${matchedPlatformGuideline.platform_name}`,
-        matchedPlatformGuideline.guidelines,
-        matchedPlatformGuideline.format_notes ? `Format notes: ${matchedPlatformGuideline.format_notes}` : null,
-        matchedPlatformGuideline.cadence ? `Cadence: ${matchedPlatformGuideline.cadence}` : null,
-      ].filter(Boolean).join('\n')
-    : ''
-
   // Build top performers text
   const topPerformersText = topPerformers.length > 0
     ? topPerformers.map((o, i) =>
@@ -351,10 +330,10 @@ export async function POST(request: Request) {
     productContextText,
     productFeaturesText,
     currentGoalsText,
-    platformGuidelineText,
     topPerformersText,
     basePrompt,
     customRules: contentType.custom_rules,
+    cadence,
     author: authorParam,
     brief,
   })

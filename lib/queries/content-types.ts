@@ -17,7 +17,7 @@ export async function getContentTypes(organizationId: string) {
 
   const { data, error } = await supabase
     .from('content_types')
-    .select('id, name, custom_rules, is_active, created_at, updated_at, template_id, content_type_templates(slug, name)')
+    .select('id, name, custom_rules, platform, cadence, is_active, created_at, updated_at, template_id, content_type_templates(slug, name)')
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
     .order('created_at', { ascending: true })
@@ -44,7 +44,7 @@ export async function getActiveContentTypes(organizationId: string) {
 export async function createContentType(
   organizationId: string,
   userId: string,
-  data: { name: string; template_id: string; custom_rules: string },
+  data: { name: string; template_id: string; custom_rules: string; platform?: string | null; cadence?: string | null },
 ) {
   const supabase = createServiceClient()
 
@@ -56,6 +56,8 @@ export async function createContentType(
       name: data.name,
       template_id: data.template_id,
       custom_rules: data.custom_rules,
+      platform: data.platform ?? null,
+      cadence: data.cadence ?? null,
     })
     .select('id, name, is_active')
     .single()
@@ -67,7 +69,7 @@ export async function createContentType(
 export async function updateContentType(
   id: string,
   organizationId: string,
-  updates: { name?: string; custom_rules?: string; is_active?: boolean },
+  updates: { name?: string; custom_rules?: string; is_active?: boolean; platform?: string | null; cadence?: string | null },
 ) {
   const supabase = createServiceClient()
 

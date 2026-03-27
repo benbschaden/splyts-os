@@ -326,6 +326,7 @@ export type Database = {
           template_id: string
           updated_at: string
           platform: string | null
+          cadence: string | null
         }
         Insert: {
           created_at?: string
@@ -339,6 +340,7 @@ export type Database = {
           template_id: string
           updated_at?: string
           platform?: string | null
+          cadence?: string | null
         }
         Update: {
           created_at?: string
@@ -352,6 +354,7 @@ export type Database = {
           template_id?: string
           updated_at?: string
           platform?: string | null
+          cadence?: string | null
         }
         Relationships: [
           {
@@ -413,6 +416,7 @@ export type Database = {
           is_active: boolean
           name: string
           sort_order: number
+          category: string | null
         }
         Insert: {
           created_at?: string
@@ -421,6 +425,7 @@ export type Database = {
           is_active?: boolean
           name: string
           sort_order?: number
+          category?: string | null
         }
         Update: {
           created_at?: string
@@ -429,6 +434,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           sort_order?: number
+          category?: string | null
         }
         Relationships: []
       }
@@ -655,7 +661,6 @@ export type Database = {
             product_roadmap: boolean
             company_milestones: boolean
             current_goals: boolean
-            platform_guidelines: boolean
             filed_documents: boolean
             browser: boolean
           }
@@ -964,54 +969,6 @@ export type Database = {
           updated_by?: string | null
           created_at?: string
           updated_at?: string
-        }
-        Relationships: []
-      }
-      platform_guidelines: {
-        Row: {
-          id: string
-          organization_id: string
-          platform_name: string
-          guidelines: string
-          format_notes: string | null
-          cadence: string | null
-          include_in_ai: boolean
-          sort_order: number
-          created_by: string
-          updated_by: string | null
-          created_at: string
-          updated_at: string
-          deleted_at: string | null
-        }
-        Insert: {
-          id?: string
-          organization_id: string
-          platform_name: string
-          guidelines: string
-          format_notes?: string | null
-          cadence?: string | null
-          include_in_ai?: boolean
-          sort_order?: number
-          created_by: string
-          updated_by?: string | null
-          created_at?: string
-          updated_at?: string
-          deleted_at?: string | null
-        }
-        Update: {
-          id?: string
-          organization_id?: string
-          platform_name?: string
-          guidelines?: string
-          format_notes?: string | null
-          cadence?: string | null
-          include_in_ai?: boolean
-          sort_order?: number
-          created_by?: string
-          updated_by?: string | null
-          created_at?: string
-          updated_at?: string
-          deleted_at?: string | null
         }
         Relationships: []
       }

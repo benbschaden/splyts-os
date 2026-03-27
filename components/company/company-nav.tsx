@@ -37,7 +37,6 @@ const navGroups = [
     label: 'Content',
     items: [
       { name: 'Content types', href: '/dashboard/company/content-types' },
-      { name: 'Platform guidelines', href: '/dashboard/company/platforms' },
       { name: 'Calendar', href: '/dashboard/company/calendar' },
     ],
   },

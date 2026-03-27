@@ -5,6 +5,7 @@ import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getBrandContext } from '@/lib/queries/brand-context'
 import { getBusinessPlan } from '@/lib/queries/business-plan'
 import { BUSINESS_PLAN_SECTIONS, type BusinessPlanSections, getAiVisibleKeys } from '@/lib/company/business-plan-sections'
+import { getPersonas, type PersonaRow } from '@/lib/queries/personas'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createOutput } from '@/lib/queries/outputs'
 import { getModelById, DEFAULT_MODEL } from '@/lib/ai/models'
@@ -26,6 +27,35 @@ function buildBusinessPlanContext(sections: BusinessPlanSections): string {
   return filled.join('\n')
 }
 
+function buildPersonasContext(personas: PersonaRow[]): string {
+  const visible = personas.filter((p) => p.include_in_ai)
+  if (visible.length === 0) return ''
+
+  return visible.map((p) => {
+    const parts: string[] = [`Persona: ${p.name}`]
+    if (p.tagline) parts.push(`Summary: ${p.tagline}`)
+    if (p.age_range || p.job_title || p.industry || p.company_size || p.location) {
+      const demo: string[] = []
+      if (p.age_range) demo.push(p.age_range)
+      if (p.job_title) demo.push(p.job_title)
+      if (p.industry) demo.push(p.industry)
+      if (p.company_size) demo.push(p.company_size)
+      if (p.location) demo.push(p.location)
+      parts.push(`Demographics: ${demo.join(', ')}`)
+    }
+    if (p.goals) parts.push(`Goals: ${p.goals}`)
+    if (p.frustrations) parts.push(`Frustrations: ${p.frustrations}`)
+    if (p.motivations) parts.push(`Motivations: ${p.motivations}`)
+    if (p.behaviors) parts.push(`Behaviours: ${p.behaviors}`)
+    if (p.values) parts.push(`Values: ${p.values}`)
+    if (p.channels) parts.push(`Channels: ${p.channels}`)
+    if (p.buying_triggers) parts.push(`Buying triggers: ${p.buying_triggers}`)
+    if (p.objections) parts.push(`Objections: ${p.objections}`)
+    if (p.quote) parts.push(`In their words: "${p.quote}"`)
+    return parts.join('\n')
+  }).join('\n\n')
+}
+
 function buildPrompt(params: {
   brand: {
     company_name: string
@@ -39,6 +69,7 @@ function buildPrompt(params: {
     values: string | null
   }
   businessPlanContext: string
+  personasContext: string
   basePrompt: string
   customRules: string
   author: {
@@ -55,7 +86,7 @@ function buildPrompt(params: {
   }
   brief: string
 }): string {
-  const { brand, businessPlanContext, basePrompt, customRules, author, brief } = params
+  const { brand, businessPlanContext, personasContext, basePrompt, customRules, author, brief } = params
 
   const lines: string[] = []
 
@@ -77,6 +108,13 @@ function buildPrompt(params: {
     lines.push('[BUSINESS CONTEXT]')
     lines.push('The following is the company business plan. Use it as background knowledge to ensure content is strategically aligned.')
     lines.push(businessPlanContext)
+  }
+
+  if (personasContext) {
+    lines.push('')
+    lines.push('[TARGET PERSONAS]')
+    lines.push('The following are the target audience personas. Write content that speaks to their goals, frustrations, and language. If multiple personas are listed, write for all of them or the most relevant one given the brief.')
+    lines.push(personasContext)
   }
 
   lines.push('')
@@ -146,10 +184,11 @@ export async function POST(request: Request) {
 
   if (!project) return Response.json({ error: 'Project not found' }, { status: 404 })
 
-  // Fetch brand context + business plan in parallel
-  const [brand, businessPlan] = await Promise.all([
+  // Fetch brand context, business plan, and personas in parallel
+  const [brand, businessPlan, personas] = await Promise.all([
     getBrandContext(org.id),
     getBusinessPlan(org.id),
+    getPersonas(org.id),
   ])
   if (!brand || !brand.mission || !brand.vision) {
     return Response.json(
@@ -159,6 +198,7 @@ export async function POST(request: Request) {
   }
 
   const businessPlanContext = buildBusinessPlanContext(businessPlan?.sections ?? {})
+  const personasContext = buildPersonasContext(personas)
 
   // Fetch content type + template
   const { data: contentType } = await db
@@ -196,6 +236,7 @@ export async function POST(request: Request) {
   const prompt = buildPrompt({
     brand,
     businessPlanContext,
+    personasContext,
     basePrompt,
     customRules: contentType.custom_rules,
     author: authorParam,

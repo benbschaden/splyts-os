@@ -77,6 +77,88 @@ export type Database = {
           },
         ]
       }
+      personas: {
+        Row: {
+          id: string
+          organization_id: string
+          name: string
+          tagline: string | null
+          age_range: string | null
+          job_title: string | null
+          industry: string | null
+          company_size: string | null
+          location: string | null
+          goals: string | null
+          frustrations: string | null
+          motivations: string | null
+          behaviors: string | null
+          values: string | null
+          channels: string | null
+          buying_triggers: string | null
+          objections: string | null
+          quote: string | null
+          include_in_ai: boolean
+          created_by: string
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          name: string
+          tagline?: string | null
+          age_range?: string | null
+          job_title?: string | null
+          industry?: string | null
+          company_size?: string | null
+          location?: string | null
+          goals?: string | null
+          frustrations?: string | null
+          motivations?: string | null
+          behaviors?: string | null
+          values?: string | null
+          channels?: string | null
+          buying_triggers?: string | null
+          objections?: string | null
+          quote?: string | null
+          include_in_ai?: boolean
+          created_by: string
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          name?: string
+          tagline?: string | null
+          age_range?: string | null
+          job_title?: string | null
+          industry?: string | null
+          company_size?: string | null
+          location?: string | null
+          goals?: string | null
+          frustrations?: string | null
+          motivations?: string | null
+          behaviors?: string | null
+          values?: string | null
+          channels?: string | null
+          buying_triggers?: string | null
+          objections?: string | null
+          quote?: string | null
+          include_in_ai?: boolean
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personas_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_plans: {
         Row: {
           id: string

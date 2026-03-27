@@ -35,6 +35,15 @@ export function CompanyOverview({ isAdmin }: CompanyOverviewProps) {
                 </Link>
                 <span className="text-sm text-muted-foreground"> — 12-section plan with PDF export</span>
               </li>
+              <li>
+                <Link
+                  href="/dashboard/company/personas"
+                  className="text-sm font-medium text-foreground underline-offset-4 hover:underline"
+                >
+                  Personas
+                </Link>
+                <span className="text-sm text-muted-foreground"> — target audience profiles fed into AI generation</span>
+              </li>
             </ul>
           </div>
 

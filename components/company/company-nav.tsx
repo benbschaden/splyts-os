@@ -8,6 +8,7 @@ const overviewHref = '/dashboard/company'
 
 const strategyNav = [
   { name: 'Business plan', href: '/dashboard/company/business-plan' },
+  { name: 'Personas', href: '/dashboard/company/personas' },
 ]
 
 const brandingNav = [

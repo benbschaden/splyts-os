@@ -4,9 +4,11 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Send, FileDown, Loader2, ChevronDown, Globe } from 'lucide-react'
 import Link from 'next/link'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import type { ChatSessionRow, ChatMessageRow } from '@/lib/queries/chat'
 import { CaptureDocumentDialog } from '@/components/chat/capture-document-dialog'
-import { AI_MODELS } from '@/lib/ai/models'
+import { AI_MODELS, DEFAULT_MODEL } from '@/lib/ai/models'
 
 interface ChatInterfaceProps {
   session: ChatSessionRow
@@ -16,7 +18,11 @@ interface ChatInterfaceProps {
 export function ChatInterface({ session, initialMessages }: ChatInterfaceProps) {
   const router = useRouter()
   const [messages, setMessages] = useState<ChatMessageRow[]>(initialMessages)
-  const [currentModelId, setCurrentModelId] = useState(session.model_id)
+  // Resolve stored model_id against the current model list — fall back to default
+  // if the stored ID no longer exists (e.g. deprecated model).
+  const resolvedInitialModelId =
+    AI_MODELS.find((m) => m.id === session.model_id)?.id ?? DEFAULT_MODEL.id
+  const [currentModelId, setCurrentModelId] = useState(resolvedInitialModelId)
   const [input, setInput] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [isSwitchingModel, setIsSwitchingModel] = useState(false)
@@ -194,7 +200,15 @@ export function ChatInterface({ session, initialMessages }: ChatInterfaceProps) 
                       : 'bg-muted text-foreground'
                   }`}
                 >
-                  <p className="whitespace-pre-wrap">{message.content}</p>
+                  {message.role === 'user' ? (
+                    <p className="whitespace-pre-wrap">{message.content}</p>
+                  ) : (
+                    <div className="prose prose-sm max-w-none prose-p:my-1 prose-headings:font-semibold prose-headings:mt-3 prose-headings:mb-1 prose-h1:text-base prose-h2:text-sm prose-h3:text-sm prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-code:bg-background/60 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-pre:bg-background/60 prose-pre:text-xs prose-strong:font-semibold prose-a:text-foreground">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {message.content}
+                      </ReactMarkdown>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

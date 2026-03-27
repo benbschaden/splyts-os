@@ -25,6 +25,11 @@ interface Output {
   content_types: { name: string } | null
   projects: { name: string } | null
   creator_full_name: string | null
+  published_at: string | null
+  reach: number | null
+  reach_metric: string | null
+  engagement: number | null
+  performance_notes: string | null
 }
 
 interface Author {

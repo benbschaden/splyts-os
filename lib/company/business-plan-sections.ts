@@ -57,13 +57,6 @@ export const BUSINESS_PLAN_SECTIONS: BusinessPlanSection[] = [
     aiVisibleByDefault: true,
   },
   {
-    key: 'product_roadmap',
-    label: 'Product roadmap',
-    description: 'Current state of the product and key milestones ahead — what is built and what is planned.',
-    placeholder: 'Where is the product today and what are the next milestones?',
-    aiVisibleByDefault: false,
-  },
-  {
     key: 'team',
     label: 'Team',
     description: 'Founders, key hires, and advisors — why this team is uniquely positioned to execute.',

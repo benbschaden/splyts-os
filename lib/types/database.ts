@@ -242,6 +242,7 @@ export type Database = {
           values: string | null
           vision: string
           voice: string
+          guardrails: string | null
         }
         Insert: {
           company_name: string
@@ -257,6 +258,7 @@ export type Database = {
           values?: string | null
           vision: string
           voice: string
+          guardrails?: string | null
         }
         Update: {
           company_name?: string
@@ -272,6 +274,7 @@ export type Database = {
           values?: string | null
           vision?: string
           voice?: string
+          guardrails?: string | null
         }
         Relationships: [
           {
@@ -322,6 +325,7 @@ export type Database = {
           organization_id: string
           template_id: string
           updated_at: string
+          platform: string | null
         }
         Insert: {
           created_at?: string
@@ -334,6 +338,7 @@ export type Database = {
           organization_id: string
           template_id: string
           updated_at?: string
+          platform?: string | null
         }
         Update: {
           created_at?: string
@@ -346,6 +351,7 @@ export type Database = {
           organization_id?: string
           template_id?: string
           updated_at?: string
+          platform?: string | null
         }
         Relationships: [
           {
@@ -495,6 +501,11 @@ export type Database = {
           organization_id: string
           project_id: string
           updated_at: string
+          published_at: string | null
+          reach: number | null
+          reach_metric: string | null
+          engagement: number | null
+          performance_notes: string | null
         }
         Insert: {
           brief: string
@@ -508,6 +519,11 @@ export type Database = {
           organization_id: string
           project_id: string
           updated_at?: string
+          published_at?: string | null
+          reach?: number | null
+          reach_metric?: string | null
+          engagement?: number | null
+          performance_notes?: string | null
         }
         Update: {
           brief?: string
@@ -521,6 +537,11 @@ export type Database = {
           organization_id?: string
           project_id?: string
           updated_at?: string
+          published_at?: string | null
+          reach?: number | null
+          reach_metric?: string | null
+          engagement?: number | null
+          performance_notes?: string | null
         }
         Relationships: [
           {
@@ -585,6 +606,7 @@ export type Database = {
           name: string
           organization_id: string
           updated_at: string
+          category: string | null
         }
         Insert: {
           created_at?: string
@@ -595,6 +617,7 @@ export type Database = {
           name: string
           organization_id: string
           updated_at?: string
+          category?: string | null
         }
         Update: {
           created_at?: string
@@ -605,6 +628,7 @@ export type Database = {
           name?: string
           organization_id?: string
           updated_at?: string
+          category?: string | null
         }
         Relationships: [
           {
@@ -627,6 +651,12 @@ export type Database = {
             brand: boolean
             business_plan: boolean
             personas: boolean
+            product: boolean
+            product_roadmap: boolean
+            company_milestones: boolean
+            current_goals: boolean
+            platform_guidelines: boolean
+            filed_documents: boolean
             browser: boolean
           }
           created_at: string
@@ -727,6 +757,318 @@ export type Database = {
           doc_type?: string
           visibility?: 'private' | 'shared' | 'filed'
           source_session_id?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: []
+      }
+      product_context: {
+        Row: {
+          id: string
+          organization_id: string
+          sections: Json
+          updated_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          sections?: Json
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          sections?: Json
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      product_features: {
+        Row: {
+          id: string
+          organization_id: string
+          name: string
+          tagline: string | null
+          description: string | null
+          category: string
+          surfaces: string[]
+          status: string
+          include_in_ai: boolean
+          sort_order: number
+          created_by: string
+          updated_by: string | null
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          name: string
+          tagline?: string | null
+          description?: string | null
+          category?: string
+          surfaces?: string[]
+          status?: string
+          include_in_ai?: boolean
+          sort_order?: number
+          created_by: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          name?: string
+          tagline?: string | null
+          description?: string | null
+          category?: string
+          surfaces?: string[]
+          status?: string
+          include_in_ai?: boolean
+          sort_order?: number
+          created_by?: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: []
+      }
+      product_roadmap_items: {
+        Row: {
+          id: string
+          organization_id: string
+          title: string
+          description: string | null
+          phase: string
+          status: string
+          category: string | null
+          sort_order: number
+          created_by: string
+          updated_by: string | null
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          title: string
+          description?: string | null
+          phase?: string
+          status?: string
+          category?: string | null
+          sort_order?: number
+          created_by: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          title?: string
+          description?: string | null
+          phase?: string
+          status?: string
+          category?: string | null
+          sort_order?: number
+          created_by?: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: []
+      }
+      company_milestones: {
+        Row: {
+          id: string
+          organization_id: string
+          title: string
+          description: string | null
+          milestone_date: string
+          category: string | null
+          status: string
+          sort_order: number
+          created_by: string
+          updated_by: string | null
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          title: string
+          description?: string | null
+          milestone_date: string
+          category?: string | null
+          status?: string
+          sort_order?: number
+          created_by: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          title?: string
+          description?: string | null
+          milestone_date?: string
+          category?: string | null
+          status?: string
+          sort_order?: number
+          created_by?: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: []
+      }
+      current_goals: {
+        Row: {
+          id: string
+          organization_id: string
+          sections: Json
+          updated_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          sections?: Json
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          sections?: Json
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      platform_guidelines: {
+        Row: {
+          id: string
+          organization_id: string
+          platform_name: string
+          guidelines: string
+          format_notes: string | null
+          cadence: string | null
+          include_in_ai: boolean
+          sort_order: number
+          created_by: string
+          updated_by: string | null
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          platform_name: string
+          guidelines: string
+          format_notes?: string | null
+          cadence?: string | null
+          include_in_ai?: boolean
+          sort_order?: number
+          created_by: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          platform_name?: string
+          guidelines?: string
+          format_notes?: string | null
+          cadence?: string | null
+          include_in_ai?: boolean
+          sort_order?: number
+          created_by?: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: []
+      }
+      content_calendar: {
+        Row: {
+          id: string
+          organization_id: string
+          title: string
+          description: string | null
+          scheduled_date: string
+          content_type_id: string | null
+          platform: string | null
+          author_id: string | null
+          assigned_to: string | null
+          output_id: string | null
+          status: string
+          notes: string | null
+          created_by: string
+          updated_by: string | null
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          title: string
+          description?: string | null
+          scheduled_date: string
+          content_type_id?: string | null
+          platform?: string | null
+          author_id?: string | null
+          assigned_to?: string | null
+          output_id?: string | null
+          status?: string
+          notes?: string | null
+          created_by: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          title?: string
+          description?: string | null
+          scheduled_date?: string
+          content_type_id?: string | null
+          platform?: string | null
+          author_id?: string | null
+          assigned_to?: string | null
+          output_id?: string | null
+          status?: string
+          notes?: string | null
+          created_by?: string
+          updated_by?: string | null
           created_at?: string
           updated_at?: string
           deleted_at?: string | null

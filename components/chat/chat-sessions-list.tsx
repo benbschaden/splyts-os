@@ -15,6 +15,12 @@ const DEFAULT_CONTEXT: ContextConfig = {
   brand: true,
   business_plan: false,
   personas: false,
+  product: false,
+  product_roadmap: false,
+  company_milestones: false,
+  current_goals: false,
+  platform_guidelines: false,
+  filed_documents: false,
   browser: false,
 }
 
@@ -116,6 +122,10 @@ export function ChatSessionsList({ sessions: initialSessions }: ChatSessionsList
                   { key: 'brand' as const, label: 'Brand & Voice' },
                   { key: 'business_plan' as const, label: 'Business Plan' },
                   { key: 'personas' as const, label: 'Personas' },
+                  { key: 'product' as const, label: 'Product' },
+                  { key: 'current_goals' as const, label: 'Current Goals' },
+                  { key: 'platform_guidelines' as const, label: 'Platforms' },
+                  { key: 'filed_documents' as const, label: 'Filed Docs' },
                 ]
               ).map(({ key, label }) => (
                 <button

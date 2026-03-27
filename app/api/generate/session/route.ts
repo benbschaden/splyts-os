@@ -5,6 +5,11 @@ import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getBrandContext } from '@/lib/queries/brand-context'
 import { getBusinessPlan } from '@/lib/queries/business-plan'
 import { getPersonas } from '@/lib/queries/personas'
+import { getProductContext } from '@/lib/queries/product-context'
+import { getAiVisibleProductFeatures } from '@/lib/queries/product-features'
+import { getCurrentGoals } from '@/lib/queries/current-goals'
+import { getPlatformGuidelineByName } from '@/lib/queries/platform-guidelines'
+import { getTopPerformingOutputs } from '@/lib/queries/outputs'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getModelById, DEFAULT_MODEL } from '@/lib/ai/models'
 import { buildGenerationSystemPrompt, type GenerationAuthor } from '@/lib/ai/prompts'
@@ -59,13 +64,17 @@ export async function POST(request: Request): Promise<Response> {
     if (!project) return Response.json({ error: 'Project not found' }, { status: 404 })
 
     // Fetch context in parallel
-    const [brand, businessPlan, personas, contentTypeResult] = await Promise.all([
+    const [brand, businessPlan, personas, productContext, productFeatures, currentGoals, topPerformers, contentTypeResult] = await Promise.all([
       getBrandContext(org.id),
       getBusinessPlan(org.id),
       getPersonas(org.id),
+      getProductContext(org.id),
+      getAiVisibleProductFeatures(org.id),
+      getCurrentGoals(org.id),
+      getTopPerformingOutputs(org.id, 3),
       db
         .from('content_types')
-        .select('id, name, custom_rules, template_id, content_type_templates(base_prompt)')
+        .select('id, name, custom_rules, template_id, platform, content_type_templates(base_prompt)')
         .eq('id', contentTypeId)
         .eq('organization_id', org.id)
         .eq('is_active', true)
@@ -81,6 +90,12 @@ export async function POST(request: Request): Promise<Response> {
     if (!contentType) return Response.json({ error: 'Content type not found' }, { status: 404 })
 
     const basePrompt = (contentType.content_type_templates as { base_prompt: string } | null)?.base_prompt ?? ''
+    const contentTypePlatform = (contentType as unknown as { platform?: string | null }).platform ?? null
+
+    // Fetch matched platform guideline
+    const matchedPlatformGuideline = contentTypePlatform
+      ? await getPlatformGuidelineByName(org.id, contentTypePlatform)
+      : null
 
     // Resolve author
     let author: GenerationAuthor
@@ -104,6 +119,11 @@ export async function POST(request: Request): Promise<Response> {
       brand,
       businessPlanSections: businessPlan?.sections ?? null,
       personas,
+      productSections: productContext?.sections ?? null,
+      productFeatures,
+      currentGoals,
+      matchedPlatformGuideline,
+      topPerformers,
       contentTypeName: contentType.name,
       basePrompt,
       customRules: contentType.custom_rules,

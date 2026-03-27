@@ -11,7 +11,24 @@ const createSchema = z.object({
     business_plan: z.boolean(),
     personas: z.boolean(),
     browser: z.boolean(),
-  }).optional().default({ brand: true, business_plan: false, personas: false, browser: false }),
+    product: z.boolean(),
+    product_roadmap: z.boolean(),
+    company_milestones: z.boolean(),
+    current_goals: z.boolean(),
+    platform_guidelines: z.boolean(),
+    filed_documents: z.boolean(),
+  }).optional().default({
+    brand: true,
+    business_plan: false,
+    personas: false,
+    browser: false,
+    product: false,
+    product_roadmap: false,
+    company_milestones: false,
+    current_goals: false,
+    platform_guidelines: false,
+    filed_documents: false,
+  }),
 })
 
 export async function GET() {

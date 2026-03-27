@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Sparkles, Copy, Pencil, Trash2, Check, X, FileText } from 'lucide-react'
+import { Sparkles, Copy, Pencil, Trash2, Check, X, FileText, BarChart2, Send } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   GenerationSessionDialog,
@@ -22,6 +22,11 @@ interface Output {
   content_types: { name: string } | null
   projects: { name: string } | null
   creator_full_name: string | null
+  published_at: string | null
+  reach: number | null
+  reach_metric: string | null
+  engagement: number | null
+  performance_notes: string | null
 }
 
 interface Author {
@@ -52,6 +57,8 @@ function formatDateTime(iso: string) {
   })
 }
 
+const REACH_METRICS = ['impressions', 'views', 'reach', 'plays', 'opens', 'clicks']
+
 function OutputCard({
   output,
   onUpdated,
@@ -69,6 +76,15 @@ function OutputCard({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showPerf, setShowPerf] = useState(false)
+  const [perfForm, setPerfForm] = useState({
+    reach: output.reach?.toString() ?? '',
+    reach_metric: output.reach_metric ?? 'impressions',
+    engagement: output.engagement?.toString() ?? '',
+    performance_notes: output.performance_notes ?? '',
+  })
+  const [perfSaving, setPerfSaving] = useState(false)
+  const [publishing, setPublishing] = useState(false)
 
   async function handleSave() {
     if (!editContent.trim()) return
@@ -108,6 +124,45 @@ function OutputCard({
     onDeleted(output.id)
   }
 
+  async function handlePublish() {
+    if (output.published_at) return
+    setPublishing(true)
+    const res = await fetch(`/api/outputs/${output.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ publish: true }),
+    })
+    setPublishing(false)
+    if (!res.ok) return
+    const { output: updated } = await res.json()
+    onUpdated({ ...output, published_at: updated.published_at })
+  }
+
+  async function handleSavePerf() {
+    setPerfSaving(true)
+    const res = await fetch(`/api/outputs/${output.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        reach: perfForm.reach ? parseInt(perfForm.reach, 10) : null,
+        reach_metric: perfForm.reach_metric || null,
+        engagement: perfForm.engagement ? parseInt(perfForm.engagement, 10) : null,
+        performance_notes: perfForm.performance_notes.trim() || null,
+      }),
+    })
+    setPerfSaving(false)
+    if (!res.ok) return
+    const { output: updated } = await res.json()
+    onUpdated({
+      ...output,
+      reach: updated.reach,
+      reach_metric: updated.reach_metric,
+      engagement: updated.engagement,
+      performance_notes: updated.performance_notes,
+    })
+    setShowPerf(false)
+  }
+
   function handleCopy() {
     navigator.clipboard.writeText(output.content)
     setCopied(true)
@@ -116,6 +171,7 @@ function OutputCard({
 
   const preview = output.content.slice(0, 180) + (output.content.length > 180 ? '…' : '')
   const modelLabel = getModelById(output.model_id)?.label ?? output.model_id
+  const hasPerf = output.reach !== null || output.engagement !== null || output.performance_notes
 
   return (
     <div className="rounded-lg border border-border bg-background">
@@ -128,11 +184,36 @@ function OutputCard({
           <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground shrink-0 hidden sm:inline-flex">
             {modelLabel}
           </span>
+          {output.published_at && (
+            <span className="rounded-full bg-green-500/10 px-2.5 py-0.5 text-xs font-medium text-green-600 shrink-0">
+              Published {formatDateTime(output.published_at)}
+            </span>
+          )}
           <span className="text-xs text-muted-foreground shrink-0 sm:ml-auto max-w-full sm:max-w-[14rem] sm:text-right">
             {output.creator_full_name ?? 'Unknown user'} · {formatDateTime(output.created_at)}
           </span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
+          {!output.published_at && (
+            <button
+              onClick={handlePublish}
+              disabled={publishing}
+              title="Mark as published"
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-green-500/10 hover:text-green-600 transition-colors disabled:opacity-50"
+            >
+              <Send className="h-3.5 w-3.5" />
+            </button>
+          )}
+          <button
+            onClick={() => setShowPerf(!showPerf)}
+            title="Performance stats"
+            className={cn(
+              'rounded-md p-1.5 transition-colors',
+              hasPerf ? 'text-violet-600 hover:bg-violet-500/10' : 'text-muted-foreground hover:bg-accent',
+            )}
+          >
+            <BarChart2 className="h-3.5 w-3.5" />
+          </button>
           <button
             onClick={handleCopy}
             title="Copy to clipboard"
@@ -156,6 +237,91 @@ function OutputCard({
           </button>
         </div>
       </div>
+
+      {/* Performance stats panel */}
+      {showPerf && (
+        <div className="border-b border-border bg-muted/10 px-4 py-4 space-y-4">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-violet-600">Performance</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground">Reach / views</label>
+              <input
+                type="number"
+                value={perfForm.reach}
+                onChange={(e) => setPerfForm((p) => ({ ...p, reach: e.target.value }))}
+                placeholder="e.g. 4200"
+                className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground">Metric type</label>
+              <select
+                value={perfForm.reach_metric}
+                onChange={(e) => setPerfForm((p) => ({ ...p, reach_metric: e.target.value }))}
+                className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                {REACH_METRICS.map((m) => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground">Engagement (likes, saves, clicks)</label>
+            <input
+              type="number"
+              value={perfForm.engagement}
+              onChange={(e) => setPerfForm((p) => ({ ...p, engagement: e.target.value }))}
+              placeholder="e.g. 312"
+              className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground">Notes</label>
+            <textarea
+              value={perfForm.performance_notes}
+              onChange={(e) => setPerfForm((p) => ({ ...p, performance_notes: e.target.value }))}
+              rows={2}
+              placeholder="What worked, what didn't, any context…"
+              className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleSavePerf}
+              disabled={perfSaving}
+              className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {perfSaving ? 'Saving…' : 'Save stats'}
+            </button>
+            <button
+              onClick={() => setShowPerf(false)}
+              className="rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Performance summary (when stats exist and panel is closed) */}
+      {!showPerf && hasPerf && (
+        <div className="flex flex-wrap items-center gap-4 border-b border-border px-4 py-2 bg-violet-500/5">
+          {output.reach !== null && (
+            <p className="text-xs text-muted-foreground">
+              <span className="font-semibold text-foreground">{output.reach.toLocaleString()}</span>{' '}
+              {output.reach_metric ?? 'reach'}
+            </p>
+          )}
+          {output.engagement !== null && (
+            <p className="text-xs text-muted-foreground">
+              <span className="font-semibold text-foreground">{output.engagement.toLocaleString()}</span>{' '}
+              engagement
+            </p>
+          )}
+          {output.performance_notes && (
+            <p className="text-xs text-muted-foreground truncate max-w-xs">{output.performance_notes}</p>
+          )}
+        </div>
+      )}
 
       {/* Brief */}
       <div className="px-4 pt-3 pb-1">
@@ -275,6 +441,11 @@ export function OutputsList({
       content_types: ct ? { name: ct.name } : null,
       projects: null,
       creator_full_name: newOutput.creator_full_name,
+      published_at: null,
+      reach: null,
+      reach_metric: null,
+      engagement: null,
+      performance_notes: null,
     }
     setOutputs((prev) => [full, ...prev])
   }

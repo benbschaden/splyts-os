@@ -6,6 +6,13 @@ import { getChatSessionById, getChatMessages, addChatMessage, updateChatSession 
 import { getBrandContext } from '@/lib/queries/brand-context'
 import { getBusinessPlan } from '@/lib/queries/business-plan'
 import { getPersonas } from '@/lib/queries/personas'
+import { getProductContext } from '@/lib/queries/product-context'
+import { getAiVisibleProductFeatures } from '@/lib/queries/product-features'
+import { getProductRoadmapItems } from '@/lib/queries/product-roadmap'
+import { getCompanyMilestones } from '@/lib/queries/company-milestones'
+import { getCurrentGoals } from '@/lib/queries/current-goals'
+import { getPlatformGuidelines } from '@/lib/queries/platform-guidelines'
+import { getSharedDocuments } from '@/lib/queries/documents'
 import { buildChatSystemPrompt } from '@/lib/ai/prompts'
 import { DEFAULT_MODEL, getModelById } from '@/lib/ai/models'
 
@@ -19,7 +26,6 @@ async function runWithBrowser(
   systemPrompt: string,
   messageHistory: Anthropic.MessageParam[],
 ): Promise<string> {
-  // Web search is a beta feature — requires the beta messages API and beta header
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let loopMessages: any[] = [...messageHistory]
   const MAX_ITERATIONS = 6
@@ -101,29 +107,95 @@ export async function POST(
     }
 
     const { content } = parsed.data
+    const config = session.context_config
     const {
       brand: includeBrand,
       business_plan: includeBusinessPlan,
       personas: includePersonas,
       browser: browserEnabled = false,
-    } = session.context_config
+      product: includeProduct = false,
+      product_roadmap: includeProductRoadmap = false,
+      company_milestones: includeCompanyMilestones = false,
+      current_goals: includeCurrentGoals = false,
+      platform_guidelines: includePlatformGuidelines = false,
+      filed_documents: includeFiledDocs = false,
+    } = config
     const model = getModelById(session.model_id) ?? DEFAULT_MODEL
 
-    // Fetch company context in parallel based on what's enabled
-    const [brand, businessPlan, personas, existingMessages] = await Promise.all([
+    // Fetch all enabled context in parallel
+    const [
+      brand,
+      businessPlan,
+      personas,
+      productContext,
+      productFeatures,
+      roadmapItems,
+      milestones,
+      currentGoals,
+      platformGuidelines,
+      sharedDocs,
+      existingMessages,
+    ] = await Promise.all([
       includeBrand ? getBrandContext(org.id) : Promise.resolve(null),
       includeBusinessPlan ? getBusinessPlan(org.id) : Promise.resolve(null),
       includePersonas ? getPersonas(org.id) : Promise.resolve([]),
+      includeProduct ? getProductContext(org.id) : Promise.resolve(null),
+      includeProduct ? getAiVisibleProductFeatures(org.id) : Promise.resolve([]),
+      includeProductRoadmap ? getProductRoadmapItems(org.id) : Promise.resolve([]),
+      includeCompanyMilestones ? getCompanyMilestones(org.id) : Promise.resolve([]),
+      includeCurrentGoals ? getCurrentGoals(org.id) : Promise.resolve(null),
+      includePlatformGuidelines ? getPlatformGuidelines(org.id) : Promise.resolve([]),
+      includeFiledDocs ? getSharedDocuments(org.id) : Promise.resolve([]),
       getChatMessages(id),
     ])
+
+    // Build filed docs for context
+    const filedDocs = includeFiledDocs
+      ? sharedDocs
+          .filter((d) => d.visibility === 'filed')
+          .slice(0, 3)
+          .map((d) => ({ title: d.title, body: d.content }))
+      : []
+
+    // Build roadmap/milestones as additional product context if toggled
+    const productSections = productContext?.sections ?? null
+
+    // Augment product sections with roadmap/milestones text if those toggles are on
+    const augmentedSections = productSections ? { ...productSections } : null
+    if (augmentedSections && includeProductRoadmap && roadmapItems.length > 0) {
+      const roadmapText = ['now', 'next', 'later', 'shipped']
+        .map((phase) => {
+          const items = roadmapItems.filter((r) => r.phase === phase)
+          if (!items.length) return null
+          return `${phase.toUpperCase()}: ${items.map((r) => r.title).join(', ')}`
+        })
+        .filter(Boolean)
+        .join('\n')
+      augmentedSections['_roadmap'] = roadmapText
+    }
+    if (augmentedSections && includeCompanyMilestones && milestones.length > 0) {
+      const milestonesText = milestones
+        .map((m) => `${m.milestone_date}: ${m.title} (${m.status})`)
+        .join('\n')
+      augmentedSections['_milestones'] = milestonesText
+    }
 
     const systemPrompt = buildChatSystemPrompt({
       brand,
       businessPlanSections: businessPlan?.sections ?? null,
       personas,
+      productSections: augmentedSections,
+      productFeatures,
+      currentGoals,
+      platformGuidelines,
+      filedDocs,
       includeBrand,
       includeBusinessPlan,
       includePersonas,
+      includeProduct,
+      includeCurrentGoals,
+      includePlatformGuidelines,
+      includeFiledDocs,
     })
 
     const messageHistory: Anthropic.MessageParam[] = [

@@ -5,7 +5,7 @@ export async function getProjectsForOrg(organizationId: string) {
 
   const { data, error } = await supabase
     .from('projects')
-    .select('id, name, description, created_at, updated_at')
+    .select('id, name, description, category, created_at, updated_at')
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
     .order('updated_at', { ascending: false })
@@ -35,6 +35,7 @@ export async function createProject(
   description: string | null,
   organizationId: string,
   userId: string,
+  category?: string | null,
 ) {
   const supabase = createServiceClient()
 
@@ -45,8 +46,9 @@ export async function createProject(
       description,
       organization_id: organizationId,
       created_by: userId,
+      category: category ?? null,
     })
-    .select('id, name, description, created_at, updated_at')
+    .select('id, name, description, category, created_at, updated_at')
     .single()
 
   if (error) return { project: null, error: 'Failed to create project' }
@@ -56,7 +58,7 @@ export async function createProject(
 export async function updateProject(
   projectId: string,
   organizationId: string,
-  updates: { name?: string; description?: string | null },
+  updates: { name?: string; description?: string | null; category?: string | null },
 ) {
   const supabase = createServiceClient()
 
@@ -66,7 +68,7 @@ export async function updateProject(
     .eq('id', projectId)
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
-    .select('id, name, description, updated_at')
+    .select('id, name, description, category, updated_at')
     .single()
 
   if (error) return { project: null, error: 'Failed to update project' }

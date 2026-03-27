@@ -4,6 +4,12 @@ export interface ContextConfig {
   brand: boolean
   business_plan: boolean
   personas: boolean
+  product: boolean
+  product_roadmap: boolean
+  company_milestones: boolean
+  current_goals: boolean
+  platform_guidelines: boolean
+  filed_documents: boolean
   browser: boolean
 }
 

@@ -10,10 +10,13 @@ interface NewProjectDialogProps {
   onClose: () => void
 }
 
+const KNOWN_CATEGORIES = ['Marketing', 'Engineering', 'HR', 'Sales', 'Operations', 'Finance', 'Product', 'Design', 'Legal', 'Customer Success']
+
 export function NewProjectDialog({ open, onClose }: NewProjectDialogProps) {
   const router = useRouter()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [category, setCategory] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -26,7 +29,7 @@ export function NewProjectDialog({ open, onClose }: NewProjectDialogProps) {
       const res = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description: description || null }),
+        body: JSON.stringify({ name, description: description || null, category: category || null }),
       })
 
       if (!res.ok) {
@@ -56,6 +59,7 @@ export function NewProjectDialog({ open, onClose }: NewProjectDialogProps) {
     if (loading) return
     setName('')
     setDescription('')
+    setCategory('')
     setError(null)
     onClose()
   }
@@ -99,6 +103,30 @@ export function NewProjectDialog({ open, onClose }: NewProjectDialogProps) {
               )}
               disabled={loading}
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor="project-category" className="text-sm font-medium text-foreground">
+              Category
+              <span className="ml-1 text-muted-foreground font-normal">(optional)</span>
+            </label>
+            <input
+              id="project-category"
+              type="text"
+              list="project-categories"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              placeholder="e.g. Marketing, Engineering"
+              className={cn(
+                'w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground',
+                'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1',
+                'disabled:opacity-50',
+              )}
+              disabled={loading}
+            />
+            <datalist id="project-categories">
+              {KNOWN_CATEGORIES.map((c) => <option key={c} value={c} />)}
+            </datalist>
           </div>
 
           <div className="space-y-1.5">

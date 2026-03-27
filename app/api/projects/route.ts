@@ -7,6 +7,7 @@ import { createProject } from '@/lib/queries/projects'
 const createProjectSchema = z.object({
   name: z.string().min(1, 'Project name is required').max(200),
   description: z.string().max(1000).nullable().optional(),
+  category: z.string().max(100).nullable().optional(),
 })
 
 export async function POST(request: Request) {
@@ -37,6 +38,7 @@ export async function POST(request: Request) {
     parsed.data.description ?? null,
     org.id,
     user.id,
+    parsed.data.category ?? null,
   )
 
   if (error || !project) {

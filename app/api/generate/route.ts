@@ -6,6 +6,12 @@ import { getBrandContext } from '@/lib/queries/brand-context'
 import { getBusinessPlan } from '@/lib/queries/business-plan'
 import { BUSINESS_PLAN_SECTIONS, type BusinessPlanSections, getAiVisibleKeys } from '@/lib/company/business-plan-sections'
 import { getPersonas, type PersonaRow } from '@/lib/queries/personas'
+import { getProductContext } from '@/lib/queries/product-context'
+import { getAiVisibleProductFeatures } from '@/lib/queries/product-features'
+import { getCurrentGoals } from '@/lib/queries/current-goals'
+import { getPlatformGuidelineByName } from '@/lib/queries/platform-guidelines'
+import { getTopPerformingOutputs } from '@/lib/queries/outputs'
+import { PRODUCT_SECTIONS } from '@/lib/company/product-sections'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createOutput } from '@/lib/queries/outputs'
 import { getModelById, DEFAULT_MODEL } from '@/lib/ai/models'
@@ -56,6 +62,17 @@ function buildPersonasContext(personas: PersonaRow[]): string {
   }).join('\n\n')
 }
 
+type AuthorParam = { type: 'company' } | {
+  type: 'named'
+  name: string
+  role: string | null
+  voice: string | null
+  tone: string | null
+  writing_style: string | null
+  personal_pillars: string | null
+  platform_notes: string | null
+}
+
 function buildPrompt(params: {
   brand: {
     company_name: string
@@ -67,26 +84,26 @@ function buildPrompt(params: {
     pillars: string
     target_audience: string
     values: string | null
+    guardrails?: string | null
   }
   businessPlanContext: string
   personasContext: string
+  productContextText: string
+  productFeaturesText: string
+  currentGoalsText: string
+  platformGuidelineText: string
+  topPerformersText: string
   basePrompt: string
   customRules: string
-  author: {
-    type: 'company'
-  } | {
-    type: 'named'
-    name: string
-    role: string | null
-    voice: string | null
-    tone: string | null
-    writing_style: string | null
-    personal_pillars: string | null
-    platform_notes: string | null
-  }
+  author: AuthorParam
   brief: string
 }): string {
-  const { brand, businessPlanContext, personasContext, basePrompt, customRules, author, brief } = params
+  const {
+    brand, businessPlanContext, personasContext,
+    productContextText, productFeaturesText, currentGoalsText,
+    platformGuidelineText, topPerformersText,
+    basePrompt, customRules, author, brief,
+  } = params
 
   const lines: string[] = []
 
@@ -103,6 +120,12 @@ function buildPrompt(params: {
   lines.push(`Target audience: ${brand.target_audience}`)
   if (brand.values) lines.push(`Values: ${brand.values}`)
 
+  if (brand.guardrails) {
+    lines.push('')
+    lines.push('[GUARDRAILS — never violate these]')
+    lines.push(brand.guardrails)
+  }
+
   if (businessPlanContext) {
     lines.push('')
     lines.push('[BUSINESS CONTEXT]')
@@ -115,6 +138,31 @@ function buildPrompt(params: {
     lines.push('[TARGET PERSONAS]')
     lines.push('The following are the target audience personas. Write content that speaks to their goals, frustrations, and language. If multiple personas are listed, write for all of them or the most relevant one given the brief.')
     lines.push(personasContext)
+  }
+
+  if (currentGoalsText) {
+    lines.push('')
+    lines.push('[CURRENT GOALS]')
+    lines.push('Use these to ensure content is strategically timed and on-message.')
+    lines.push(currentGoalsText)
+  }
+
+  if (productContextText) {
+    lines.push('')
+    lines.push('[PRODUCT CONTEXT]')
+    lines.push(productContextText)
+  }
+
+  if (productFeaturesText) {
+    lines.push('')
+    lines.push('[PRODUCT FEATURES]')
+    lines.push(productFeaturesText)
+  }
+
+  if (platformGuidelineText) {
+    lines.push('')
+    lines.push('[PLATFORM GUIDELINES]')
+    lines.push(platformGuidelineText)
   }
 
   lines.push('')
@@ -140,6 +188,12 @@ function buildPrompt(params: {
     if (author.personal_pillars) lines.push(`Personal pillars: ${author.personal_pillars}`)
     if (author.platform_notes) lines.push(`Platform notes: ${author.platform_notes}`)
     lines.push('The brand context above (mission, vision, north star, pillars, audience) still applies — but the voice, tone, and style must match this author.')
+  }
+
+  if (topPerformersText) {
+    lines.push('')
+    lines.push('[TOP PERFORMING CONTENT — use as style reference]')
+    lines.push(topPerformersText)
   }
 
   lines.push('')
@@ -184,11 +238,15 @@ export async function POST(request: Request) {
 
   if (!project) return Response.json({ error: 'Project not found' }, { status: 404 })
 
-  // Fetch brand context, business plan, and personas in parallel
-  const [brand, businessPlan, personas] = await Promise.all([
+  // Fetch brand context, business plan, personas, and new context in parallel
+  const [brand, businessPlan, personas, productContext, productFeatures, currentGoals, topPerformers] = await Promise.all([
     getBrandContext(org.id),
     getBusinessPlan(org.id),
     getPersonas(org.id),
+    getProductContext(org.id),
+    getAiVisibleProductFeatures(org.id),
+    getCurrentGoals(org.id),
+    getTopPerformingOutputs(org.id, 3),
   ])
   if (!brand || !brand.mission || !brand.vision) {
     return Response.json(
@@ -213,9 +271,15 @@ export async function POST(request: Request) {
   if (!contentType) return Response.json({ error: 'Content type not found' }, { status: 404 })
 
   const basePrompt = (contentType.content_type_templates as { base_prompt: string } | null)?.base_prompt ?? ''
+  const contentTypePlatform = (contentType as unknown as { platform?: string | null }).platform ?? null
+
+  // Fetch matched platform guideline if content type has a platform
+  const matchedPlatformGuideline = contentTypePlatform
+    ? await getPlatformGuidelineByName(org.id, contentTypePlatform)
+    : null
 
   // Resolve author
-  let authorParam: Parameters<typeof buildPrompt>[0]['author']
+  let authorParam: AuthorParam
 
   if (authorId === 'company') {
     authorParam = { type: 'company' }
@@ -233,10 +297,62 @@ export async function POST(request: Request) {
     authorParam = { type: 'named', ...authorProfile }
   }
 
+  // Build product context text
+  const productContextText = productContext?.sections
+    ? PRODUCT_SECTIONS
+        .filter((s) => s.aiVisibleByDefault && (productContext.sections[s.key] ?? '').trim())
+        .map((s) => `${s.label}: ${productContext.sections[s.key].trim()}`)
+        .join('\n')
+    : ''
+
+  // Build product features text (name: tagline format, AI-visible only)
+  const productFeaturesText = productFeatures.length > 0
+    ? productFeatures
+        .filter((f) => f.include_in_ai)
+        .map((f) => f.tagline ? `- ${f.name}: ${f.tagline}` : `- ${f.name}`)
+        .join('\n')
+    : ''
+
+  // Build current goals text
+  const currentGoalsText = currentGoals?.sections
+    ? Object.entries({
+        'Period': currentGoals.sections.period_label,
+        'Focus areas': currentGoals.sections.focus_areas,
+        'Key results': currentGoals.sections.key_results,
+        'What to push': currentGoals.sections.what_to_push,
+        'What to defer': currentGoals.sections.what_to_defer,
+      })
+        .filter(([, v]) => v?.trim())
+        .map(([k, v]) => `${k}: ${v.trim()}`)
+        .join('\n')
+    : ''
+
+  // Build platform guideline text
+  const platformGuidelineText = matchedPlatformGuideline
+    ? [
+        `Platform: ${matchedPlatformGuideline.platform_name}`,
+        matchedPlatformGuideline.guidelines,
+        matchedPlatformGuideline.format_notes ? `Format notes: ${matchedPlatformGuideline.format_notes}` : null,
+        matchedPlatformGuideline.cadence ? `Cadence: ${matchedPlatformGuideline.cadence}` : null,
+      ].filter(Boolean).join('\n')
+    : ''
+
+  // Build top performers text
+  const topPerformersText = topPerformers.length > 0
+    ? topPerformers.map((o, i) =>
+        `Example ${i + 1} (${o.reach.toLocaleString()} ${o.reach_metric}):\nBrief: ${o.brief.slice(0, 120)}\nContent: ${o.content.slice(0, 300)}${o.content.length > 300 ? '…' : ''}`
+      ).join('\n\n')
+    : ''
+
   const prompt = buildPrompt({
     brand,
     businessPlanContext,
     personasContext,
+    productContextText,
+    productFeaturesText,
+    currentGoalsText,
+    platformGuidelineText,
+    topPerformersText,
     basePrompt,
     customRules: contentType.custom_rules,
     author: authorParam,

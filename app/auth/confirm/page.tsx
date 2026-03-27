@@ -13,8 +13,22 @@ function ConfirmInner() {
     async function confirm() {
       const supabase = createClient()
 
-      // getSession() processes any hash fragment (#access_token=...) automatically
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      // Supabase invite links return tokens as hash fragments (#access_token=...).
+      // Parse and call setSession explicitly — getSession() won't see the hash.
+      const hash = window.location.hash.substring(1)
+      const params = new URLSearchParams(hash)
+      const accessToken = params.get('access_token')
+      const refreshToken = params.get('refresh_token')
+
+      if (!accessToken || !refreshToken) {
+        setError('Invalid or expired invite link. Please ask to be re-invited.')
+        return
+      }
+
+      const { data: { session }, error: sessionError } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      })
 
       if (sessionError || !session) {
         setError('Invalid or expired invite link. Please ask to be re-invited.')

@@ -11,17 +11,20 @@ interface Output {
   created_at: string
   content_types: { name: string } | null
   projects: { name: string } | null
+  creator_full_name: string | null
 }
 
 interface ContentLibraryProps {
   outputs: Output[]
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-GB', {
+function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString('en-GB', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   })
 }
 
@@ -84,8 +87,8 @@ export function ContentLibrary({ outputs }: ContentLibraryProps) {
                     {output.projects.name}
                   </span>
                 )}
-                <span className="ml-auto text-xs text-muted-foreground">
-                  {formatDate(output.created_at)}
+                <span className="ml-auto shrink-0 text-xs text-muted-foreground text-right">
+                  {output.creator_full_name ?? 'Unknown user'} · {formatDateTime(output.created_at)}
                 </span>
               </div>
               <p className="text-xs text-muted-foreground mb-1.5 line-clamp-1">

@@ -15,10 +15,22 @@ interface ContentType {
   name: string
 }
 
+export interface GeneratedOutputPayload {
+  id: string
+  brief: string
+  content: string
+  content_type_id: string
+  model_id: string
+  created_by: string
+  created_at: string
+  updated_at: string
+  creator_full_name: string | null
+}
+
 interface GenerateContentDialogProps {
   open: boolean
   onClose: () => void
-  onGenerated: (output: { id: string; content: string; brief: string }) => void
+  onGenerated: (output: GeneratedOutputPayload) => void
   projectId: string
   authors: Author[]
   contentTypes: ContentType[]
@@ -108,7 +120,7 @@ export function GenerateContentDialog({
         {noBrandContext && (
           <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
             Brand context must be configured before generating content.{' '}
-            <a href="/dashboard/marketing/brand" className="font-medium underline">
+            <a href="/dashboard/company/brand" className="font-medium underline">
               Set up brand context →
             </a>
           </div>
@@ -117,7 +129,7 @@ export function GenerateContentDialog({
         {!noBrandContext && noContentTypes && (
           <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
             No content types have been set up yet.{' '}
-            <a href="/dashboard/marketing/content-types" className="font-medium underline">
+            <a href="/dashboard/company/content-types" className="font-medium underline">
               Add a content type →
             </a>
           </div>

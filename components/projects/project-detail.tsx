@@ -18,9 +18,13 @@ interface Output {
   content: string
   content_type_id: string
   model_id: string
+  project_id: string
+  created_by: string
   created_at: string
   updated_at: string
   content_types: { name: string } | null
+  projects: { name: string } | null
+  creator_full_name: string | null
 }
 
 interface Author {

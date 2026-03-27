@@ -3,7 +3,10 @@
 import { useState } from 'react'
 import { Sparkles, Copy, Pencil, Trash2, Check, X, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { GenerateContentDialog } from '@/components/marketing/generate-content-dialog'
+import {
+  GenerateContentDialog,
+  type GeneratedOutputPayload,
+} from '@/components/marketing/generate-content-dialog'
 import { getModelById } from '@/lib/ai/models'
 
 interface Output {
@@ -12,9 +15,13 @@ interface Output {
   content: string
   content_type_id: string
   model_id: string
+  project_id: string
+  created_by: string
   created_at: string
   updated_at: string
   content_types: { name: string } | null
+  projects: { name: string } | null
+  creator_full_name: string | null
 }
 
 interface Author {
@@ -35,11 +42,13 @@ interface OutputsListProps {
   hasBrandContext: boolean
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-GB', {
+function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString('en-GB', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   })
 }
 
@@ -111,16 +120,16 @@ function OutputCard({
   return (
     <div className="rounded-lg border border-border bg-background">
       {/* Card header */}
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-border px-4 py-3">
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
           <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground shrink-0">
             {output.content_types?.name ?? 'Unknown type'}
           </span>
           <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground shrink-0 hidden sm:inline-flex">
             {modelLabel}
           </span>
-          <span className="text-xs text-muted-foreground truncate hidden sm:block">
-            {formatDate(output.created_at)}
+          <span className="text-xs text-muted-foreground shrink-0 sm:ml-auto max-w-full sm:max-w-[14rem] sm:text-right">
+            {output.creator_full_name ?? 'Unknown user'} · {formatDateTime(output.created_at)}
           </span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
@@ -248,17 +257,24 @@ export function OutputsList({
   const [outputs, setOutputs] = useState<Output[]>(initialOutputs)
   const [dialogOpen, setDialogOpen] = useState(false)
 
-  function handleGenerated(newOutput: { id: string; content: string; brief: string; model_id?: string }) {
-    const ct = contentTypes.find((c) => outputs.some((o) => o.content_type_id === c.id)) ?? contentTypes[0]
+  function handleGenerated(newOutput: GeneratedOutputPayload) {
+    const ct =
+      contentTypes.find((c) => c.id === newOutput.content_type_id) ??
+      contentTypes.find((c) => outputs.some((o) => o.content_type_id === c.id)) ??
+      contentTypes[0]
     const full: Output = {
       id: newOutput.id,
       brief: newOutput.brief,
       content: newOutput.content,
-      content_type_id: '',
-      model_id: newOutput.model_id ?? '',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      content_type_id: newOutput.content_type_id,
+      model_id: newOutput.model_id,
+      project_id: projectId,
+      created_by: newOutput.created_by,
+      created_at: newOutput.created_at,
+      updated_at: newOutput.updated_at,
       content_types: ct ? { name: ct.name } : null,
+      projects: null,
+      creator_full_name: newOutput.creator_full_name,
     }
     setOutputs((prev) => [full, ...prev])
   }

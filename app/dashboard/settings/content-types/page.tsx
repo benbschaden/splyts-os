@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
 
 export default function OldContentTypesPage() {
-  redirect('/dashboard/marketing/content-types')
+  redirect('/dashboard/company/content-types')
 }

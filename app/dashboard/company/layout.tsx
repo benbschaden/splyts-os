@@ -1,11 +1,13 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
-import { MarketingNav } from '@/components/marketing/marketing-nav'
+import { CompanyNav } from '@/components/company/company-nav'
 
-export default async function MarketingLayout({ children }: { children: React.ReactNode }) {
+export default async function CompanyLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
   const org = await getOrganizationForUser(user.id)
@@ -16,17 +18,15 @@ export default async function MarketingLayout({ children }: { children: React.Re
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-14 items-center border-b border-border px-6">
-        <h1 className="text-sm font-semibold text-foreground">Marketing</h1>
+        <h1 className="text-sm font-semibold text-foreground">Company</h1>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
         <aside className="w-48 shrink-0 border-r border-border p-3">
-          <MarketingNav isAdmin={isAdmin} />
+          <CompanyNav isAdmin={isAdmin} />
         </aside>
 
-        <div className="flex-1 overflow-y-auto p-6">
-          {children}
-        </div>
+        <div className="flex-1 overflow-y-auto p-6">{children}</div>
       </div>
     </div>
   )

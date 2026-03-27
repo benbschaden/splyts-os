@@ -1,10 +1,10 @@
 import Link from 'next/link'
-import { FolderOpen, Megaphone, Settings, LogOut } from 'lucide-react'
+import { FolderOpen, Building2, Settings, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navigation = [
   { name: 'Projects', href: '/dashboard', icon: FolderOpen },
-  { name: 'Marketing', href: '/dashboard/marketing', icon: Megaphone },
+  { name: 'Company', href: '/dashboard/company', icon: Building2 },
 ]
 
 const bottomNavigation = [

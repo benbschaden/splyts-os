@@ -4,25 +4,23 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 
-const primaryNav = [
-  { name: 'Content', href: '/dashboard/marketing' },
-]
+const primaryNav = [{ name: 'Content', href: '/dashboard/company' }]
 
 const configNav = [
-  { name: 'Brand', href: '/dashboard/marketing/brand' },
-  { name: 'Authors', href: '/dashboard/marketing/authors' },
-  { name: 'Content Types', href: '/dashboard/marketing/content-types' },
+  { name: 'Brand', href: '/dashboard/company/brand' },
+  { name: 'Authors', href: '/dashboard/company/authors' },
+  { name: 'Content types', href: '/dashboard/company/content-types' },
 ]
 
-interface MarketingNavProps {
+interface CompanyNavProps {
   isAdmin: boolean
 }
 
-export function MarketingNav({ isAdmin }: MarketingNavProps) {
+export function CompanyNav({ isAdmin }: CompanyNavProps) {
   const pathname = usePathname()
 
   const isActive = (href: string) => {
-    if (href === '/dashboard/marketing') return pathname === '/dashboard/marketing'
+    if (href === '/dashboard/company') return pathname === '/dashboard/company'
     return pathname.startsWith(href)
   }
 

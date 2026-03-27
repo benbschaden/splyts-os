@@ -33,6 +33,22 @@ async function attachCreatorNames<
   }))
 }
 
+export async function getRecentOutputs(
+  organizationId: string,
+  limit = 8,
+): Promise<{ id: string; brief: string; project_id: string; projects: { name: string } | null; created_at: string }[]> {
+  const supabase = createServiceClient()
+  const { data, error } = await supabase
+    .from('outputs')
+    .select('id, brief, project_id, projects(name), created_at')
+    .eq('organization_id', organizationId)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error) return []
+  return (data ?? []) as { id: string; brief: string; project_id: string; projects: { name: string } | null; created_at: string }[]
+}
+
 export async function getAllOutputsForOrg(organizationId: string): Promise<OutputWithCreator[]> {
   const supabase = createServiceClient()
 

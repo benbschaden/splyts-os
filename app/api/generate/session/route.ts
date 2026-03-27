@@ -12,6 +12,8 @@ import { getAiVisibleCompetitors } from '@/lib/queries/competitors'
 import { getApprovedSocialProof } from '@/lib/queries/social-proof'
 import { getAiVisibleNarratives } from '@/lib/queries/brand-narratives'
 import { getTerminologyForAi } from '@/lib/queries/terminology'
+import { getKpiDefinitions } from '@/lib/queries/kpi-definitions'
+import { getLatestSnapshot } from '@/lib/queries/kpi-snapshots'
 import { getTopPerformingOutputs } from '@/lib/queries/outputs'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getModelById, DEFAULT_MODEL } from '@/lib/ai/models'
@@ -67,7 +69,7 @@ export async function POST(request: Request): Promise<Response> {
     if (!project) return Response.json({ error: 'Project not found' }, { status: 404 })
 
     // Fetch context in parallel
-    const [brand, businessPlan, personas, productContext, productFeatures, currentGoals, competitors, socialProof, narratives, terminology, topPerformers, contentTypeResult] = await Promise.all([
+    const [brand, businessPlan, personas, productContext, productFeatures, currentGoals, competitors, socialProof, narratives, terminology, kpiDefinitions, kpiSnapshot, topPerformers, contentTypeResult] = await Promise.all([
       getBrandContext(org.id),
       getBusinessPlan(org.id),
       getPersonas(org.id),
@@ -78,6 +80,8 @@ export async function POST(request: Request): Promise<Response> {
       getApprovedSocialProof(org.id),
       getAiVisibleNarratives(org.id),
       getTerminologyForAi(org.id),
+      getKpiDefinitions(org.id),
+      getLatestSnapshot(org.id),
       getTopPerformingOutputs(org.id, 3),
       db
         .from('content_types')
@@ -128,6 +132,8 @@ export async function POST(request: Request): Promise<Response> {
       socialProof,
       narratives,
       terminology,
+      kpiDefinitions,
+      kpiSnapshot,
       topPerformers,
       contentTypeName: contentType.name,
       basePrompt,

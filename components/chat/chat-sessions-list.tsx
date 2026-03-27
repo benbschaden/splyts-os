@@ -23,6 +23,7 @@ const DEFAULT_CONTEXT: ContextConfig = {
   filed_documents: false,
   competitors: false,
   social_proof: false,
+  kpis: false,
   browser: false,
 }
 
@@ -30,13 +31,14 @@ const DEFAULT_CONTEXT: ContextConfig = {
 const CONTEXT_CATEGORIES = [
   {
     label: 'Strategy',
-    description: 'Business plan, goals, milestones, competitors',
-    keys: ['business_plan', 'current_goals', 'company_milestones', 'competitors'] as const,
+    description: 'Business plan, goals, milestones, competitors, KPIs',
+    keys: ['business_plan', 'current_goals', 'company_milestones', 'competitors', 'kpis'] as const,
     items: [
       { key: 'business_plan' as const, label: 'Business plan' },
       { key: 'current_goals' as const, label: 'Current goals' },
       { key: 'company_milestones' as const, label: 'Milestones' },
       { key: 'competitors' as const, label: 'Competitors' },
+      { key: 'kpis' as const, label: 'KPIs & Metrics' },
     ],
   },
   {

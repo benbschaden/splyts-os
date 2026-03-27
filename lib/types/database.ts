@@ -1296,6 +1296,153 @@ export type Database = {
         }
         Relationships: []
       }
+      kpi_definitions: {
+        Row: {
+          id: string
+          organization_id: string
+          name: string
+          unit: string
+          category: string
+          description: string | null
+          is_highlighted: boolean
+          sort_order: number
+          created_by: string
+          updated_by: string | null
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          name: string
+          unit?: string
+          category?: string
+          description?: string | null
+          is_highlighted?: boolean
+          sort_order?: number
+          created_by: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          name?: string
+          unit?: string
+          category?: string
+          description?: string | null
+          is_highlighted?: boolean
+          sort_order?: number
+          created_by?: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: []
+      }
+      kpi_snapshots: {
+        Row: {
+          id: string
+          organization_id: string
+          snapshot_date: string
+          values: Record<string, number>
+          notes: string | null
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          snapshot_date: string
+          values?: Record<string, number>
+          notes?: string | null
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          snapshot_date?: string
+          values?: Record<string, number>
+          notes?: string | null
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      funnels: {
+        Row: {
+          id: string
+          organization_id: string
+          name: string
+          description: string | null
+          is_dashboard_default: boolean
+          created_by: string
+          updated_by: string | null
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          name: string
+          description?: string | null
+          is_dashboard_default?: boolean
+          created_by: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          name?: string
+          description?: string | null
+          is_dashboard_default?: boolean
+          created_by?: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: []
+      }
+      funnel_stages: {
+        Row: {
+          id: string
+          funnel_id: string
+          kpi_definition_id: string
+          stage_order: number
+          label_override: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          funnel_id: string
+          kpi_definition_id: string
+          stage_order?: number
+          label_override?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          funnel_id?: string
+          kpi_definition_id?: string
+          stage_order?: number
+          label_override?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

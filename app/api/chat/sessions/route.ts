@@ -18,6 +18,7 @@ const createSchema = z.object({
     filed_documents: z.boolean(),
     competitors: z.boolean(),
     social_proof: z.boolean(),
+    kpis: z.boolean(),
   }).optional().default({
     brand: true,
     business_plan: false,
@@ -30,6 +31,7 @@ const createSchema = z.object({
     filed_documents: false,
     competitors: false,
     social_proof: false,
+    kpis: false,
   }),
 })
 

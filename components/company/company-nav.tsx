@@ -16,6 +16,8 @@ const navGroups = [
       { name: 'Goals', href: '/dashboard/company/goals' },
       { name: 'Milestones', href: '/dashboard/company/milestones' },
       { name: 'Competitors', href: '/dashboard/company/competitors' },
+      { name: 'KPIs & Metrics', href: '/dashboard/company/kpis' },
+      { name: 'Funnels', href: '/dashboard/company/funnels' },
     ],
   },
   {

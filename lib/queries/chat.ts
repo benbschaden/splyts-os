@@ -11,6 +11,7 @@ export interface ContextConfig {
   filed_documents: boolean
   competitors: boolean
   social_proof: boolean
+  kpis: boolean
   browser: boolean
 }
 

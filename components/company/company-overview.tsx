@@ -9,6 +9,8 @@ const sections = [
       { href: '/dashboard/company/goals', name: 'Current goals', desc: 'Quarterly focus, key results, and what to push/defer — injected into AI' },
       { href: '/dashboard/company/milestones', name: 'Milestones', desc: 'Key moments in company history, included in business plan PDF' },
       { href: '/dashboard/company/competitors', name: 'Competitors', desc: 'Structured competitive intelligence — positioning, strengths, battle cards' },
+      { href: '/dashboard/company/kpis', name: 'KPIs & Metrics', desc: 'Define metrics, enter weekly values — highlighted KPIs show on home dashboard' },
+      { href: '/dashboard/company/funnels', name: 'Funnels', desc: 'Custom conversion funnels from your KPIs — default funnel shown on dashboard' },
     ],
   },
   {

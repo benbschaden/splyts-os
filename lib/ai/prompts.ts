@@ -7,6 +7,8 @@ import type { CompetitorRow } from '@/lib/queries/competitors'
 import type { SocialProofRow } from '@/lib/queries/social-proof'
 import type { BrandNarrativeRow } from '@/lib/queries/brand-narratives'
 import type { TerminologyRow } from '@/lib/queries/terminology'
+import type { KpiDefinitionRow } from '@/lib/queries/kpi-definitions'
+import type { KpiSnapshotRow } from '@/lib/queries/kpi-snapshots'
 
 export type { BusinessPlanSections }
 
@@ -143,6 +145,23 @@ function buildTerminologyBlock(terms: TerminologyRow[]): string {
   }).join('\n')
 }
 
+function buildKpiSnapshotBlock(
+  definitions: KpiDefinitionRow[],
+  snapshot: KpiSnapshotRow | null,
+): string {
+  if (!snapshot || definitions.length === 0) return ''
+  const defMap = new Map(definitions.map((d) => [d.id, d]))
+  const lines: string[] = [`Week of ${snapshot.snapshot_date}:`]
+  for (const [kpiId, value] of Object.entries(snapshot.values)) {
+    const def = defMap.get(kpiId)
+    if (!def) continue
+    const prefix = def.unit === 'currency' ? '$' : ''
+    const suffix = def.unit === 'percent' ? '%' : def.unit === 'ratio' ? 'x' : ''
+    lines.push(`- ${def.name}: ${prefix}${value.toLocaleString()}${suffix}`)
+  }
+  return lines.join('\n')
+}
+
 export function buildChatSystemPrompt(params: {
   brand: BrandContext | null
   businessPlanSections: BusinessPlanSections | null
@@ -155,6 +174,8 @@ export function buildChatSystemPrompt(params: {
   socialProof: SocialProofRow[]
   narratives: BrandNarrativeRow[]
   terminology: TerminologyRow[]
+  kpiDefinitions: KpiDefinitionRow[]
+  kpiSnapshot: KpiSnapshotRow | null
   includeBrand: boolean
   includeBusinessPlan: boolean
   includePersonas: boolean
@@ -163,12 +184,15 @@ export function buildChatSystemPrompt(params: {
   includeFiledDocs: boolean
   includeCompetitors: boolean
   includeSocialProof: boolean
+  includeKpis: boolean
 }): string {
   const {
     brand, businessPlanSections, personas, productSections, productFeatures,
     currentGoals, filedDocs, competitors, socialProof, narratives, terminology,
+    kpiDefinitions, kpiSnapshot,
     includeBrand, includeBusinessPlan, includePersonas, includeProduct,
     includeCurrentGoals, includeFiledDocs, includeCompetitors, includeSocialProof,
+    includeKpis,
   } = params
 
   const lines: string[] = []
@@ -288,6 +312,15 @@ export function buildChatSystemPrompt(params: {
     lines.push('')
   }
 
+  if (includeKpis && kpiDefinitions.length > 0) {
+    const kpiBlock = buildKpiSnapshotBlock(kpiDefinitions, kpiSnapshot)
+    if (kpiBlock) {
+      lines.push('[KEY METRICS — latest snapshot]')
+      lines.push(kpiBlock)
+      lines.push('')
+    }
+  }
+
   lines.push('Use the company context above to give grounded, relevant answers.')
   lines.push('When you do not know something, say so — do not make up company details.')
 
@@ -318,6 +351,8 @@ export function buildGenerationSystemPrompt(params: {
   socialProof: SocialProofRow[]
   narratives: BrandNarrativeRow[]
   terminology: TerminologyRow[]
+  kpiDefinitions: KpiDefinitionRow[]
+  kpiSnapshot: KpiSnapshotRow | null
   topPerformers: { brief: string; content: string; reach: number; reach_metric: string }[]
   contentTypeName: string
   basePrompt: string
@@ -328,7 +363,7 @@ export function buildGenerationSystemPrompt(params: {
   const {
     brand, businessPlanSections, personas, productSections, productFeatures,
     currentGoals, competitors, socialProof, narratives, terminology,
-    topPerformers,
+    kpiDefinitions, kpiSnapshot, topPerformers,
     contentTypeName, basePrompt, customRules, cadence, author,
   } = params
 
@@ -484,6 +519,12 @@ export function buildGenerationSystemPrompt(params: {
     lines.push('The brand context (mission, vision, north star, pillars, audience) still applies — but voice, tone, and style must match this author.')
   }
   lines.push('')
+
+  // KPI snapshot — medium priority
+  if (kpiDefinitions.length > 0) {
+    const kpiBlock = buildKpiSnapshotBlock(kpiDefinitions, kpiSnapshot)
+    if (kpiBlock) addSection('KEY METRICS — latest snapshot', kpiBlock)
+  }
 
   // Top performers — lowest priority, drop if over budget
   if (topPerformers.length > 0) {

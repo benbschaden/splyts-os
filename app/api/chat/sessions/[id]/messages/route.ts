@@ -16,6 +16,8 @@ import { getAiVisibleCompetitors } from '@/lib/queries/competitors'
 import { getApprovedSocialProof } from '@/lib/queries/social-proof'
 import { getAiVisibleNarratives } from '@/lib/queries/brand-narratives'
 import { getTerminologyForAi } from '@/lib/queries/terminology'
+import { getKpiDefinitions } from '@/lib/queries/kpi-definitions'
+import { getLatestSnapshot } from '@/lib/queries/kpi-snapshots'
 import { buildChatSystemPrompt } from '@/lib/ai/prompts'
 import { DEFAULT_MODEL, getModelById } from '@/lib/ai/models'
 
@@ -123,6 +125,7 @@ export async function POST(
       filed_documents: includeFiledDocs = false,
       competitors: includeCompetitors = false,
       social_proof: includeSocialProof = false,
+      kpis: includeKpis = false,
     } = config
     const model = getModelById(session.model_id) ?? DEFAULT_MODEL
 
@@ -141,6 +144,8 @@ export async function POST(
       socialProof,
       narratives,
       terminology,
+      kpiDefinitions,
+      kpiSnapshot,
       existingMessages,
     ] = await Promise.all([
       includeBrand ? getBrandContext(org.id) : Promise.resolve(null),
@@ -156,6 +161,8 @@ export async function POST(
       includeSocialProof ? getApprovedSocialProof(org.id) : Promise.resolve([]),
       includeBrand ? getAiVisibleNarratives(org.id) : Promise.resolve([]),
       includeBrand ? getTerminologyForAi(org.id) : Promise.resolve([]),
+      includeKpis ? getKpiDefinitions(org.id) : Promise.resolve([]),
+      includeKpis ? getLatestSnapshot(org.id) : Promise.resolve(null),
       getChatMessages(id),
     ])
 
@@ -202,6 +209,8 @@ export async function POST(
       socialProof,
       narratives,
       terminology,
+      kpiDefinitions,
+      kpiSnapshot,
       includeBrand,
       includeBusinessPlan,
       includePersonas,
@@ -210,6 +219,7 @@ export async function POST(
       includeFiledDocs,
       includeCompetitors,
       includeSocialProof,
+      includeKpis,
     })
 
     const messageHistory: Anthropic.MessageParam[] = [

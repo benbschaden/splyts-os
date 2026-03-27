@@ -26,23 +26,7 @@ export async function POST(request: Request) {
 
   const { email, role } = parsed.data
 
-  // Check if user is already a member
   const db = createServiceClient()
-  const { data: authUsers } = await db.auth.admin.listUsers()
-  const existingUser = authUsers?.users?.find((u) => u.email?.toLowerCase() === email.toLowerCase())
-
-  if (existingUser) {
-    const { data: existingMember } = await db
-      .from('organization_members')
-      .select('user_id')
-      .eq('organization_id', org.id)
-      .eq('user_id', existingUser.id)
-      .maybeSingle()
-
-    if (existingMember) {
-      return Response.json({ error: 'This person is already a member of your organisation' }, { status: 409 })
-    }
-  }
 
   // Create invite record
   const { invite, error } = await createInvite({

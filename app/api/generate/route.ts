@@ -3,6 +3,8 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getBrandContext } from '@/lib/queries/brand-context'
+import { getBusinessPlan } from '@/lib/queries/business-plan'
+import { BUSINESS_PLAN_SECTIONS, type BusinessPlanSections, getAiVisibleKeys } from '@/lib/company/business-plan-sections'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createOutput } from '@/lib/queries/outputs'
 import { getModelById, DEFAULT_MODEL } from '@/lib/ai/models'
@@ -14,6 +16,15 @@ const schema = z.object({
   brief: z.string().min(1, 'Brief is required'),
   modelId: z.string().optional(),
 })
+
+function buildBusinessPlanContext(sections: BusinessPlanSections): string {
+  const visible = getAiVisibleKeys(sections)
+  const filled = BUSINESS_PLAN_SECTIONS
+    .filter((s) => visible.has(s.key) && (sections[s.key] ?? '').trim())
+    .map((s) => `${s.label}: ${sections[s.key].trim()}`)
+  if (filled.length === 0) return ''
+  return filled.join('\n')
+}
 
 function buildPrompt(params: {
   brand: {
@@ -27,6 +38,7 @@ function buildPrompt(params: {
     target_audience: string
     values: string | null
   }
+  businessPlanContext: string
   basePrompt: string
   customRules: string
   author: {
@@ -43,7 +55,7 @@ function buildPrompt(params: {
   }
   brief: string
 }): string {
-  const { brand, basePrompt, customRules, author, brief } = params
+  const { brand, businessPlanContext, basePrompt, customRules, author, brief } = params
 
   const lines: string[] = []
 
@@ -59,6 +71,13 @@ function buildPrompt(params: {
   lines.push(`Pillars: ${brand.pillars}`)
   lines.push(`Target audience: ${brand.target_audience}`)
   if (brand.values) lines.push(`Values: ${brand.values}`)
+
+  if (businessPlanContext) {
+    lines.push('')
+    lines.push('[BUSINESS CONTEXT]')
+    lines.push('The following is the company business plan. Use it as background knowledge to ensure content is strategically aligned.')
+    lines.push(businessPlanContext)
+  }
 
   lines.push('')
   lines.push('[CONTENT STRUCTURE]')
@@ -127,14 +146,19 @@ export async function POST(request: Request) {
 
   if (!project) return Response.json({ error: 'Project not found' }, { status: 404 })
 
-  // Fetch brand context
-  const brand = await getBrandContext(org.id)
+  // Fetch brand context + business plan in parallel
+  const [brand, businessPlan] = await Promise.all([
+    getBrandContext(org.id),
+    getBusinessPlan(org.id),
+  ])
   if (!brand || !brand.mission || !brand.vision) {
     return Response.json(
       { error: 'Brand context must be configured before generating content' },
       { status: 422 },
     )
   }
+
+  const businessPlanContext = buildBusinessPlanContext(businessPlan?.sections ?? {})
 
   // Fetch content type + template
   const { data: contentType } = await db
@@ -171,6 +195,7 @@ export async function POST(request: Request) {
 
   const prompt = buildPrompt({
     brand,
+    businessPlanContext,
     basePrompt,
     customRules: contentType.custom_rules,
     author: authorParam,

@@ -49,7 +49,13 @@ export async function POST(request: Request) {
   })
 
   if (inviteError) {
-    return Response.json({ error: 'Failed to send invite email. Please try again.' }, { status: 500 })
+    // 422 means the user already exists in Supabase Auth (previously invited or signed up).
+    // That's fine — they can log in with the magic link or their existing credentials.
+    // Any other error is a real failure.
+    const status = (inviteError as { status?: number }).status
+    if (status !== 422) {
+      return Response.json({ error: 'Failed to send invite email. Please try again.' }, { status: 500 })
+    }
   }
 
   return Response.json({ message: `Invite sent to ${email}` }, { status: 201 })

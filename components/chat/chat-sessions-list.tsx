@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { MessageSquare, Plus, Trash2, Globe } from 'lucide-react'
+import { MessageSquare, Plus, Trash2, Globe, ChevronDown } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import type { ChatSessionRow, ContextConfig } from '@/lib/queries/chat'
 import { AI_MODELS, DEFAULT_MODEL } from '@/lib/ai/models'
 
@@ -24,6 +25,49 @@ const DEFAULT_CONTEXT: ContextConfig = {
   browser: false,
 }
 
+// Category definitions — each category owns a set of context keys
+const CONTEXT_CATEGORIES = [
+  {
+    label: 'Strategy',
+    description: 'Business plan, goals, milestones',
+    keys: ['business_plan', 'current_goals', 'company_milestones'] as const,
+    items: [
+      { key: 'business_plan' as const, label: 'Business plan' },
+      { key: 'current_goals' as const, label: 'Current goals' },
+      { key: 'company_milestones' as const, label: 'Milestones' },
+    ],
+  },
+  {
+    label: 'Product',
+    description: 'Product context, features, roadmap',
+    keys: ['product', 'product_roadmap'] as const,
+    items: [
+      { key: 'product' as const, label: 'Product context' },
+      { key: 'product_roadmap' as const, label: 'Roadmap' },
+    ],
+  },
+  {
+    label: 'Branding',
+    description: 'Brand voice, personas, platform rules',
+    keys: ['brand', 'personas', 'platform_guidelines'] as const,
+    items: [
+      { key: 'brand' as const, label: 'Brand & voice' },
+      { key: 'personas' as const, label: 'Personas' },
+      { key: 'platform_guidelines' as const, label: 'Platform guidelines' },
+    ],
+  },
+  {
+    label: 'Docs',
+    description: 'Shared and filed documents',
+    keys: ['filed_documents'] as const,
+    items: [
+      { key: 'filed_documents' as const, label: 'Filed documents' },
+    ],
+  },
+]
+
+type ContextKey = keyof Omit<ContextConfig, 'browser'>
+
 export function ChatSessionsList({ sessions: initialSessions }: ChatSessionsListProps) {
   const router = useRouter()
   const [sessions, setSessions] = useState(initialSessions)
@@ -32,6 +76,8 @@ export function ChatSessionsList({ sessions: initialSessions }: ChatSessionsList
   const [selectedModelId, setSelectedModelId] = useState(DEFAULT_MODEL.id)
   const [showNewChat, setShowNewChat] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  // Track which categories are expanded to show sub-items
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({})
 
   async function handleCreateSession() {
     setIsCreating(true)
@@ -64,8 +110,41 @@ export function ChatSessionsList({ sessions: initialSessions }: ChatSessionsList
     }
   }
 
-  function toggleContext(key: keyof ContextConfig) {
+  function isCategoryOn(keys: readonly ContextKey[]) {
+    return keys.some((k) => contextConfig[k])
+  }
+
+  function isCategoryAllOn(keys: readonly ContextKey[]) {
+    return keys.every((k) => contextConfig[k])
+  }
+
+  function toggleCategory(label: string, keys: readonly ContextKey[]) {
+    const allOn = isCategoryAllOn(keys)
+    if (allOn) {
+      // Turn all off and collapse
+      setContextConfig((prev) => {
+        const next = { ...prev }
+        keys.forEach((k) => { next[k] = false })
+        return next
+      })
+      setExpandedCategories((prev) => ({ ...prev, [label]: false }))
+    } else {
+      // Turn all on and expand to show sub-items
+      setContextConfig((prev) => {
+        const next = { ...prev }
+        keys.forEach((k) => { next[k] = true })
+        return next
+      })
+      setExpandedCategories((prev) => ({ ...prev, [label]: true }))
+    }
+  }
+
+  function toggleSubItem(key: ContextKey) {
     setContextConfig((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  function toggleExpanded(label: string) {
+    setExpandedCategories((prev) => ({ ...prev, [label]: !prev[label] }))
   }
 
   return (
@@ -89,20 +168,21 @@ export function ChatSessionsList({ sessions: initialSessions }: ChatSessionsList
 
       {/* New chat setup panel */}
       {showNewChat && (
-        <div className="border-b border-border bg-muted/30 px-6 py-5 space-y-4">
+        <div className="border-b border-border bg-muted/30 px-6 py-5 space-y-5">
           {/* Model selector */}
           <div>
-            <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Model</h2>
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Model</h2>
             <div className="flex flex-wrap gap-2">
               {AI_MODELS.map((model) => (
                 <button
                   key={model.id}
                   onClick={() => setSelectedModelId(model.id)}
-                  className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+                  className={cn(
+                    'rounded-full border px-4 py-1.5 text-sm font-medium transition-colors',
                     selectedModelId === model.id
                       ? 'border-foreground bg-foreground text-background'
-                      : 'border-border bg-background text-muted-foreground hover:border-foreground/40'
-                  }`}
+                      : 'border-border bg-background text-muted-foreground hover:border-foreground/40',
+                  )}
                 >
                   {model.label}
                 </button>
@@ -113,46 +193,113 @@ export function ChatSessionsList({ sessions: initialSessions }: ChatSessionsList
             </p>
           </div>
 
-          {/* Context selector */}
+          {/* Context selector — two-tier */}
           <div>
-            <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Company knowledge</h2>
-            <div className="flex flex-wrap gap-2">
-              {(
-                [
-                  { key: 'brand' as const, label: 'Brand & Voice' },
-                  { key: 'business_plan' as const, label: 'Business Plan' },
-                  { key: 'personas' as const, label: 'Personas' },
-                  { key: 'product' as const, label: 'Product' },
-                  { key: 'current_goals' as const, label: 'Current Goals' },
-                  { key: 'platform_guidelines' as const, label: 'Platforms' },
-                  { key: 'filed_documents' as const, label: 'Filed Docs' },
-                ]
-              ).map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => toggleContext(key)}
-                  className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
-                    contextConfig[key]
-                      ? 'border-foreground bg-foreground text-background'
-                      : 'border-border bg-background text-muted-foreground hover:border-foreground/40'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Company knowledge</h2>
+            <div className="space-y-2">
+              {CONTEXT_CATEGORIES.map((cat) => {
+                const anyOn = isCategoryOn(cat.keys)
+                const allOn = isCategoryAllOn(cat.keys)
+                const isExpanded = expandedCategories[cat.label] ?? false
+                const showExpand = cat.items.length > 1
+
+                return (
+                  <div key={cat.label} className={cn(
+                    'rounded-lg border transition-colors',
+                    anyOn ? 'border-foreground/20 bg-background' : 'border-border bg-background',
+                  )}>
+                    {/* Category row */}
+                    <div className="flex items-center gap-2 px-3 py-2">
+                      {/* Category toggle button */}
+                      <button
+                        onClick={() => toggleCategory(cat.label, cat.keys)}
+                        className={cn(
+                          'flex-1 flex items-center gap-2.5 text-left',
+                        )}
+                      >
+                        {/* Checkbox-style indicator */}
+                        <span className={cn(
+                          'inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] font-bold transition-colors',
+                          allOn
+                            ? 'border-foreground bg-foreground text-background'
+                            : anyOn
+                              ? 'border-foreground/50 bg-foreground/10 text-foreground'
+                              : 'border-border bg-transparent text-transparent',
+                        )}>
+                          {allOn ? '✓' : anyOn ? '–' : '✓'}
+                        </span>
+                        <div>
+                          <p className={cn(
+                            'text-sm font-medium leading-none',
+                            anyOn ? 'text-foreground' : 'text-muted-foreground',
+                          )}>
+                            {cat.label}
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-muted-foreground/70">{cat.description}</p>
+                        </div>
+                      </button>
+
+                      {/* Expand/collapse for sub-items */}
+                      {showExpand && (
+                        <button
+                          onClick={() => toggleExpanded(cat.label)}
+                          className="shrink-0 rounded p-1 text-muted-foreground hover:bg-accent transition-colors"
+                          title={isExpanded ? 'Collapse' : 'Expand'}
+                        >
+                          <ChevronDown className={cn(
+                            'h-3.5 w-3.5 transition-transform',
+                            isExpanded ? 'rotate-0' : '-rotate-90',
+                          )} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Sub-items — shown when expanded */}
+                    {isExpanded && (
+                      <div className="border-t border-border px-3 py-2 space-y-1">
+                        {cat.items.map((item) => (
+                          <label
+                            key={item.key}
+                            className="flex cursor-pointer items-center gap-2.5 rounded-md px-1 py-1 hover:bg-accent transition-colors"
+                          >
+                            <span className={cn(
+                              'inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border text-[9px] font-bold transition-colors',
+                              contextConfig[item.key]
+                                ? 'border-foreground bg-foreground text-background'
+                                : 'border-border bg-transparent',
+                            )}>
+                              {contextConfig[item.key] ? '✓' : ''}
+                            </span>
+                            <span
+                              className={cn(
+                                'text-xs transition-colors',
+                                contextConfig[item.key] ? 'text-foreground font-medium' : 'text-muted-foreground',
+                              )}
+                              onClick={() => toggleSubItem(item.key)}
+                            >
+                              {item.label}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
 
           {/* Browser toggle */}
           <div>
-            <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Tools</h2>
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tools</h2>
             <button
-              onClick={() => toggleContext('browser')}
-              className={`flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+              onClick={() => setContextConfig((prev) => ({ ...prev, browser: !prev.browser }))}
+              className={cn(
+                'flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors',
                 contextConfig.browser
                   ? 'border-foreground bg-foreground text-background'
-                  : 'border-border bg-background text-muted-foreground hover:border-foreground/40'
-              }`}
+                  : 'border-border bg-background text-muted-foreground hover:border-foreground/40',
+              )}
             >
               <Globe className="h-3.5 w-3.5" />
               Allow browser

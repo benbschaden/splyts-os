@@ -1,7 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const overviewHref = '/dashboard/company'
@@ -49,8 +51,16 @@ export function CompanyNav() {
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(`${href}/`)
 
+  // Default all groups open; collapse any group that has no active item
+  const initialCollapsed = Object.fromEntries(navGroups.map((g) => [g.label, false]))
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(initialCollapsed)
+
+  function toggle(label: string) {
+    setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }))
+  }
+
   return (
-    <nav className="flex flex-col gap-1">
+    <nav className="flex flex-col gap-0.5">
       <Link
         href={overviewHref}
         className={cn(
@@ -63,28 +73,51 @@ export function CompanyNav() {
         Overview
       </Link>
 
-      {navGroups.map((group) => (
-        <div key={group.label}>
-          <div className="my-2 border-t border-border pt-1" />
-          <p className="px-3 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
-            {group.label}
-          </p>
-          {group.items.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                isActive(item.href)
-                  ? 'bg-accent text-accent-foreground'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-              )}
+      {navGroups.map((group) => {
+        const isOpen = !collapsed[group.label]
+        const hasActive = group.items.some((i) => isActive(i.href))
+
+        return (
+          <div key={group.label} className="mt-3">
+            {/* Section header — clickable to collapse */}
+            <button
+              onClick={() => toggle(group.label)}
+              className="flex w-full items-center justify-between px-3 pb-1 group"
             >
-              {item.name}
-            </Link>
-          ))}
-        </div>
-      ))}
+              <span className={cn(
+                'text-[11px] font-semibold uppercase tracking-wider transition-colors',
+                hasActive ? 'text-foreground' : 'text-muted-foreground/60 group-hover:text-muted-foreground',
+              )}>
+                {group.label}
+              </span>
+              <ChevronDown className={cn(
+                'h-3 w-3 text-muted-foreground/40 transition-transform group-hover:text-muted-foreground',
+                isOpen ? 'rotate-0' : '-rotate-90',
+              )} />
+            </button>
+
+            {/* Items — each on its own row */}
+            {isOpen && (
+              <div className="flex flex-col gap-0.5 mt-0.5">
+                {group.items.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      'rounded-md px-3 py-1.5 text-sm transition-colors',
+                      isActive(item.href)
+                        ? 'bg-accent text-accent-foreground font-medium'
+                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                    )}
+                  >
+                    {item.name}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })}
     </nav>
   )
 }

@@ -3,22 +3,17 @@ export const dynamic = 'force-dynamic'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
-import { getProjectsForOrg } from '@/lib/queries/projects'
 import { getUserProfile } from '@/lib/queries/user-profile'
+import { getBrandContext } from '@/lib/queries/brand-context'
 import { getKpiDefinitions } from '@/lib/queries/kpi-definitions'
 import { getKpiSnapshots } from '@/lib/queries/kpi-snapshots'
 import { getDashboardFunnel } from '@/lib/queries/funnels'
 import { getRecentOutputs } from '@/lib/queries/outputs'
-import { ProjectsList } from '@/components/projects/projects-list'
 import { DashboardHome } from '@/components/dashboard/dashboard-home'
 import type { FunnelStageData } from '@/components/dashboard/funnel-visual'
 import type { ActivityItem } from '@/components/dashboard/recent-activity'
 
-interface DashboardPageProps {
-  searchParams: Promise<{ category?: string }>
-}
-
-export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -27,31 +22,16 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const org = await getOrganizationForUser(user.id)
   if (!org) redirect('/setup')
 
-  const { category } = await searchParams
-
-  if (category) {
-    const [allProjects, profile] = await Promise.all([
-      getProjectsForOrg(org.id),
-      getUserProfile(user.id),
-    ])
-
-    const projects = allProjects.filter((p) => p.category === category)
-    const fullName = profile?.full_name?.trim() || user.email?.split('@')[0] || ''
-    const userName = fullName.split(' ')[0]
-
-    return <ProjectsList projects={projects} userName={userName} activeCategory={category} />
-  }
-
   const [
-    allProjects,
     profile,
+    brandContext,
     kpiDefinitions,
     snapshots,
     dashboardFunnel,
     recentOutputs,
   ] = await Promise.all([
-    getProjectsForOrg(org.id),
     getUserProfile(user.id),
+    getBrandContext(org.id),
     getKpiDefinitions(org.id),
     getKpiSnapshots(org.id, 2),
     getDashboardFunnel(org.id),
@@ -97,13 +77,16 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   return (
     <DashboardHome
       userName={userName}
+      orgName={org.name}
+      northStar={brandContext?.north_star ?? null}
+      mission={brandContext?.mission ?? null}
+      vision={brandContext?.vision ?? null}
       kpiDefinitions={kpiDefinitions}
       currentValues={currentValues}
       previousValues={previousValues}
       funnelStages={funnelStages}
       funnelTitle={funnelTitle}
       recentActivity={recentActivity}
-      projects={allProjects}
     />
   )
 }

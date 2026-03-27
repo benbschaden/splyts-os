@@ -45,7 +45,7 @@ export function Sidebar({ orgName, userName, avatarUrl, email, isAdmin, northSta
 
       {/* User */}
       <Link
-        href="/dashboard/settings/profile"
+        href="/dashboard"
         className="flex h-12 items-center gap-3 border-b border-border px-4 hover:bg-accent transition-colors group"
       >
         <div className="h-7 w-7 shrink-0 rounded-full overflow-hidden bg-muted flex items-center justify-center ring-1 ring-border group-hover:ring-foreground/20 transition-all">

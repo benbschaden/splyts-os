@@ -20,7 +20,7 @@ export default async function CompanyLayout({ children }: { children: React.Reac
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-56 shrink-0 border-r border-border p-3">
+        <aside className="w-56 shrink-0 overflow-y-auto border-r border-border p-3">
           <CompanyNav />
         </aside>
 

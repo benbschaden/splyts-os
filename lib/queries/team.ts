@@ -188,13 +188,15 @@ export async function updateMemberRole(
 ) {
   const supabase = createServiceClient()
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('organization_members')
     .update({ role })
     .eq('organization_id', organizationId)
     .eq('user_id', userId)
+    .select('user_id')
 
   if (error) return { error: 'Failed to update role' }
+  if (!data || data.length === 0) return { error: 'Member not found' }
   return { error: null }
 }
 

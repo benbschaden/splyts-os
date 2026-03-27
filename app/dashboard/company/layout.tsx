@@ -13,8 +13,6 @@ export default async function CompanyLayout({ children }: { children: React.Reac
   const org = await getOrganizationForUser(user.id)
   if (!org) redirect('/setup')
 
-  const isAdmin = org.role === 'admin'
-
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-14 items-center border-b border-border px-6">
@@ -23,7 +21,7 @@ export default async function CompanyLayout({ children }: { children: React.Reac
 
       <div className="flex flex-1 overflow-hidden">
         <aside className="w-56 shrink-0 border-r border-border p-3">
-          <CompanyNav isAdmin={isAdmin} />
+          <CompanyNav />
         </aside>
 
         <div className="flex-1 overflow-y-auto p-6">{children}</div>

@@ -16,5 +16,5 @@ export default async function CompanyOverviewPage() {
   const org = await getOrganizationForUser(user.id)
   if (!org) redirect('/setup')
 
-  return <CompanyOverview isAdmin={org.role === 'admin'} />
+  return <CompanyOverview />
 }

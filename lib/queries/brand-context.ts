@@ -1,4 +1,17 @@
 import { createServiceClient } from '@/lib/supabase/service'
+import type { Json } from '@/lib/types/database'
+
+export interface BrandAssets {
+  logo_url?: string
+  logo_mark_url?: string
+  primary_color?: string
+  secondary_color?: string
+  accent_color?: string
+  font_display?: string
+  font_body?: string
+  image_style?: string
+  social_handles?: string
+}
 
 export interface BrandContextData {
   company_name: string
@@ -18,13 +31,41 @@ export async function getBrandContext(organizationId: string) {
   const { data, error } = await supabase
     .from('brand_context')
     .select(
-      'id, company_name, mission, vision, north_star, voice, tone, pillars, target_audience, values, updated_at',
+      'id, company_name, mission, vision, north_star, voice, tone, pillars, target_audience, values, brand_assets, updated_at',
     )
     .eq('organization_id', organizationId)
     .maybeSingle()
 
   if (error) return null
   return data
+}
+
+export async function updateBrandAssets(
+  organizationId: string,
+  assets: BrandAssets,
+): Promise<{ brandAssets: BrandAssets | null; error: string | null }> {
+  const supabase = createServiceClient()
+
+  const { data, error } = await supabase
+    .from('brand_context')
+    .update({
+      brand_assets: assets as unknown as Json,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('organization_id', organizationId)
+    .select('brand_assets')
+    .maybeSingle()
+
+  if (error) return { brandAssets: null, error: 'Failed to update brand assets' }
+  if (!data) return { brandAssets: null, error: 'Not found' }
+
+  const raw = data.brand_assets
+  const parsed: BrandAssets =
+    typeof raw === 'object' && raw !== null && !Array.isArray(raw)
+      ? (raw as BrandAssets)
+      : {}
+
+  return { brandAssets: parsed, error: null }
 }
 
 export async function upsertBrandContext(

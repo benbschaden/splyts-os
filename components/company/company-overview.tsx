@@ -8,6 +8,7 @@ const sections = [
       { href: '/dashboard/company/business-plan', name: 'Business plan', desc: '12-section plan with PDF export, roadmap and milestone injection' },
       { href: '/dashboard/company/goals', name: 'Current goals', desc: 'Quarterly focus, key results, and what to push/defer — injected into AI' },
       { href: '/dashboard/company/milestones', name: 'Milestones', desc: 'Key moments in company history, included in business plan PDF' },
+      { href: '/dashboard/company/competitors', name: 'Competitors', desc: 'Structured competitive intelligence — positioning, strengths, battle cards' },
     ],
   },
   {
@@ -21,18 +22,23 @@ const sections = [
   },
   {
     label: 'Branding',
-    description: 'Voice, authors, and audience profiles used in generation.',
+    description: 'Voice, messaging, visual identity, and audience profiles used in generation.',
     items: [
       { href: '/dashboard/company/brand', name: 'Brand context', desc: 'Mission, voice, audience, pillars, and guardrails' },
+      { href: '/dashboard/company/narratives', name: 'Brand narratives', desc: 'The 3-5 core stories your company tells, anchoring AI content' },
+      { href: '/dashboard/company/terminology', name: 'Terminology', desc: 'Always-use and never-use word list for AI consistency' },
       { href: '/dashboard/company/personas', name: 'Personas', desc: 'Target audience profiles fed into AI generation' },
       { href: '/dashboard/company/authors', name: 'Authors', desc: 'Named voices for generation' },
+      { href: '/dashboard/company/assets', name: 'Brand assets', desc: 'Logos, colors, typography, and image style reference' },
     ],
   },
   {
     label: 'Content',
-    description: 'Templates, platform rules, and scheduling tools.',
+    description: 'Templates, proof, performance targets, and scheduling.',
     items: [
       { href: '/dashboard/company/content-types', name: 'Content types', desc: 'Templates and rules per format — includes platform, cadence, and custom guidelines' },
+      { href: '/dashboard/company/social-proof', name: 'Social proof', desc: 'Testimonials, case studies, and metrics to strengthen AI content' },
+      { href: '/dashboard/company/benchmarks', name: 'Content benchmarks', desc: 'Industry-standard performance targets per platform, customisable' },
       { href: '/dashboard/company/calendar', name: 'Calendar', desc: 'Plan and track content across all platforms' },
     ],
   },

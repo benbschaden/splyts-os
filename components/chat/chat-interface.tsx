@@ -115,6 +115,8 @@ export function ChatInterface({ session, initialMessages }: ChatInterfaceProps) 
     session.context_config.personas && 'Personas',
     session.context_config.product && 'Product',
     session.context_config.current_goals && 'Goals',
+    session.context_config.competitors && 'Competitors',
+    session.context_config.social_proof && 'Social Proof',
     session.context_config.filed_documents && 'Docs',
     session.context_config.browser && 'Browser',
   ].filter(Boolean)

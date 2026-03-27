@@ -229,6 +229,7 @@ export type Database = {
       }
       brand_context: {
         Row: {
+          brand_assets: Json
           company_name: string
           created_at: string
           id: string
@@ -245,6 +246,7 @@ export type Database = {
           guardrails: string | null
         }
         Insert: {
+          brand_assets?: Json
           company_name: string
           created_at?: string
           id?: string
@@ -261,6 +263,7 @@ export type Database = {
           guardrails?: string | null
         }
         Update: {
+          brand_assets?: Json
           company_name?: string
           created_at?: string
           id?: string
@@ -662,6 +665,8 @@ export type Database = {
             company_milestones: boolean
             current_goals: boolean
             filed_documents: boolean
+            competitors: boolean
+            social_proof: boolean
             browser: boolean
           }
           created_at: string
@@ -678,6 +683,8 @@ export type Database = {
             brand: boolean
             business_plan: boolean
             personas: boolean
+            competitors: boolean
+            social_proof: boolean
             browser: boolean
           }
           created_at?: string
@@ -694,6 +701,8 @@ export type Database = {
             brand: boolean
             business_plan: boolean
             personas: boolean
+            competitors: boolean
+            social_proof: boolean
             browser: boolean
           }
           created_at?: string
@@ -936,6 +945,261 @@ export type Database = {
           milestone_date?: string
           category?: string | null
           status?: string
+          sort_order?: number
+          created_by?: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: []
+      }
+      competitors: {
+        Row: {
+          id: string
+          organization_id: string
+          name: string
+          website: string | null
+          positioning: string | null
+          strengths: string | null
+          weaknesses: string | null
+          pricing_notes: string | null
+          battle_card: string | null
+          include_in_ai: boolean
+          sort_order: number
+          created_by: string
+          updated_by: string | null
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          name: string
+          website?: string | null
+          positioning?: string | null
+          strengths?: string | null
+          weaknesses?: string | null
+          pricing_notes?: string | null
+          battle_card?: string | null
+          include_in_ai?: boolean
+          sort_order?: number
+          created_by: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          name?: string
+          website?: string | null
+          positioning?: string | null
+          strengths?: string | null
+          weaknesses?: string | null
+          pricing_notes?: string | null
+          battle_card?: string | null
+          include_in_ai?: boolean
+          sort_order?: number
+          created_by?: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: []
+      }
+      content_benchmarks: {
+        Row: {
+          id: string
+          organization_id: string
+          platform: string
+          metric_name: string
+          benchmark_value: number
+          benchmark_unit: string
+          notes: string | null
+          created_by: string
+          updated_by: string | null
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          platform: string
+          metric_name: string
+          benchmark_value: number
+          benchmark_unit?: string
+          notes?: string | null
+          created_by: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          platform?: string
+          metric_name?: string
+          benchmark_value?: number
+          benchmark_unit?: string
+          notes?: string | null
+          created_by?: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: []
+      }
+      terminology: {
+        Row: {
+          id: string
+          organization_id: string
+          term: string
+          preferred: string
+          avoid: string | null
+          context: string | null
+          category: string
+          sort_order: number
+          created_by: string
+          updated_by: string | null
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          term: string
+          preferred: string
+          avoid?: string | null
+          context?: string | null
+          category?: string
+          sort_order?: number
+          created_by: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          term?: string
+          preferred?: string
+          avoid?: string | null
+          context?: string | null
+          category?: string
+          sort_order?: number
+          created_by?: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: []
+      }
+      brand_narratives: {
+        Row: {
+          id: string
+          organization_id: string
+          title: string
+          narrative: string
+          usage_context: string | null
+          include_in_ai: boolean
+          sort_order: number
+          created_by: string
+          updated_by: string | null
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          title: string
+          narrative: string
+          usage_context?: string | null
+          include_in_ai?: boolean
+          sort_order?: number
+          created_by: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          title?: string
+          narrative?: string
+          usage_context?: string | null
+          include_in_ai?: boolean
+          sort_order?: number
+          created_by?: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: []
+      }
+      social_proof: {
+        Row: {
+          id: string
+          organization_id: string
+          proof_type: string
+          quote: string | null
+          attribution: string | null
+          company: string | null
+          metric_value: string | null
+          metric_label: string | null
+          tags: string[]
+          approved: boolean
+          include_in_ai: boolean
+          sort_order: number
+          created_by: string
+          updated_by: string | null
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          proof_type?: string
+          quote?: string | null
+          attribution?: string | null
+          company?: string | null
+          metric_value?: string | null
+          metric_label?: string | null
+          tags?: string[]
+          approved?: boolean
+          include_in_ai?: boolean
+          sort_order?: number
+          created_by: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          proof_type?: string
+          quote?: string | null
+          attribution?: string | null
+          company?: string | null
+          metric_value?: string | null
+          metric_label?: string | null
+          tags?: string[]
+          approved?: boolean
+          include_in_ai?: boolean
           sort_order?: number
           created_by?: string
           updated_by?: string | null

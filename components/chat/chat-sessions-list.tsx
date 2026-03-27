@@ -21,6 +21,8 @@ const DEFAULT_CONTEXT: ContextConfig = {
   company_milestones: false,
   current_goals: false,
   filed_documents: false,
+  competitors: false,
+  social_proof: false,
   browser: false,
 }
 
@@ -28,12 +30,13 @@ const DEFAULT_CONTEXT: ContextConfig = {
 const CONTEXT_CATEGORIES = [
   {
     label: 'Strategy',
-    description: 'Business plan, goals, milestones',
-    keys: ['business_plan', 'current_goals', 'company_milestones'] as const,
+    description: 'Business plan, goals, milestones, competitors',
+    keys: ['business_plan', 'current_goals', 'company_milestones', 'competitors'] as const,
     items: [
       { key: 'business_plan' as const, label: 'Business plan' },
       { key: 'current_goals' as const, label: 'Current goals' },
       { key: 'company_milestones' as const, label: 'Milestones' },
+      { key: 'competitors' as const, label: 'Competitors' },
     ],
   },
   {
@@ -47,11 +50,12 @@ const CONTEXT_CATEGORIES = [
   },
   {
     label: 'Branding',
-    description: 'Brand voice and personas',
-    keys: ['brand', 'personas'] as const,
+    description: 'Brand voice, personas, social proof',
+    keys: ['brand', 'personas', 'social_proof'] as const,
     items: [
       { key: 'brand' as const, label: 'Brand & voice' },
       { key: 'personas' as const, label: 'Personas' },
+      { key: 'social_proof' as const, label: 'Social proof' },
     ],
   },
   {

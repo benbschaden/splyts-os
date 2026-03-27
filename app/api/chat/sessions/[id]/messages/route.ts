@@ -12,6 +12,10 @@ import { getProductRoadmapItems } from '@/lib/queries/product-roadmap'
 import { getCompanyMilestones } from '@/lib/queries/company-milestones'
 import { getCurrentGoals } from '@/lib/queries/current-goals'
 import { getSharedDocuments } from '@/lib/queries/documents'
+import { getAiVisibleCompetitors } from '@/lib/queries/competitors'
+import { getApprovedSocialProof } from '@/lib/queries/social-proof'
+import { getAiVisibleNarratives } from '@/lib/queries/brand-narratives'
+import { getTerminologyForAi } from '@/lib/queries/terminology'
 import { buildChatSystemPrompt } from '@/lib/ai/prompts'
 import { DEFAULT_MODEL, getModelById } from '@/lib/ai/models'
 
@@ -117,6 +121,8 @@ export async function POST(
       company_milestones: includeCompanyMilestones = false,
       current_goals: includeCurrentGoals = false,
       filed_documents: includeFiledDocs = false,
+      competitors: includeCompetitors = false,
+      social_proof: includeSocialProof = false,
     } = config
     const model = getModelById(session.model_id) ?? DEFAULT_MODEL
 
@@ -131,6 +137,10 @@ export async function POST(
       milestones,
       currentGoals,
       sharedDocs,
+      competitors,
+      socialProof,
+      narratives,
+      terminology,
       existingMessages,
     ] = await Promise.all([
       includeBrand ? getBrandContext(org.id) : Promise.resolve(null),
@@ -142,6 +152,10 @@ export async function POST(
       includeCompanyMilestones ? getCompanyMilestones(org.id) : Promise.resolve([]),
       includeCurrentGoals ? getCurrentGoals(org.id) : Promise.resolve(null),
       includeFiledDocs ? getSharedDocuments(org.id) : Promise.resolve([]),
+      includeCompetitors ? getAiVisibleCompetitors(org.id) : Promise.resolve([]),
+      includeSocialProof ? getApprovedSocialProof(org.id) : Promise.resolve([]),
+      includeBrand ? getAiVisibleNarratives(org.id) : Promise.resolve([]),
+      includeBrand ? getTerminologyForAi(org.id) : Promise.resolve([]),
       getChatMessages(id),
     ])
 
@@ -184,12 +198,18 @@ export async function POST(
       productFeatures,
       currentGoals,
       filedDocs,
+      competitors,
+      socialProof,
+      narratives,
+      terminology,
       includeBrand,
       includeBusinessPlan,
       includePersonas,
       includeProduct,
       includeCurrentGoals,
       includeFiledDocs,
+      includeCompetitors,
+      includeSocialProof,
     })
 
     const messageHistory: Anthropic.MessageParam[] = [

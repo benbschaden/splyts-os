@@ -15,6 +15,7 @@ const navGroups = [
       { name: 'Business plan', href: '/dashboard/company/business-plan' },
       { name: 'Goals', href: '/dashboard/company/goals' },
       { name: 'Milestones', href: '/dashboard/company/milestones' },
+      { name: 'Competitors', href: '/dashboard/company/competitors' },
     ],
   },
   {
@@ -29,14 +30,19 @@ const navGroups = [
     label: 'Branding',
     items: [
       { name: 'Brand context', href: '/dashboard/company/brand' },
+      { name: 'Brand narratives', href: '/dashboard/company/narratives' },
+      { name: 'Terminology', href: '/dashboard/company/terminology' },
       { name: 'Personas', href: '/dashboard/company/personas' },
       { name: 'Authors', href: '/dashboard/company/authors' },
+      { name: 'Brand assets', href: '/dashboard/company/assets' },
     ],
   },
   {
     label: 'Content',
     items: [
       { name: 'Content types', href: '/dashboard/company/content-types' },
+      { name: 'Social proof', href: '/dashboard/company/social-proof' },
+      { name: 'Content benchmarks', href: '/dashboard/company/benchmarks' },
       { name: 'Calendar', href: '/dashboard/company/calendar' },
     ],
   },

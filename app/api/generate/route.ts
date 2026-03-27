@@ -9,6 +9,10 @@ import { getPersonas, type PersonaRow } from '@/lib/queries/personas'
 import { getProductContext } from '@/lib/queries/product-context'
 import { getAiVisibleProductFeatures } from '@/lib/queries/product-features'
 import { getCurrentGoals } from '@/lib/queries/current-goals'
+import { getAiVisibleCompetitors } from '@/lib/queries/competitors'
+import { getApprovedSocialProof } from '@/lib/queries/social-proof'
+import { getAiVisibleNarratives } from '@/lib/queries/brand-narratives'
+import { getTerminologyForAi } from '@/lib/queries/terminology'
 import { getTopPerformingOutputs } from '@/lib/queries/outputs'
 import { PRODUCT_SECTIONS } from '@/lib/company/product-sections'
 import { createServiceClient } from '@/lib/supabase/service'
@@ -90,6 +94,10 @@ function buildPrompt(params: {
   productContextText: string
   productFeaturesText: string
   currentGoalsText: string
+  competitorsText: string
+  socialProofText: string
+  narrativesText: string
+  terminologyText: string
   topPerformersText: string
   basePrompt: string
   customRules: string
@@ -156,6 +164,31 @@ function buildPrompt(params: {
     lines.push('')
     lines.push('[PRODUCT FEATURES]')
     lines.push(productFeaturesText)
+  }
+
+  if (params.competitorsText) {
+    lines.push('')
+    lines.push('[COMPETITIVE LANDSCAPE]')
+    lines.push('Use for differentiation. Never disparage competitors directly.')
+    lines.push(params.competitorsText)
+  }
+
+  if (params.socialProofText) {
+    lines.push('')
+    lines.push('[SOCIAL PROOF — use to strengthen claims]')
+    lines.push(params.socialProofText)
+  }
+
+  if (params.narrativesText) {
+    lines.push('')
+    lines.push('[CORE NARRATIVES]')
+    lines.push(params.narrativesText)
+  }
+
+  if (params.terminologyText) {
+    lines.push('')
+    lines.push('[TERMINOLOGY RULES]')
+    lines.push(params.terminologyText)
   }
 
   lines.push('')
@@ -233,13 +266,17 @@ export async function POST(request: Request) {
   if (!project) return Response.json({ error: 'Project not found' }, { status: 404 })
 
   // Fetch brand context, business plan, personas, and new context in parallel
-  const [brand, businessPlan, personas, productContext, productFeatures, currentGoals, topPerformers] = await Promise.all([
+  const [brand, businessPlan, personas, productContext, productFeatures, currentGoals, competitors, socialProof, narratives, terminology, topPerformers] = await Promise.all([
     getBrandContext(org.id),
     getBusinessPlan(org.id),
     getPersonas(org.id),
     getProductContext(org.id),
     getAiVisibleProductFeatures(org.id),
     getCurrentGoals(org.id),
+    getAiVisibleCompetitors(org.id),
+    getApprovedSocialProof(org.id),
+    getAiVisibleNarratives(org.id),
+    getTerminologyForAi(org.id),
     getTopPerformingOutputs(org.id, 3),
   ])
   if (!brand || !brand.mission || !brand.vision) {
@@ -316,6 +353,39 @@ export async function POST(request: Request) {
         .join('\n')
     : ''
 
+  // Build competitors text
+  const competitorsText = competitors.filter((c) => c.include_in_ai).map((c) => {
+    const parts = [`Competitor: ${c.name}`]
+    if (c.positioning) parts.push(`Positioning: ${c.positioning}`)
+    if (c.strengths) parts.push(`Strengths: ${c.strengths}`)
+    if (c.weaknesses) parts.push(`Weaknesses: ${c.weaknesses}`)
+    if (c.battle_card) parts.push(`Battle card: ${c.battle_card}`)
+    return parts.join('\n')
+  }).join('\n\n')
+
+  // Build social proof text
+  const socialProofText = socialProof.filter((p) => p.approved && p.include_in_ai).map((p) => {
+    if (p.proof_type === 'metric') return `Metric: ${p.metric_value ?? ''} ${p.metric_label ?? ''}`.trim()
+    const parts: string[] = []
+    if (p.quote) parts.push(`"${p.quote}"`)
+    if (p.attribution && p.company) parts.push(`— ${p.attribution}, ${p.company}`)
+    else if (p.attribution) parts.push(`— ${p.attribution}`)
+    return parts.join(' ')
+  }).join('\n')
+
+  // Build narratives text
+  const narrativesText = narratives.filter((n) => n.include_in_ai).map((n) => {
+    const parts = [`${n.title}: ${n.narrative}`]
+    if (n.usage_context) parts.push(`Use when: ${n.usage_context}`)
+    return parts.join('\n')
+  }).join('\n\n')
+
+  // Build terminology text
+  const terminologyText = terminology.map((t) => {
+    const line = `Always say "${t.preferred}"` + (t.avoid ? `, never say "${t.avoid}"` : '')
+    return t.context ? `${line} (${t.context})` : line
+  }).join('\n')
+
   // Build top performers text
   const topPerformersText = topPerformers.length > 0
     ? topPerformers.map((o, i) =>
@@ -330,6 +400,10 @@ export async function POST(request: Request) {
     productContextText,
     productFeaturesText,
     currentGoalsText,
+    competitorsText,
+    socialProofText,
+    narrativesText,
+    terminologyText,
     topPerformersText,
     basePrompt,
     customRules: contentType.custom_rules,

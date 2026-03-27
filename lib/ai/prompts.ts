@@ -3,6 +3,10 @@ import { PRODUCT_SECTIONS, type ProductSections } from '@/lib/company/product-se
 import type { PersonaRow } from '@/lib/queries/personas'
 import type { ProductFeatureRow } from '@/lib/queries/product-features'
 import type { CurrentGoalsRow } from '@/lib/queries/current-goals'
+import type { CompetitorRow } from '@/lib/queries/competitors'
+import type { SocialProofRow } from '@/lib/queries/social-proof'
+import type { BrandNarrativeRow } from '@/lib/queries/brand-narratives'
+import type { TerminologyRow } from '@/lib/queries/terminology'
 
 export type { BusinessPlanSections }
 
@@ -92,6 +96,53 @@ function buildTopPerformersBlock(
   ).join('\n\n')
 }
 
+function buildCompetitorsBlock(competitors: CompetitorRow[]): string {
+  const visible = competitors.filter((c) => c.include_in_ai)
+  if (visible.length === 0) return ''
+  return visible.map((c) => {
+    const parts: string[] = [`Competitor: ${c.name}`]
+    if (c.positioning) parts.push(`Positioning: ${c.positioning}`)
+    if (c.strengths) parts.push(`Strengths: ${c.strengths}`)
+    if (c.weaknesses) parts.push(`Weaknesses: ${c.weaknesses}`)
+    if (c.pricing_notes) parts.push(`Pricing: ${c.pricing_notes}`)
+    if (c.battle_card) parts.push(`Battle card: ${c.battle_card}`)
+    return parts.join('\n')
+  }).join('\n\n')
+}
+
+function buildSocialProofBlock(proof: SocialProofRow[]): string {
+  const approved = proof.filter((p) => p.approved && p.include_in_ai)
+  if (approved.length === 0) return ''
+  return approved.map((p) => {
+    if (p.proof_type === 'metric') {
+      return `Metric: ${p.metric_value ?? ''} ${p.metric_label ?? ''}${p.attribution ? ` — ${p.attribution}` : ''}`.trim()
+    }
+    const parts: string[] = []
+    if (p.quote) parts.push(`"${p.quote}"`)
+    if (p.attribution && p.company) parts.push(`— ${p.attribution}, ${p.company}`)
+    else if (p.attribution) parts.push(`— ${p.attribution}`)
+    return parts.join(' ')
+  }).join('\n')
+}
+
+function buildNarrativesBlock(narratives: BrandNarrativeRow[]): string {
+  const visible = narratives.filter((n) => n.include_in_ai)
+  if (visible.length === 0) return ''
+  return visible.map((n) => {
+    const parts = [`${n.title}: ${n.narrative}`]
+    if (n.usage_context) parts.push(`Use when: ${n.usage_context}`)
+    return parts.join('\n')
+  }).join('\n\n')
+}
+
+function buildTerminologyBlock(terms: TerminologyRow[]): string {
+  if (terms.length === 0) return ''
+  return terms.map((t) => {
+    const line = `Always say "${t.preferred}"` + (t.avoid ? `, never say "${t.avoid}"` : '')
+    return t.context ? `${line} (${t.context})` : line
+  }).join('\n')
+}
+
 export function buildChatSystemPrompt(params: {
   brand: BrandContext | null
   businessPlanSections: BusinessPlanSections | null
@@ -100,18 +151,24 @@ export function buildChatSystemPrompt(params: {
   productFeatures: ProductFeatureRow[]
   currentGoals: CurrentGoalsRow | null
   filedDocs: { title: string; body: string }[]
+  competitors: CompetitorRow[]
+  socialProof: SocialProofRow[]
+  narratives: BrandNarrativeRow[]
+  terminology: TerminologyRow[]
   includeBrand: boolean
   includeBusinessPlan: boolean
   includePersonas: boolean
   includeProduct: boolean
   includeCurrentGoals: boolean
   includeFiledDocs: boolean
+  includeCompetitors: boolean
+  includeSocialProof: boolean
 }): string {
   const {
     brand, businessPlanSections, personas, productSections, productFeatures,
-    currentGoals, filedDocs,
+    currentGoals, filedDocs, competitors, socialProof, narratives, terminology,
     includeBrand, includeBusinessPlan, includePersonas, includeProduct,
-    includeCurrentGoals, includeFiledDocs,
+    includeCurrentGoals, includeFiledDocs, includeCompetitors, includeSocialProof,
   } = params
 
   const lines: string[] = []
@@ -137,7 +194,45 @@ export function buildChatSystemPrompt(params: {
       lines.push('[GUARDRAILS — never violate these]')
       lines.push(brand.guardrails)
     }
+
+    // Narratives and terminology auto-included when brand is on
+    if (narratives.length > 0) {
+      const narrativesBlock = buildNarrativesBlock(narratives)
+      if (narrativesBlock) {
+        lines.push('')
+        lines.push('[CORE NARRATIVES]')
+        lines.push(narrativesBlock)
+      }
+    }
+
+    if (terminology.length > 0) {
+      const terminologyBlock = buildTerminologyBlock(terminology)
+      if (terminologyBlock) {
+        lines.push('')
+        lines.push('[TERMINOLOGY RULES]')
+        lines.push(terminologyBlock)
+      }
+    }
+
     lines.push('')
+  }
+
+  if (includeCompetitors && competitors.length > 0) {
+    const competitorsBlock = buildCompetitorsBlock(competitors)
+    if (competitorsBlock) {
+      lines.push('[COMPETITIVE LANDSCAPE]')
+      lines.push(competitorsBlock)
+      lines.push('')
+    }
+  }
+
+  if (includeSocialProof && socialProof.length > 0) {
+    const proofBlock = buildSocialProofBlock(socialProof)
+    if (proofBlock) {
+      lines.push('[SOCIAL PROOF — use to strengthen claims]')
+      lines.push(proofBlock)
+      lines.push('')
+    }
   }
 
   if (includeBusinessPlan && businessPlanSections) {
@@ -219,6 +314,10 @@ export function buildGenerationSystemPrompt(params: {
   productSections: ProductSections | null
   productFeatures: ProductFeatureRow[]
   currentGoals: CurrentGoalsRow | null
+  competitors: CompetitorRow[]
+  socialProof: SocialProofRow[]
+  narratives: BrandNarrativeRow[]
+  terminology: TerminologyRow[]
   topPerformers: { brief: string; content: string; reach: number; reach_metric: string }[]
   contentTypeName: string
   basePrompt: string
@@ -228,7 +327,8 @@ export function buildGenerationSystemPrompt(params: {
 }): string {
   const {
     brand, businessPlanSections, personas, productSections, productFeatures,
-    currentGoals, topPerformers,
+    currentGoals, competitors, socialProof, narratives, terminology,
+    topPerformers,
     contentTypeName, basePrompt, customRules, cadence, author,
   } = params
 
@@ -293,6 +393,30 @@ export function buildGenerationSystemPrompt(params: {
 
   if (brand.guardrails) {
     addSection('GUARDRAILS — never violate these', brand.guardrails)
+  }
+
+  // Narratives — high priority, core messaging
+  if (narratives.length > 0) {
+    const narrativesBlock = buildNarrativesBlock(narratives)
+    if (narrativesBlock) addSection('CORE NARRATIVES', `These are the recurring stories to anchor content in.\n${narrativesBlock}`)
+  }
+
+  // Terminology — high priority, consistency rules
+  if (terminology.length > 0) {
+    const terminologyBlock = buildTerminologyBlock(terminology)
+    if (terminologyBlock) addSection('TERMINOLOGY RULES', terminologyBlock)
+  }
+
+  // Competitors — medium priority
+  if (competitors.length > 0) {
+    const competitorsBlock = buildCompetitorsBlock(competitors)
+    if (competitorsBlock) addSection('COMPETITIVE LANDSCAPE', `Use for differentiation, never disparage competitors directly.\n${competitorsBlock}`)
+  }
+
+  // Social proof — medium priority
+  if (socialProof.length > 0) {
+    const proofBlock = buildSocialProofBlock(socialProof)
+    if (proofBlock) addSection('SOCIAL PROOF — use to strengthen claims', proofBlock)
   }
 
   // Business plan — high priority

@@ -8,6 +8,10 @@ import { getPersonas } from '@/lib/queries/personas'
 import { getProductContext } from '@/lib/queries/product-context'
 import { getAiVisibleProductFeatures } from '@/lib/queries/product-features'
 import { getCurrentGoals } from '@/lib/queries/current-goals'
+import { getAiVisibleCompetitors } from '@/lib/queries/competitors'
+import { getApprovedSocialProof } from '@/lib/queries/social-proof'
+import { getAiVisibleNarratives } from '@/lib/queries/brand-narratives'
+import { getTerminologyForAi } from '@/lib/queries/terminology'
 import { getTopPerformingOutputs } from '@/lib/queries/outputs'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getModelById, DEFAULT_MODEL } from '@/lib/ai/models'
@@ -63,13 +67,17 @@ export async function POST(request: Request): Promise<Response> {
     if (!project) return Response.json({ error: 'Project not found' }, { status: 404 })
 
     // Fetch context in parallel
-    const [brand, businessPlan, personas, productContext, productFeatures, currentGoals, topPerformers, contentTypeResult] = await Promise.all([
+    const [brand, businessPlan, personas, productContext, productFeatures, currentGoals, competitors, socialProof, narratives, terminology, topPerformers, contentTypeResult] = await Promise.all([
       getBrandContext(org.id),
       getBusinessPlan(org.id),
       getPersonas(org.id),
       getProductContext(org.id),
       getAiVisibleProductFeatures(org.id),
       getCurrentGoals(org.id),
+      getAiVisibleCompetitors(org.id),
+      getApprovedSocialProof(org.id),
+      getAiVisibleNarratives(org.id),
+      getTerminologyForAi(org.id),
       getTopPerformingOutputs(org.id, 3),
       db
         .from('content_types')
@@ -116,6 +124,10 @@ export async function POST(request: Request): Promise<Response> {
       productSections: productContext?.sections ?? null,
       productFeatures,
       currentGoals,
+      competitors,
+      socialProof,
+      narratives,
+      terminology,
       topPerformers,
       contentTypeName: contentType.name,
       basePrompt,

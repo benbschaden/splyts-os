@@ -9,6 +9,8 @@ export interface ContextConfig {
   company_milestones: boolean
   current_goals: boolean
   filed_documents: boolean
+  competitors: boolean
+  social_proof: boolean
   browser: boolean
 }
 

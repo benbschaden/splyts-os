@@ -24,7 +24,7 @@ export const AI_MODELS: AIModel[] = [
     description: 'Fast and balanced — great for most content',
   },
   {
-    id: 'claude-haiku-3-5',
+    id: 'claude-3-5-haiku-20241022',
     provider: 'anthropic',
     label: 'Claude Haiku',
     description: 'Fastest — ideal for quick drafts and iteration',

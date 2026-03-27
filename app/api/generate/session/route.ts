@@ -115,11 +115,11 @@ export async function POST(request: Request): Promise<Response> {
 
     const anthropic = new Anthropic({ apiKey })
 
-    // When messages is empty this is the first turn — send a trigger so Claude starts Phase 1
-    const conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> =
-      messages.length === 0
-        ? [{ role: 'user', content: 'Please begin.' }]
-        : messages
+    if (messages.length === 0) {
+      return Response.json({ error: 'Messages cannot be empty' }, { status: 400 })
+    }
+
+    const conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = messages
 
     let assistantContent: string
 

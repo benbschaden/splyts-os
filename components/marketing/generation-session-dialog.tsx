@@ -112,21 +112,9 @@ export function GenerationSessionDialog({
     return data.assistantMessage as string
   }
 
-  async function handleStart() {
+  function handleStart() {
     if (!contentTypeId) return
-    setSending(true)
-    setChatError(null)
     setPhase('chat')
-
-    const assistantMessage = await callSession([])
-    setSending(false)
-
-    if (!assistantMessage) {
-      setChatError('Failed to start session. Please try again.')
-      return
-    }
-
-    setMessages([{ role: 'assistant', content: assistantMessage }])
     setTimeout(() => inputRef.current?.focus(), 50)
   }
 
@@ -405,12 +393,12 @@ export function GenerationSessionDialog({
         {phase === 'chat' && (
           <>
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 min-h-0">
-              {/* Loading first message */}
-              {!hasMessages && sending && (
-                <div className="flex justify-start">
-                  <div className="rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground max-w-[85%]">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  </div>
+                {/* Empty state prompt */}
+              {!hasMessages && !sending && (
+                <div className="flex justify-center py-8">
+                  <p className="text-sm text-muted-foreground text-center max-w-sm">
+                    Describe what you want to create. Include as much detail as you have — the AI will only ask about what&apos;s genuinely missing.
+                  </p>
                 </div>
               )}
 
@@ -435,8 +423,8 @@ export function GenerationSessionDialog({
                 </div>
               ))}
 
-              {/* Sending indicator (not first message) */}
-              {hasMessages && sending && (
+              {/* Sending indicator */}
+              {sending && (
                 <div className="flex justify-start">
                   <div className="rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -455,7 +443,7 @@ export function GenerationSessionDialog({
             <div className="border-t border-border px-5 py-3 shrink-0">
               {!hasDraft && hasMessages && (
                 <p className="mb-2 text-xs text-muted-foreground">
-                  Answer the questions above — the AI will produce a draft once it has what it needs.
+                  Keep going — the AI will produce a draft once it has what it needs.
                 </p>
               )}
               {hasDraft && (
@@ -476,9 +464,9 @@ export function GenerationSessionDialog({
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  disabled={sending || !hasMessages}
+                  disabled={sending}
                   rows={2}
-                  placeholder={hasMessages ? 'Reply… (Enter to send, Shift+Enter for new line)' : 'Waiting for AI…'}
+                  placeholder={hasMessages ? 'Reply… (Enter to send, Shift+Enter for new line)' : 'Describe what you want to create…'}
                   aria-label="Your message"
                   className={cn(
                     'flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground resize-none',
@@ -488,7 +476,7 @@ export function GenerationSessionDialog({
                 <button
                   type="button"
                   onClick={handleSend}
-                  disabled={!input.trim() || sending || !hasMessages}
+                  disabled={!input.trim() || sending}
                   aria-label="Send message"
                   className="self-end rounded-md bg-foreground p-2 text-background hover:opacity-80 transition-opacity disabled:opacity-40"
                 >

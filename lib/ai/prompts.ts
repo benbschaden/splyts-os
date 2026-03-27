@@ -1,6 +1,8 @@
 import { BUSINESS_PLAN_SECTIONS, getAiVisibleKeys, type BusinessPlanSections } from '@/lib/company/business-plan-sections'
 import type { PersonaRow } from '@/lib/queries/personas'
 
+export type { BusinessPlanSections }
+
 interface BrandContext {
   company_name: string
   mission: string
@@ -93,6 +95,120 @@ export function buildChatSystemPrompt(params: {
 
   lines.push('Use the company context above to give grounded, relevant answers.')
   lines.push('When you do not know something, say so — do not make up company details.')
+
+  return lines.join('\n')
+}
+
+export type GenerationAuthor =
+  | { type: 'company' }
+  | {
+      type: 'named'
+      name: string
+      role: string | null
+      voice: string | null
+      tone: string | null
+      writing_style: string | null
+      personal_pillars: string | null
+      platform_notes: string | null
+    }
+
+export function buildGenerationSystemPrompt(params: {
+  brand: BrandContext
+  businessPlanSections: BusinessPlanSections | null
+  personas: PersonaRow[]
+  contentTypeName: string
+  basePrompt: string
+  customRules: string
+  author: GenerationAuthor
+}): string {
+  const { brand, businessPlanSections, personas, contentTypeName, basePrompt, customRules, author } = params
+
+  const lines: string[] = []
+
+  lines.push(`You are a professional content creation assistant for ${brand.company_name}.`)
+  lines.push(`Your job is to help create high-quality ${contentTypeName} content through a structured, collaborative process.`)
+  lines.push('')
+  lines.push('[PROCESS — follow this exactly]')
+  lines.push('Phase 1 — Discovery (your FIRST response only):')
+  lines.push('- Ask ALL questions you need to understand the content goal, angle, key message, call to action, and any constraints')
+  lines.push('- Present them as a single numbered list — do not split across multiple messages')
+  lines.push('- State any assumptions you are making about the audience, format, or tone')
+  lines.push('- Do NOT produce any draft content yet')
+  lines.push('')
+  lines.push('Phase 2 — Draft (after the user has answered):')
+  lines.push('- Produce a complete, ready-to-publish draft')
+  lines.push('- Begin your draft message with the line "Here\'s your draft:" on its own line')
+  lines.push('- Output the full content — not a summary, outline, or placeholder')
+  lines.push('')
+  lines.push('Phase 3 — Refinement:')
+  lines.push('- Accept feedback and revise')
+  lines.push('- Each revised version begins with "Here\'s your updated draft:" on its own line')
+  lines.push('- Always output the complete revised draft, not just the changed parts')
+  lines.push('- Continue until the user confirms they are happy')
+  lines.push('')
+  lines.push('[BRAND CONTEXT]')
+  lines.push(`Company: ${brand.company_name}`)
+  lines.push(`Mission: ${brand.mission}`)
+  lines.push(`Vision: ${brand.vision}`)
+  lines.push(`North Star: ${brand.north_star}`)
+  lines.push(`Brand voice: ${brand.voice}`)
+  lines.push(`Brand tone: ${brand.tone}`)
+  lines.push(`Pillars: ${brand.pillars}`)
+  lines.push(`Target audience: ${brand.target_audience}`)
+  if (brand.values) lines.push(`Values: ${brand.values}`)
+
+  if (businessPlanSections) {
+    const planBlock = buildBusinessPlanBlock(businessPlanSections)
+    if (planBlock) {
+      lines.push('')
+      lines.push('[BUSINESS CONTEXT]')
+      lines.push('Use this as background to ensure content is strategically aligned.')
+      lines.push(planBlock)
+    }
+  }
+
+  if (personas.length > 0) {
+    const personasBlock = buildPersonasBlock(personas)
+    if (personasBlock) {
+      lines.push('')
+      lines.push('[TARGET PERSONAS]')
+      lines.push('Write content that speaks to their goals, frustrations, and language.')
+      lines.push(personasBlock)
+    }
+  }
+
+  if (basePrompt) {
+    lines.push('')
+    lines.push('[CONTENT TYPE STRUCTURE]')
+    lines.push(basePrompt)
+  }
+
+  if (customRules) {
+    lines.push('')
+    lines.push('[CONTENT RULES]')
+    lines.push(customRules)
+  }
+
+  lines.push('')
+  if (author.type === 'company') {
+    lines.push('[AUTHOR]')
+    lines.push('Write in the brand voice and tone defined above. This is a company post — do not use personal first-person.')
+  } else {
+    lines.push('[AUTHOR]')
+    lines.push("Write in this specific author's voice, not the generic brand voice.")
+    lines.push(`Name: ${author.name}`)
+    if (author.role) lines.push(`Role: ${author.role}`)
+    if (author.voice) lines.push(`Voice: ${author.voice}`)
+    if (author.tone) lines.push(`Tone: ${author.tone}`)
+    if (author.writing_style) lines.push(`Writing style: ${author.writing_style}`)
+    if (author.personal_pillars) lines.push(`Personal pillars: ${author.personal_pillars}`)
+    if (author.platform_notes) lines.push(`Platform notes: ${author.platform_notes}`)
+    lines.push('The brand context (mission, vision, north star, pillars, audience) still applies — but voice, tone, and style must match this author.')
+  }
+
+  lines.push('')
+  lines.push('---')
+  lines.push('Begin with your Phase 1 discovery questions now.')
 
   return lines.join('\n')
 }

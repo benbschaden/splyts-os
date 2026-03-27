@@ -4,9 +4,9 @@ import { useState } from 'react'
 import { Sparkles, Copy, Pencil, Trash2, Check, X, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
-  GenerateContentDialog,
+  GenerationSessionDialog,
   type GeneratedOutputPayload,
-} from '@/components/marketing/generate-content-dialog'
+} from '@/components/marketing/generation-session-dialog'
 import { getModelById } from '@/lib/ai/models'
 
 interface Output {
@@ -335,7 +335,7 @@ export function OutputsList({
         </div>
       )}
 
-      <GenerateContentDialog
+      <GenerationSessionDialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         onGenerated={handleGenerated}

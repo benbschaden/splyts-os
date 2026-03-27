@@ -91,31 +91,13 @@ export async function createChatSession(
 export async function updateChatSession(
   id: string,
   userId: string,
-  updates: { model_id?: string; context_config?: ContextConfig; title?: string },
+  updates: { title?: string; model_id?: string },
 ): Promise<{ error: string | null }> {
   const supabase = createServiceClient()
 
   const { error } = await supabase
     .from('chat_sessions')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', id)
-    .eq('created_by', userId)
-    .is('deleted_at', null)
-
-  if (error) return { error: 'Failed to update chat session' }
-  return { error: null }
-}
-
-export async function updateChatSessionTitle(
-  id: string,
-  userId: string,
-  title: string,
-): Promise<{ error: string | null }> {
-  const supabase = createServiceClient()
-
-  const { error } = await supabase
-    .from('chat_sessions')
-    .update({ title })
+    .update(updates)
     .eq('id', id)
     .eq('created_by', userId)
     .is('deleted_at', null)

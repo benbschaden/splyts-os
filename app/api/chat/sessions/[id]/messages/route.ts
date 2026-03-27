@@ -2,7 +2,7 @@ import { z } from 'zod'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
-import { getChatSessionById, getChatMessages, addChatMessage, updateChatSessionTitle } from '@/lib/queries/chat'
+import { getChatSessionById, getChatMessages, addChatMessage, updateChatSession } from '@/lib/queries/chat'
 import { getBrandContext } from '@/lib/queries/brand-context'
 import { getBusinessPlan } from '@/lib/queries/business-plan'
 import { getPersonas } from '@/lib/queries/personas'
@@ -166,7 +166,7 @@ export async function POST(
     // Auto-title the session from the first user message
     if (existingMessages.length === 0) {
       const title = content.length > 60 ? content.slice(0, 57) + '…' : content
-      await updateChatSessionTitle(id, user.id, title)
+      await updateChatSession(id, user.id, { title })
     }
 
     return Response.json({

@@ -1,11 +1,12 @@
-# Feature: Company config navigation
+# Feature: Company knowledge navigation
 
 ```gherkin
-Feature: Company configuration and content library
-  Scenario: Member opens company area
+Feature: Company area is the org knowledge foundation
+  Scenario: User opens Company
     Given the user is signed in with a completed profile
     When they open Company from the sidebar
-    Then they see org-wide generated content and navigation for Brand, Authors, and Content types when admin
+    Then they see an overview explaining company knowledge and future categories
+    And admins see Branding links for brand context, authors, and content types
 
   Scenario: Legacy marketing URLs keep working
     Given a bookmark to /dashboard/marketing

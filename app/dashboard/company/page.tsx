@@ -3,10 +3,9 @@ export const dynamic = 'force-dynamic'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
-import { getAllOutputsForOrg } from '@/lib/queries/outputs'
-import { ContentLibrary } from '@/components/marketing/content-library'
+import { CompanyOverview } from '@/components/company/company-overview'
 
-export default async function CompanyContentPage() {
+export default async function CompanyOverviewPage() {
   const supabase = await createClient()
   const {
     data: { user },
@@ -17,7 +16,5 @@ export default async function CompanyContentPage() {
   const org = await getOrganizationForUser(user.id)
   if (!org) redirect('/setup')
 
-  const outputs = await getAllOutputsForOrg(org.id)
-
-  return <ContentLibrary outputs={outputs} />
+  return <CompanyOverview isAdmin={org.role === 'admin'} />
 }

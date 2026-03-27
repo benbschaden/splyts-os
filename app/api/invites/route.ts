@@ -49,13 +49,24 @@ export async function POST(request: Request) {
   })
 
   if (inviteError) {
-    console.error('[invites] inviteUserByEmail error:', JSON.stringify(inviteError))
-    const status = (inviteError as { status?: number }).status
+    const inviteStatus = (inviteError as { status?: number; code?: string }).status
+    const inviteCode = (inviteError as { code?: string }).code
+
+    // If the email send fails for any reason, clean up the invite record we just
+    // created so it doesn't appear as a phantom pending invite.
+    await db.from('invites').delete().eq('id', invite.id)
+
+    if (inviteCode === 'over_email_send_rate_limit' || inviteStatus === 429) {
+      return Response.json(
+        { error: 'Email rate limit reached. Please wait a few minutes and try again.' },
+        { status: 429 },
+      )
+    }
 
     // 422 = user already exists in Supabase Auth from a previous invite.
     // If they never confirmed their email, delete the ghost user and re-invite.
     // If they're a confirmed user, they already have an account.
-    if (status === 422) {
+    if (inviteStatus === 422) {
       // auth.users is not accessible via PostgREST — use a SECURITY DEFINER
       // function to look up the user, then delete via the admin API (safe way).
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -79,12 +90,25 @@ export async function POST(request: Request) {
         }
       }
 
-      // Ghost deleted (or was not found) — safe to re-invite
+      // Re-create the invite record (we deleted it above on failure)
+      const { invite: retryInvite, error: retryCreateError } = await createInvite({
+        organizationId: org.id,
+        email,
+        role,
+        invitedBy: user.id,
+      })
+
+      if (retryCreateError || !retryInvite) {
+        return Response.json({ error: 'Failed to send invite email. Please try again.' }, { status: 500 })
+      }
+
+      const retryRedirectTo = `${appUrl}/auth/confirm?invite_token=${retryInvite.token}`
       const { error: retryError } = await db.auth.admin.inviteUserByEmail(email, {
-        redirectTo,
+        redirectTo: retryRedirectTo,
       })
 
       if (retryError) {
+        await db.from('invites').delete().eq('id', retryInvite.id)
         return Response.json({ error: 'Failed to send invite email. Please try again.' }, { status: 500 })
       }
     } else {

@@ -13,62 +13,67 @@ const schema = z.object({
   content: z.string().min(1, 'Message cannot be empty').max(10000),
 })
 
-const WEB_SEARCH_TOOL = {
-  type: 'web_search_20250305' as const,
-  name: 'web_search',
-}
-
-async function runAnthropicWithTools(
+async function runWithBrowser(
   anthropic: Anthropic,
   modelId: string,
   systemPrompt: string,
   messageHistory: Anthropic.MessageParam[],
-  browserEnabled: boolean,
 ): Promise<string> {
+  // Web search is a beta feature — requires the beta messages API and beta header
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const tools: any[] = browserEnabled ? [WEB_SEARCH_TOOL] : []
-  let loopMessages: Anthropic.MessageParam[] = [...messageHistory]
+  let loopMessages: any[] = [...messageHistory]
   const MAX_ITERATIONS = 6
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
-    const response = await anthropic.messages.create({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response: any = await (anthropic.beta.messages.create as any)({
+      betas: ['web-search-2025-03-05'],
       model: modelId,
       max_tokens: 2048,
       system: systemPrompt,
       messages: loopMessages,
-      ...(tools.length > 0 ? { tools } : {}),
+      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
     })
 
     if (response.stop_reason === 'end_turn') {
-      const textBlock = response.content.find((b) => b.type === 'text')
-      if (textBlock?.type === 'text') return textBlock.text.trim()
-      return ''
+      const textBlock = response.content.find((b: { type: string }) => b.type === 'text')
+      return textBlock?.text?.trim() ?? ''
     }
 
     if (response.stop_reason === 'tool_use') {
-      // Add assistant message with tool_use blocks
       loopMessages = [...loopMessages, { role: 'assistant', content: response.content }]
-
-      // Build tool_result blocks — for web_search, Anthropic executes the search server-side
-      const toolResults: Anthropic.ToolResultBlockParam[] = response.content
-        .filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use')
-        .map((b) => ({
+      const toolResults = response.content
+        .filter((b: { type: string }) => b.type === 'tool_use')
+        .map((b: { id: string }) => ({
           type: 'tool_result' as const,
           tool_use_id: b.id,
           content: [],
         }))
-
       loopMessages = [...loopMessages, { role: 'user', content: toolResults }]
       continue
     }
 
-    // max_tokens or other stop — grab any text we have
-    const textBlock = response.content.find((b) => b.type === 'text')
-    if (textBlock?.type === 'text') return textBlock.text.trim()
-    return ''
+    const textBlock = response.content.find((b: { type: string }) => b.type === 'text')
+    return textBlock?.text?.trim() ?? ''
   }
 
   return ''
+}
+
+async function runWithoutBrowser(
+  anthropic: Anthropic,
+  modelId: string,
+  systemPrompt: string,
+  messageHistory: Anthropic.MessageParam[],
+): Promise<string> {
+  const response = await anthropic.messages.create({
+    model: modelId,
+    max_tokens: 2048,
+    system: systemPrompt,
+    messages: messageHistory,
+  })
+  const textBlock = response.content.find((b) => b.type === 'text')
+  return textBlock?.type === 'text' ? textBlock.text.trim() : ''
 }
 
 export async function POST(
@@ -135,11 +140,15 @@ export async function POST(
     let assistantContent: string
 
     try {
-      assistantContent = await runAnthropicWithTools(anthropic, model.id, systemPrompt, messageHistory, browserEnabled)
+      assistantContent = browserEnabled
+        ? await runWithBrowser(anthropic, model.id, systemPrompt, messageHistory)
+        : await runWithoutBrowser(anthropic, model.id, systemPrompt, messageHistory)
+
       if (!assistantContent) {
         return Response.json({ error: 'AI response failed. Please try again.' }, { status: 500 })
       }
-    } catch {
+    } catch (err) {
+      console.error('[chat/messages] AI call failed:', err)
       return Response.json({ error: 'AI response failed. Please try again.' }, { status: 500 })
     }
 

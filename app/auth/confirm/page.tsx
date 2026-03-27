@@ -1,14 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-// Handles invite links from Supabase which use the implicit/hash flow.
-// Server routes cannot read hash fragments — this client page processes
-// the #access_token from the URL, establishes the session, then accepts
-// the invite and routes the user onward.
-export default function ConfirmPage() {
+function ConfirmInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [error, setError] = useState<string | null>(null)
@@ -68,5 +64,19 @@ export default function ConfirmPage() {
     <div className="flex min-h-screen items-center justify-center bg-background">
       <p className="text-sm text-muted-foreground">Setting up your account…</p>
     </div>
+  )
+}
+
+export default function ConfirmPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-background">
+          <p className="text-sm text-muted-foreground">Setting up your account…</p>
+        </div>
+      }
+    >
+      <ConfirmInner />
+    </Suspense>
   )
 }

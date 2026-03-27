@@ -56,20 +56,29 @@ export async function POST(request: Request) {
     // If they're a confirmed user, they already have an account.
     if (status === 422) {
       // auth.users is not accessible via PostgREST — use a SECURITY DEFINER
-      // function that runs inside the DB where auth schema is reachable.
+      // function to look up the user, then delete via the admin API (safe way).
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: result } = await (db as any).rpc('delete_unconfirmed_user_by_email', {
+      const { data: rows } = await (db as any).rpc('get_auth_user_by_email', {
         p_email: email,
       })
 
-      if (result === 'confirmed') {
+      const existing = Array.isArray(rows) ? rows[0] : null
+
+      if (existing?.is_confirmed) {
         return Response.json(
           { error: 'This person already has an account. Ask them to log in directly.' },
           { status: 409 },
         )
       }
 
-      // 'deleted' or 'not_found' — either way, safe to re-invite
+      if (existing?.user_id) {
+        const { error: deleteError } = await db.auth.admin.deleteUser(existing.user_id)
+        if (deleteError) {
+          return Response.json({ error: 'Failed to send invite email. Please try again.' }, { status: 500 })
+        }
+      }
+
+      // Ghost deleted (or was not found) — safe to re-invite
       const { error: retryError } = await db.auth.admin.inviteUserByEmail(email, {
         redirectTo,
       })

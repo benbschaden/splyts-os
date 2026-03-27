@@ -116,6 +116,7 @@ export function TeamManager({ members, pendingInvites, currentUserId }: TeamMana
     }
 
     setLocalInvites((prev) => prev.filter((i) => i.id !== inviteId))
+    router.refresh()
   }
 
   return (

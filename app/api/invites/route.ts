@@ -42,7 +42,7 @@ export async function POST(request: Request) {
 
   // Send invite email via Supabase Auth
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://splyts-os.vercel.app'
-  const redirectTo = `${appUrl}/auth/callback?invite_token=${invite.token}`
+  const redirectTo = `${appUrl}/auth/confirm?invite_token=${invite.token}`
 
   const { error: inviteError } = await db.auth.admin.inviteUserByEmail(email, {
     redirectTo,

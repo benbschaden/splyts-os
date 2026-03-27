@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { X, Sparkles, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { AI_MODELS, DEFAULT_MODEL } from '@/lib/ai/models'
 
 interface Author {
   id: string
@@ -35,6 +36,7 @@ export function GenerateContentDialog({
 }: GenerateContentDialogProps) {
   const [authorId, setAuthorId] = useState('company')
   const [contentTypeId, setContentTypeId] = useState('')
+  const [modelId, setModelId] = useState(DEFAULT_MODEL.id)
   const [brief, setBrief] = useState('')
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -43,6 +45,7 @@ export function GenerateContentDialog({
     if (open) {
       setAuthorId('company')
       setContentTypeId(contentTypes[0]?.id ?? '')
+      setModelId(DEFAULT_MODEL.id)
       setBrief('')
       setError(null)
     }
@@ -65,7 +68,7 @@ export function GenerateContentDialog({
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ projectId, contentTypeId, authorId, brief: brief.trim() }),
+      body: JSON.stringify({ projectId, contentTypeId, authorId, brief: brief.trim(), modelId }),
     })
 
     const data = await res.json()
@@ -160,6 +163,29 @@ export function GenerateContentDialog({
               >
                 {contentTypes.map((ct) => (
                   <option key={ct.id} value={ct.id}>{ct.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Model */}
+            <div className="space-y-1.5">
+              <label htmlFor="gen-model" className="text-sm font-medium text-foreground">
+                Model
+              </label>
+              <select
+                id="gen-model"
+                value={modelId}
+                onChange={(e) => setModelId(e.target.value)}
+                disabled={generating}
+                className={cn(
+                  'w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground',
+                  'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 disabled:opacity-50',
+                )}
+              >
+                {AI_MODELS.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label} — {m.description}
+                  </option>
                 ))}
               </select>
             </div>

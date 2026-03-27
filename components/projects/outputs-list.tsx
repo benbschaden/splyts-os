@@ -4,12 +4,14 @@ import { useState } from 'react'
 import { Sparkles, Copy, Pencil, Trash2, Check, X, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { GenerateContentDialog } from '@/components/marketing/generate-content-dialog'
+import { getModelById } from '@/lib/ai/models'
 
 interface Output {
   id: string
   brief: string
   content: string
   content_type_id: string
+  model_id: string
   created_at: string
   updated_at: string
   content_types: { name: string } | null
@@ -104,6 +106,7 @@ function OutputCard({
   }
 
   const preview = output.content.slice(0, 180) + (output.content.length > 180 ? '…' : '')
+  const modelLabel = getModelById(output.model_id)?.label ?? output.model_id
 
   return (
     <div className="rounded-lg border border-border bg-background">
@@ -112,6 +115,9 @@ function OutputCard({
         <div className="flex items-center gap-2 min-w-0">
           <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground shrink-0">
             {output.content_types?.name ?? 'Unknown type'}
+          </span>
+          <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground shrink-0 hidden sm:inline-flex">
+            {modelLabel}
           </span>
           <span className="text-xs text-muted-foreground truncate hidden sm:block">
             {formatDate(output.created_at)}
@@ -242,14 +248,14 @@ export function OutputsList({
   const [outputs, setOutputs] = useState<Output[]>(initialOutputs)
   const [dialogOpen, setDialogOpen] = useState(false)
 
-  function handleGenerated(newOutput: { id: string; content: string; brief: string }) {
-    // The API returns the output without content_types joined — we find the type name locally
+  function handleGenerated(newOutput: { id: string; content: string; brief: string; model_id?: string }) {
     const ct = contentTypes.find((c) => outputs.some((o) => o.content_type_id === c.id)) ?? contentTypes[0]
     const full: Output = {
       id: newOutput.id,
       brief: newOutput.brief,
       content: newOutput.content,
       content_type_id: '',
+      model_id: newOutput.model_id ?? '',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       content_types: ct ? { name: ct.name } : null,

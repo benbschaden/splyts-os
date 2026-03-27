@@ -5,12 +5,14 @@ import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getBrandContext } from '@/lib/queries/brand-context'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createOutput } from '@/lib/queries/outputs'
+import { getModelById, DEFAULT_MODEL } from '@/lib/ai/models'
 
 const schema = z.object({
   projectId: z.string().uuid(),
   contentTypeId: z.string().uuid(),
   authorId: z.string(), // 'company' or a UUID
   brief: z.string().min(1, 'Brief is required'),
+  modelId: z.string().optional(),
 })
 
 function buildPrompt(params: {
@@ -69,10 +71,10 @@ function buildPrompt(params: {
   lines.push('')
   if (author.type === 'company') {
     lines.push('[AUTHOR]')
-    lines.push(`Write in the brand voice and tone defined above. This is a company post — do not write in a personal, first-person style.`)
+    lines.push('Write in the brand voice and tone defined above. This is a company post — do not write in a personal, first-person style.')
   } else {
     lines.push('[AUTHOR]')
-    lines.push(`Write in this specific author's voice, not the generic brand voice.`)
+    lines.push("Write in this specific author's voice, not the generic brand voice.")
     lines.push(`Name: ${author.name}`)
     if (author.role) lines.push(`Role: ${author.role}`)
     if (author.voice) lines.push(`Voice: ${author.voice}`)
@@ -80,7 +82,7 @@ function buildPrompt(params: {
     if (author.writing_style) lines.push(`Writing style: ${author.writing_style}`)
     if (author.personal_pillars) lines.push(`Personal pillars: ${author.personal_pillars}`)
     if (author.platform_notes) lines.push(`Platform notes: ${author.platform_notes}`)
-    lines.push(`The brand context above (mission, vision, north star, pillars, audience) still applies — but the voice, tone, and style must match this author.`)
+    lines.push('The brand context above (mission, vision, north star, pillars, audience) still applies — but the voice, tone, and style must match this author.')
   }
 
   lines.push('')
@@ -108,7 +110,10 @@ export async function POST(request: Request) {
     return Response.json({ error: parsed.error.errors[0].message }, { status: 400 })
   }
 
-  const { projectId, contentTypeId, authorId, brief } = parsed.data
+  const { projectId, contentTypeId, authorId, brief, modelId } = parsed.data
+
+  // Resolve model — fall back to default if not provided or unrecognised
+  const model = (modelId ? getModelById(modelId) : null) ?? DEFAULT_MODEL
 
   // Verify project belongs to this org
   const db = createServiceClient()
@@ -172,30 +177,32 @@ export async function POST(request: Request) {
     brief,
   })
 
-  // Call Anthropic
+  // Route to the correct AI provider
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
     return Response.json({ error: 'AI generation is not configured' }, { status: 503 })
   }
 
-  const anthropic = new Anthropic({ apiKey })
-
   let generatedContent: string
 
-  try {
-    const message = await anthropic.messages.create({
-      model: 'claude-opus-4-5',
-      max_tokens: 2048,
-      messages: [{ role: 'user', content: prompt }],
-    })
-
-    const textBlock = message.content.find((b) => b.type === 'text')
-    if (!textBlock || textBlock.type !== 'text') {
+  if (model.provider === 'anthropic') {
+    const anthropic = new Anthropic({ apiKey })
+    try {
+      const message = await anthropic.messages.create({
+        model: model.id,
+        max_tokens: 2048,
+        messages: [{ role: 'user', content: prompt }],
+      })
+      const textBlock = message.content.find((b) => b.type === 'text')
+      if (!textBlock || textBlock.type !== 'text') {
+        return Response.json({ error: 'Generation failed. Please try again.' }, { status: 500 })
+      }
+      generatedContent = textBlock.text.trim()
+    } catch {
       return Response.json({ error: 'Generation failed. Please try again.' }, { status: 500 })
     }
-    generatedContent = textBlock.text.trim()
-  } catch {
-    return Response.json({ error: 'Generation failed. Please try again.' }, { status: 500 })
+  } else {
+    return Response.json({ error: `Provider "${model.provider}" is not yet configured.` }, { status: 503 })
   }
 
   // Save output
@@ -206,6 +213,7 @@ export async function POST(request: Request) {
     brief,
     content: generatedContent,
     userId: user.id,
+    modelId: model.id,
   })
 
   if (saveError || !output) {

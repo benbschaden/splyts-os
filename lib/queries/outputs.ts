@@ -5,7 +5,7 @@ export async function getAllOutputsForOrg(organizationId: string) {
 
   const { data, error } = await supabase
     .from('outputs')
-    .select('id, brief, content, content_type_id, project_id, created_at, updated_at, content_types(name), projects(name)')
+    .select('id, brief, content, content_type_id, model_id, project_id, created_at, updated_at, content_types(name), projects(name)')
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
@@ -19,7 +19,7 @@ export async function getOutputsForProject(projectId: string, organizationId: st
 
   const { data, error } = await supabase
     .from('outputs')
-    .select('id, brief, content, content_type_id, created_at, updated_at, content_types(name)')
+    .select('id, brief, content, content_type_id, model_id, created_at, updated_at, content_types(name)')
     .eq('project_id', projectId)
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
@@ -36,6 +36,7 @@ export async function createOutput(params: {
   brief: string
   content: string
   userId: string
+  modelId: string
 }) {
   const supabase = createServiceClient()
 
@@ -48,8 +49,9 @@ export async function createOutput(params: {
       brief: params.brief,
       content: params.content,
       created_by: params.userId,
+      model_id: params.modelId,
     })
-    .select('id, brief, content, content_type_id, created_at, updated_at')
+    .select('id, brief, content, content_type_id, model_id, created_at, updated_at')
     .single()
 
   if (error) return { output: null, error: 'Failed to save output' }

@@ -17,6 +17,7 @@ interface Output {
   brief: string
   content: string
   content_type_id: string
+  model_id: string
   created_at: string
   updated_at: string
   content_types: { name: string } | null

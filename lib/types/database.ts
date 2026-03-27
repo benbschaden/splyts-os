@@ -377,6 +377,7 @@ export type Database = {
           created_by: string
           deleted_at: string | null
           id: string
+          model_id: string
           organization_id: string
           project_id: string
           updated_at: string
@@ -389,6 +390,7 @@ export type Database = {
           created_by: string
           deleted_at?: string | null
           id?: string
+          model_id?: string
           organization_id: string
           project_id: string
           updated_at?: string
@@ -401,6 +403,7 @@ export type Database = {
           created_by?: string
           deleted_at?: string | null
           id?: string
+          model_id?: string
           organization_id?: string
           project_id?: string
           updated_at?: string

@@ -616,6 +616,117 @@ export type Database = {
           },
         ]
       }
+      chat_sessions: {
+        Row: {
+          id: string
+          organization_id: string
+          created_by: string
+          title: string
+          context_config: {
+            brand: boolean
+            business_plan: boolean
+            personas: boolean
+          }
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          created_by: string
+          title?: string
+          context_config?: {
+            brand: boolean
+            business_plan: boolean
+            personas: boolean
+          }
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          created_by?: string
+          title?: string
+          context_config?: {
+            brand: boolean
+            business_plan: boolean
+            personas: boolean
+          }
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: []
+      }
+      chat_messages: {
+        Row: {
+          id: string
+          session_id: string
+          role: 'user' | 'assistant'
+          content: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          role: 'user' | 'assistant'
+          content: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          role?: 'user' | 'assistant'
+          content?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      documents: {
+        Row: {
+          id: string
+          organization_id: string
+          created_by: string
+          title: string
+          content: string
+          doc_type: string
+          visibility: 'private' | 'shared' | 'filed'
+          source_session_id: string | null
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          created_by: string
+          title: string
+          content?: string
+          doc_type?: string
+          visibility?: 'private' | 'shared' | 'filed'
+          source_session_id?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          created_by?: string
+          title?: string
+          content?: string
+          doc_type?: string
+          visibility?: 'private' | 'shared' | 'filed'
+          source_session_id?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

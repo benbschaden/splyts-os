@@ -1,10 +1,12 @@
 import Link from 'next/link'
-import { FolderOpen, Building2, Settings, LogOut } from 'lucide-react'
+import { FolderOpen, Building2, Settings, LogOut, MessageSquare, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NorthStarTrigger } from '@/components/company/north-star-trigger'
 
 const navigation = [
   { name: 'Projects', href: '/dashboard', icon: FolderOpen },
+  { name: 'Chat', href: '/dashboard/chat', icon: MessageSquare },
+  { name: 'Documents', href: '/dashboard/documents', icon: FileText },
   { name: 'Company', href: '/dashboard/company', icon: Building2 },
 ]
 

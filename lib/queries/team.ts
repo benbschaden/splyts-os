@@ -214,6 +214,17 @@ export async function removeMember(organizationId: string, userId: string) {
 export async function revokeInvite(inviteId: string, organizationId: string) {
   const supabase = createServiceClient()
 
+  // Fetch the invite first so we have the email
+  const { data: invite, error: fetchError } = await supabase
+    .from('invites')
+    .select('id, email')
+    .eq('id', inviteId)
+    .eq('organization_id', organizationId)
+    .maybeSingle()
+
+  if (fetchError || !invite) return { error: 'Failed to revoke invite' }
+
+  // Soft-delete the invite record
   const { error } = await supabase
     .from('invites')
     .update({ accepted_at: new Date().toISOString() })
@@ -221,5 +232,15 @@ export async function revokeInvite(inviteId: string, organizationId: string) {
     .eq('organization_id', organizationId)
 
   if (error) return { error: 'Failed to revoke invite' }
+
+  // Delete the unconfirmed ghost user from Supabase Auth so the email can be re-invited
+  const { data: authUser } = await (supabase as any).rpc('get_auth_user_by_email', {
+    p_email: invite.email,
+  })
+  const row = Array.isArray(authUser) ? authUser[0] : null
+  if (row && !row.is_confirmed) {
+    await supabase.auth.admin.deleteUser(row.user_id)
+  }
+
   return { error: null }
 }

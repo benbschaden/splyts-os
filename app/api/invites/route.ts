@@ -49,11 +49,38 @@ export async function POST(request: Request) {
   })
 
   if (inviteError) {
-    // 422 means the user already exists in Supabase Auth (previously invited or signed up).
-    // That's fine — they can log in with the magic link or their existing credentials.
-    // Any other error is a real failure.
     const status = (inviteError as { status?: number }).status
-    if (status !== 422) {
+
+    // 422 = user already exists in Supabase Auth from a previous invite.
+    // If they never confirmed their email, delete the ghost user and re-invite.
+    // If they're a confirmed user, they already have an account.
+    if (status === 422) {
+      const { data: existingUser } = await db
+        .schema('auth')
+        .from('users')
+        .select('id, email_confirmed_at')
+        .eq('email', email.toLowerCase())
+        .maybeSingle()
+
+      if (existingUser?.email_confirmed_at) {
+        return Response.json(
+          { error: 'This person already has an account. Ask them to log in directly.' },
+          { status: 409 },
+        )
+      }
+
+      if (existingUser?.id) {
+        await db.auth.admin.deleteUser(existingUser.id)
+
+        const { error: retryError } = await db.auth.admin.inviteUserByEmail(email, {
+          redirectTo,
+        })
+
+        if (retryError) {
+          return Response.json({ error: 'Failed to send invite email. Please try again.' }, { status: 500 })
+        }
+      }
+    } else {
       return Response.json({ error: 'Failed to send invite email. Please try again.' }, { status: 500 })
     }
   }

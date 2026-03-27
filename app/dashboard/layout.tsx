@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getUserProfile } from '@/lib/queries/user-profile'
 import { getBrandContext } from '@/lib/queries/brand-context'
+import { getProjectCategories } from '@/lib/queries/projects'
 import { Sidebar } from '@/components/sidebar'
 
 export default async function DashboardLayout({
@@ -25,7 +26,10 @@ export default async function DashboardLayout({
   // New members who haven't completed their profile yet
   if (!profile?.full_name?.trim()) redirect('/welcome')
 
-  const brandContext = await getBrandContext(org.id)
+  const [brandContext, projectCategories] = await Promise.all([
+    getBrandContext(org.id),
+    getProjectCategories(org.id),
+  ])
 
   const displayName = profile?.full_name?.trim().split(' ')[0]
     || user.email?.split('@')[0]
@@ -42,6 +46,7 @@ export default async function DashboardLayout({
         northStar={brandContext?.north_star}
         mission={brandContext?.mission}
         vision={brandContext?.vision}
+        projectCategories={projectCategories}
       />
       <main className="flex-1 overflow-y-auto">
         {children}

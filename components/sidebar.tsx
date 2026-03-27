@@ -1,10 +1,10 @@
 import Link from 'next/link'
-import { FolderOpen, Building2, Settings, LogOut, MessageSquare, FileText } from 'lucide-react'
+import { Building2, Settings, LogOut, MessageSquare, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NorthStarTrigger } from '@/components/company/north-star-trigger'
+import { ProjectsNav } from '@/components/projects/projects-nav'
 
-const navigation = [
-  { name: 'Projects', href: '/dashboard', icon: FolderOpen },
+const otherNavItems = [
   { name: 'Chat', href: '/dashboard/chat', icon: MessageSquare },
   { name: 'Documents', href: '/dashboard/documents', icon: FileText },
   { name: 'Company', href: '/dashboard/company', icon: Building2 },
@@ -23,9 +23,10 @@ interface SidebarProps {
   northStar?: string | null
   mission?: string | null
   vision?: string | null
+  projectCategories?: string[]
 }
 
-export function Sidebar({ orgName, userName, avatarUrl, email, isAdmin, northStar, mission, vision }: SidebarProps) {
+export function Sidebar({ orgName, userName, avatarUrl, email, isAdmin, northStar, mission, vision, projectCategories = [] }: SidebarProps) {
   const displayName = userName || email?.split('@')[0] || ''
   const initials = displayName?.[0]?.toUpperCase() ?? '?'
 
@@ -63,8 +64,12 @@ export function Sidebar({ orgName, userName, avatarUrl, email, isAdmin, northSta
       </Link>
 
       {/* Main nav */}
-      <nav className="flex flex-1 flex-col gap-0.5 p-3">
-        {navigation.map((item) => (
+      <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3">
+        {/* Projects with expandable categories */}
+        <ProjectsNav categories={projectCategories} />
+
+        {/* Other nav items */}
+        {otherNavItems.map((item) => (
           <Link
             key={item.name}
             href={item.href}

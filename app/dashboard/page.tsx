@@ -7,7 +7,11 @@ import { getProjectsForOrg } from '@/lib/queries/projects'
 import { getUserProfile } from '@/lib/queries/user-profile'
 import { ProjectsList } from '@/components/projects/projects-list'
 
-export default async function DashboardPage() {
+interface DashboardPageProps {
+  searchParams: Promise<{ category?: string }>
+}
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -16,13 +20,19 @@ export default async function DashboardPage() {
   const org = await getOrganizationForUser(user.id)
   if (!org) redirect('/setup')
 
-  const [projects, profile] = await Promise.all([
+  const { category } = await searchParams
+
+  const [allProjects, profile] = await Promise.all([
     getProjectsForOrg(org.id),
     getUserProfile(user.id),
   ])
 
+  const projects = category
+    ? allProjects.filter((p) => p.category === category)
+    : allProjects
+
   const fullName = profile?.full_name?.trim() || user.email?.split('@')[0] || ''
   const userName = fullName.split(' ')[0]
 
-  return <ProjectsList projects={projects} userName={userName} />
+  return <ProjectsList projects={projects} userName={userName} activeCategory={category ?? null} />
 }

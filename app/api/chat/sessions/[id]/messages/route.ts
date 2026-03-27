@@ -7,11 +7,69 @@ import { getBrandContext } from '@/lib/queries/brand-context'
 import { getBusinessPlan } from '@/lib/queries/business-plan'
 import { getPersonas } from '@/lib/queries/personas'
 import { buildChatSystemPrompt } from '@/lib/ai/prompts'
-import { DEFAULT_MODEL } from '@/lib/ai/models'
+import { DEFAULT_MODEL, getModelById } from '@/lib/ai/models'
 
 const schema = z.object({
   content: z.string().min(1, 'Message cannot be empty').max(10000),
 })
+
+const WEB_SEARCH_TOOL = {
+  type: 'web_search_20250305' as const,
+  name: 'web_search',
+}
+
+async function runAnthropicWithTools(
+  anthropic: Anthropic,
+  modelId: string,
+  systemPrompt: string,
+  messageHistory: Anthropic.MessageParam[],
+  browserEnabled: boolean,
+): Promise<string> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tools: any[] = browserEnabled ? [WEB_SEARCH_TOOL] : []
+  let loopMessages: Anthropic.MessageParam[] = [...messageHistory]
+  const MAX_ITERATIONS = 6
+
+  for (let i = 0; i < MAX_ITERATIONS; i++) {
+    const response = await anthropic.messages.create({
+      model: modelId,
+      max_tokens: 2048,
+      system: systemPrompt,
+      messages: loopMessages,
+      ...(tools.length > 0 ? { tools } : {}),
+    })
+
+    if (response.stop_reason === 'end_turn') {
+      const textBlock = response.content.find((b) => b.type === 'text')
+      if (textBlock?.type === 'text') return textBlock.text.trim()
+      return ''
+    }
+
+    if (response.stop_reason === 'tool_use') {
+      // Add assistant message with tool_use blocks
+      loopMessages = [...loopMessages, { role: 'assistant', content: response.content }]
+
+      // Build tool_result blocks — for web_search, Anthropic executes the search server-side
+      const toolResults: Anthropic.ToolResultBlockParam[] = response.content
+        .filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use')
+        .map((b) => ({
+          type: 'tool_result' as const,
+          tool_use_id: b.id,
+          content: [],
+        }))
+
+      loopMessages = [...loopMessages, { role: 'user', content: toolResults }]
+      continue
+    }
+
+    // max_tokens or other stop — grab any text we have
+    const textBlock = response.content.find((b) => b.type === 'text')
+    if (textBlock?.type === 'text') return textBlock.text.trim()
+    return ''
+  }
+
+  return ''
+}
 
 export async function POST(
   request: Request,
@@ -38,7 +96,13 @@ export async function POST(
     }
 
     const { content } = parsed.data
-    const { brand: includeBrand, business_plan: includeBusinessPlan, personas: includePersonas } = session.context_config
+    const {
+      brand: includeBrand,
+      business_plan: includeBusinessPlan,
+      personas: includePersonas,
+      browser: browserEnabled = false,
+    } = session.context_config
+    const model = getModelById(session.model_id) ?? DEFAULT_MODEL
 
     // Fetch company context in parallel based on what's enabled
     const [brand, businessPlan, personas, existingMessages] = await Promise.all([
@@ -57,9 +121,8 @@ export async function POST(
       includePersonas,
     })
 
-    // Build conversation history for Claude
-    const messageHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [
-      ...existingMessages.map((m) => ({ role: m.role, content: m.content })),
+    const messageHistory: Anthropic.MessageParam[] = [
+      ...existingMessages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
       { role: 'user', content },
     ]
 
@@ -72,17 +135,10 @@ export async function POST(
     let assistantContent: string
 
     try {
-      const response = await anthropic.messages.create({
-        model: DEFAULT_MODEL.id,
-        max_tokens: 2048,
-        system: systemPrompt,
-        messages: messageHistory,
-      })
-      const textBlock = response.content.find((b) => b.type === 'text')
-      if (!textBlock || textBlock.type !== 'text') {
+      assistantContent = await runAnthropicWithTools(anthropic, model.id, systemPrompt, messageHistory, browserEnabled)
+      if (!assistantContent) {
         return Response.json({ error: 'AI response failed. Please try again.' }, { status: 500 })
       }
-      assistantContent = textBlock.text.trim()
     } catch {
       return Response.json({ error: 'AI response failed. Please try again.' }, { status: 500 })
     }

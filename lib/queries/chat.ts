@@ -4,6 +4,7 @@ export interface ContextConfig {
   brand: boolean
   business_plan: boolean
   personas: boolean
+  browser: boolean
 }
 
 export interface ChatSessionRow {
@@ -11,6 +12,7 @@ export interface ChatSessionRow {
   organization_id: string
   created_by: string
   title: string
+  model_id: string
   context_config: ContextConfig
   created_at: string
   updated_at: string
@@ -24,7 +26,7 @@ export interface ChatMessageRow {
   created_at: string
 }
 
-const SESSION_SELECT = 'id, organization_id, created_by, title, context_config, created_at, updated_at'
+const SESSION_SELECT = 'id, organization_id, created_by, title, model_id, context_config, created_at, updated_at'
 const MESSAGE_SELECT = 'id, session_id, role, content, created_at'
 
 export async function getChatSessions(
@@ -67,6 +69,7 @@ export async function createChatSession(
   organizationId: string,
   userId: string,
   contextConfig: ContextConfig,
+  modelId: string,
 ): Promise<{ session: ChatSessionRow | null; error: string | null }> {
   const supabase = createServiceClient()
 
@@ -76,12 +79,31 @@ export async function createChatSession(
       organization_id: organizationId,
       created_by: userId,
       context_config: contextConfig,
+      model_id: modelId,
     })
     .select(SESSION_SELECT)
     .single()
 
   if (error) return { session: null, error: 'Failed to create chat session' }
   return { session: data as ChatSessionRow, error: null }
+}
+
+export async function updateChatSession(
+  id: string,
+  userId: string,
+  updates: { model_id?: string; context_config?: ContextConfig; title?: string },
+): Promise<{ error: string | null }> {
+  const supabase = createServiceClient()
+
+  const { error } = await supabase
+    .from('chat_sessions')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('created_by', userId)
+    .is('deleted_at', null)
+
+  if (error) return { error: 'Failed to update chat session' }
+  return { error: null }
 }
 
 export async function updateChatSessionTitle(

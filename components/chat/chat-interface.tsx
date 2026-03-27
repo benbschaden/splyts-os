@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Send, FileDown, Loader2 } from 'lucide-react'
+import { ArrowLeft, Send, FileDown, Loader2, ChevronDown, Globe } from 'lucide-react'
 import Link from 'next/link'
 import type { ChatSessionRow, ChatMessageRow } from '@/lib/queries/chat'
 import { CaptureDocumentDialog } from '@/components/chat/capture-document-dialog'
+import { AI_MODELS } from '@/lib/ai/models'
 
 interface ChatInterfaceProps {
   session: ChatSessionRow
@@ -15,8 +16,11 @@ interface ChatInterfaceProps {
 export function ChatInterface({ session, initialMessages }: ChatInterfaceProps) {
   const router = useRouter()
   const [messages, setMessages] = useState<ChatMessageRow[]>(initialMessages)
+  const [currentModelId, setCurrentModelId] = useState(session.model_id)
   const [input, setInput] = useState('')
   const [isSending, setIsSending] = useState(false)
+  const [isSwitchingModel, setIsSwitchingModel] = useState(false)
+  const [showModelPicker, setShowModelPicker] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showCapture, setShowCapture] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -25,6 +29,22 @@ export function ChatInterface({ session, initialMessages }: ChatInterfaceProps) 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  async function handleSwitchModel(modelId: string) {
+    if (modelId === currentModelId) { setShowModelPicker(false); return }
+    setIsSwitchingModel(true)
+    try {
+      const res = await fetch(`/api/chat/sessions/${session.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model_id: modelId }),
+      })
+      if (res.ok) setCurrentModelId(modelId)
+    } finally {
+      setIsSwitchingModel(false)
+      setShowModelPicker(false)
+    }
+  }
 
   async function handleSend() {
     const content = input.trim()
@@ -82,10 +102,12 @@ export function ChatInterface({ session, initialMessages }: ChatInterfaceProps) 
     }
   }
 
+  const currentModel = AI_MODELS.find((m) => m.id === currentModelId) ?? AI_MODELS[0]
   const contextLabels = [
     session.context_config.brand && 'Brand',
     session.context_config.business_plan && 'Business Plan',
     session.context_config.personas && 'Personas',
+    session.context_config.browser && 'Browser',
   ].filter(Boolean)
 
   return (
@@ -107,15 +129,47 @@ export function ChatInterface({ session, initialMessages }: ChatInterfaceProps) 
             )}
           </div>
         </div>
-        {messages.length > 0 && (
-          <button
-            onClick={() => setShowCapture(true)}
-            className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
-            <FileDown className="h-4 w-4" />
-            Capture as Document
-          </button>
-        )}
+
+        <div className="flex items-center gap-2">
+          {/* Model switcher */}
+          <div className="relative">
+            <button
+              onClick={() => setShowModelPicker((v) => !v)}
+              disabled={isSwitchingModel}
+              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+            >
+              {session.context_config.browser && <Globe className="h-3 w-3" />}
+              {isSwitchingModel ? 'Switching…' : currentModel.label}
+              <ChevronDown className="h-3 w-3" />
+            </button>
+            {showModelPicker && (
+              <div className="absolute right-0 top-full z-10 mt-1 w-56 rounded-lg border border-border bg-background shadow-lg">
+                {AI_MODELS.map((model) => (
+                  <button
+                    key={model.id}
+                    onClick={() => handleSwitchModel(model.id)}
+                    className={`flex w-full flex-col items-start px-3 py-2.5 text-left transition-colors first:rounded-t-lg last:rounded-b-lg hover:bg-accent ${
+                      model.id === currentModelId ? 'bg-accent' : ''
+                    }`}
+                  >
+                    <span className="text-sm font-medium text-foreground">{model.label}</span>
+                    <span className="text-xs text-muted-foreground">{model.description}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {messages.length > 0 && (
+            <button
+              onClick={() => setShowCapture(true)}
+              className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <FileDown className="h-4 w-4" />
+              Capture as Document
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Messages */}

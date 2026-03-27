@@ -3,8 +3,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { MessageSquare, Plus, Trash2 } from 'lucide-react'
+import { MessageSquare, Plus, Trash2, Globe } from 'lucide-react'
 import type { ChatSessionRow, ContextConfig } from '@/lib/queries/chat'
+import { AI_MODELS, DEFAULT_MODEL } from '@/lib/ai/models'
 
 interface ChatSessionsListProps {
   sessions: ChatSessionRow[]
@@ -14,6 +15,7 @@ const DEFAULT_CONTEXT: ContextConfig = {
   brand: true,
   business_plan: false,
   personas: false,
+  browser: false,
 }
 
 export function ChatSessionsList({ sessions: initialSessions }: ChatSessionsListProps) {
@@ -21,6 +23,7 @@ export function ChatSessionsList({ sessions: initialSessions }: ChatSessionsList
   const [sessions, setSessions] = useState(initialSessions)
   const [isCreating, setIsCreating] = useState(false)
   const [contextConfig, setContextConfig] = useState<ContextConfig>(DEFAULT_CONTEXT)
+  const [selectedModelId, setSelectedModelId] = useState(DEFAULT_MODEL.id)
   const [showNewChat, setShowNewChat] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
@@ -30,7 +33,7 @@ export function ChatSessionsList({ sessions: initialSessions }: ChatSessionsList
       const res = await fetch('/api/chat/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ context_config: contextConfig }),
+        body: JSON.stringify({ context_config: contextConfig, model_id: selectedModelId }),
       })
       const data = await res.json()
       if (res.ok && data.session) {
@@ -80,30 +83,78 @@ export function ChatSessionsList({ sessions: initialSessions }: ChatSessionsList
 
       {/* New chat setup panel */}
       {showNewChat && (
-        <div className="border-b border-border bg-muted/30 px-6 py-5">
-          <h2 className="mb-3 text-sm font-medium text-foreground">Connect company knowledge</h2>
-          <div className="flex flex-wrap gap-3">
-            {(
-              [
-                { key: 'brand', label: 'Brand & Voice' },
-                { key: 'business_plan', label: 'Business Plan' },
-                { key: 'personas', label: 'Personas' },
-              ] as { key: keyof ContextConfig; label: string }[]
-            ).map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => toggleContext(key)}
-                className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
-                  contextConfig[key]
-                    ? 'border-foreground bg-foreground text-background'
-                    : 'border-border bg-background text-muted-foreground hover:border-foreground/40'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+        <div className="border-b border-border bg-muted/30 px-6 py-5 space-y-4">
+          {/* Model selector */}
+          <div>
+            <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Model</h2>
+            <div className="flex flex-wrap gap-2">
+              {AI_MODELS.map((model) => (
+                <button
+                  key={model.id}
+                  onClick={() => setSelectedModelId(model.id)}
+                  className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+                    selectedModelId === model.id
+                      ? 'border-foreground bg-foreground text-background'
+                      : 'border-border bg-background text-muted-foreground hover:border-foreground/40'
+                  }`}
+                >
+                  {model.label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              {AI_MODELS.find((m) => m.id === selectedModelId)?.description}
+            </p>
           </div>
-          <div className="mt-4 flex gap-2">
+
+          {/* Context selector */}
+          <div>
+            <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Company knowledge</h2>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  { key: 'brand' as const, label: 'Brand & Voice' },
+                  { key: 'business_plan' as const, label: 'Business Plan' },
+                  { key: 'personas' as const, label: 'Personas' },
+                ]
+              ).map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => toggleContext(key)}
+                  className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+                    contextConfig[key]
+                      ? 'border-foreground bg-foreground text-background'
+                      : 'border-border bg-background text-muted-foreground hover:border-foreground/40'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Browser toggle */}
+          <div>
+            <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Tools</h2>
+            <button
+              onClick={() => toggleContext('browser')}
+              className={`flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+                contextConfig.browser
+                  ? 'border-foreground bg-foreground text-background'
+                  : 'border-border bg-background text-muted-foreground hover:border-foreground/40'
+              }`}
+            >
+              <Globe className="h-3.5 w-3.5" />
+              Allow browser
+            </button>
+            {contextConfig.browser && (
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                AI can search the web for up-to-date information during this chat.
+              </p>
+            )}
+          </div>
+
+          <div className="flex gap-2 pt-1">
             <button
               onClick={handleCreateSession}
               disabled={isCreating}
@@ -146,15 +197,10 @@ export function ChatSessionsList({ sessions: initialSessions }: ChatSessionsList
                         {session.title}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(session.updated_at).toLocaleDateString()}
+                        {AI_MODELS.find((m) => m.id === session.model_id)?.label ?? session.model_id}
                         {' · '}
-                        {[
-                          session.context_config.brand && 'Brand',
-                          session.context_config.business_plan && 'Business Plan',
-                          session.context_config.personas && 'Personas',
-                        ]
-                          .filter(Boolean)
-                          .join(', ')}
+                        {new Date(session.updated_at).toLocaleDateString()}
+                        {session.context_config.browser && ' · Browser'}
                       </p>
                     </div>
                   </div>

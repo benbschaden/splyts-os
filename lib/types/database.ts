@@ -622,10 +622,12 @@ export type Database = {
           organization_id: string
           created_by: string
           title: string
+          model_id: string
           context_config: {
             brand: boolean
             business_plan: boolean
             personas: boolean
+            browser: boolean
           }
           created_at: string
           updated_at: string
@@ -636,10 +638,12 @@ export type Database = {
           organization_id: string
           created_by: string
           title?: string
+          model_id?: string
           context_config?: {
             brand: boolean
             business_plan: boolean
             personas: boolean
+            browser: boolean
           }
           created_at?: string
           updated_at?: string
@@ -650,10 +654,12 @@ export type Database = {
           organization_id?: string
           created_by?: string
           title?: string
+          model_id?: string
           context_config?: {
             brand: boolean
             business_plan: boolean
             personas: boolean
+            browser: boolean
           }
           created_at?: string
           updated_at?: string

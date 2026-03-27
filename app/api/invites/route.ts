@@ -55,7 +55,9 @@ export async function POST(request: Request) {
     // If they never confirmed their email, delete the ghost user and re-invite.
     // If they're a confirmed user, they already have an account.
     if (status === 422) {
-      const { data: existingUser } = await db
+      // Service role can query auth schema; cast to bypass public-only type constraint
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: existingUser } = await (db as any)
         .schema('auth')
         .from('users')
         .select('id, email_confirmed_at')

@@ -57,7 +57,8 @@ export async function POST(request: Request) {
     if (status === 422) {
       // auth.users is not accessible via PostgREST — use a SECURITY DEFINER
       // function that runs inside the DB where auth schema is reachable.
-      const { data: result } = await db.rpc('delete_unconfirmed_user_by_email', {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: result } = await (db as any).rpc('delete_unconfirmed_user_by_email', {
         p_email: email,
       })
 

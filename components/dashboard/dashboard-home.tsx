@@ -48,15 +48,16 @@ export function DashboardHome({
 
           {/* North star / mission / vision */}
           {hasNorthStar && (
-            <section className="rounded-xl border border-border bg-background p-6 space-y-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                {orgName}
-              </p>
+            <section className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-background via-background to-muted/40">
+              {/* Decorative accent line along top */}
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-foreground/10 to-transparent" />
 
               {northStar && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-1">North star</p>
-                  <p className="text-base font-semibold text-foreground leading-snug">
+                <div className="px-8 pt-8 pb-7">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/50 mb-4">
+                    North star
+                  </p>
+                  <p className="text-xl font-semibold leading-snug tracking-tight text-foreground sm:text-2xl max-w-2xl">
                     {northStar}
                   </p>
                 </div>
@@ -64,23 +65,38 @@ export function DashboardHome({
 
               {(mission || vision) && (
                 <div className={cn(
-                  'grid gap-4',
-                  mission && vision ? 'sm:grid-cols-2' : 'grid-cols-1',
+                  'border-t border-border/50',
+                  mission && vision ? 'grid grid-cols-2 divide-x divide-border/50' : '',
                 )}>
                   {mission && (
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground mb-1">Mission</p>
-                      <p className="text-sm text-foreground leading-relaxed">{mission}</p>
+                    <div className="px-8 py-6">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/50 mb-2.5">
+                        Mission
+                      </p>
+                      <p className="text-sm text-foreground/80 leading-relaxed">
+                        {mission}
+                      </p>
                     </div>
                   )}
                   {vision && (
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground mb-1">Vision</p>
-                      <p className="text-sm text-foreground leading-relaxed">{vision}</p>
+                    <div className="px-8 py-6">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/50 mb-2.5">
+                        Vision
+                      </p>
+                      <p className="text-sm text-foreground/80 leading-relaxed">
+                        {vision}
+                      </p>
                     </div>
                   )}
                 </div>
               )}
+
+              {/* Org name footer */}
+              <div className="px-8 py-3 border-t border-border/30 bg-muted/20">
+                <p className="text-[10px] font-medium tracking-widest text-muted-foreground/40 uppercase">
+                  {orgName}
+                </p>
+              </div>
             </section>
           )}
 

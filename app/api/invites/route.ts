@@ -55,32 +55,26 @@ export async function POST(request: Request) {
     // If they never confirmed their email, delete the ghost user and re-invite.
     // If they're a confirmed user, they already have an account.
     if (status === 422) {
-      // Service role can query auth schema; cast to bypass public-only type constraint
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: existingUser } = await (db as any)
-        .schema('auth')
-        .from('users')
-        .select('id, email_confirmed_at')
-        .eq('email', email.toLowerCase())
-        .maybeSingle()
+      // auth.users is not accessible via PostgREST — use a SECURITY DEFINER
+      // function that runs inside the DB where auth schema is reachable.
+      const { data: result } = await db.rpc('delete_unconfirmed_user_by_email', {
+        p_email: email,
+      })
 
-      if (existingUser?.email_confirmed_at) {
+      if (result === 'confirmed') {
         return Response.json(
           { error: 'This person already has an account. Ask them to log in directly.' },
           { status: 409 },
         )
       }
 
-      if (existingUser?.id) {
-        await db.auth.admin.deleteUser(existingUser.id)
+      // 'deleted' or 'not_found' — either way, safe to re-invite
+      const { error: retryError } = await db.auth.admin.inviteUserByEmail(email, {
+        redirectTo,
+      })
 
-        const { error: retryError } = await db.auth.admin.inviteUserByEmail(email, {
-          redirectTo,
-        })
-
-        if (retryError) {
-          return Response.json({ error: 'Failed to send invite email. Please try again.' }, { status: 500 })
-        }
+      if (retryError) {
+        return Response.json({ error: 'Failed to send invite email. Please try again.' }, { status: 500 })
       }
     } else {
       return Response.json({ error: 'Failed to send invite email. Please try again.' }, { status: 500 })

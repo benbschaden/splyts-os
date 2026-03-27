@@ -22,7 +22,7 @@ export default async function WelcomePage() {
             Welcome to the workspace
           </h1>
           <p className="text-sm text-muted-foreground">
-            Tell us a little about yourself before you get started.
+            Set a password and your name so you can sign in next time.
           </p>
         </div>
         <WelcomeForm email={user.email ?? ''} />

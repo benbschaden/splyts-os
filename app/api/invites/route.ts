@@ -49,6 +49,7 @@ export async function POST(request: Request) {
   })
 
   if (inviteError) {
+    console.error('[invites] inviteUserByEmail error:', JSON.stringify(inviteError))
     const status = (inviteError as { status?: number }).status
 
     // 422 = user already exists in Supabase Auth from a previous invite.

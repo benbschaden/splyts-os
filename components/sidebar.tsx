@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { FolderOpen, Building2, Settings, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { NorthStarTrigger } from '@/components/company/north-star-trigger'
 
 const navigation = [
   { name: 'Projects', href: '/dashboard', icon: FolderOpen },
@@ -17,9 +18,12 @@ interface SidebarProps {
   avatarUrl: string | null
   email: string
   isAdmin: boolean
+  northStar?: string | null
+  mission?: string | null
+  vision?: string | null
 }
 
-export function Sidebar({ orgName, userName, avatarUrl, email, isAdmin }: SidebarProps) {
+export function Sidebar({ orgName, userName, avatarUrl, email, isAdmin, northStar, mission, vision }: SidebarProps) {
   const displayName = userName || email?.split('@')[0] || ''
   const initials = displayName?.[0]?.toUpperCase() ?? '?'
 
@@ -72,6 +76,18 @@ export function Sidebar({ orgName, userName, avatarUrl, email, isAdmin }: Sideba
           </Link>
         ))}
       </nav>
+
+      {/* North star */}
+      {northStar && mission && vision && (
+        <div className="px-3 pb-2">
+          <NorthStarTrigger
+            northStar={northStar}
+            mission={mission}
+            vision={vision}
+            companyName={orgName}
+          />
+        </div>
+      )}
 
       {/* Bottom nav */}
       <div className="flex flex-col gap-0.5 border-t border-border p-3">

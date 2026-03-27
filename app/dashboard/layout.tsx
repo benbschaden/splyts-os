@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getUserProfile } from '@/lib/queries/user-profile'
+import { getBrandContext } from '@/lib/queries/brand-context'
 import { Sidebar } from '@/components/sidebar'
 
 export default async function DashboardLayout({
@@ -24,6 +25,8 @@ export default async function DashboardLayout({
   // New members who haven't completed their profile yet
   if (!profile?.full_name?.trim()) redirect('/welcome')
 
+  const brandContext = await getBrandContext(org.id)
+
   const displayName = profile?.full_name?.trim().split(' ')[0]
     || user.email?.split('@')[0]
     || ''
@@ -36,6 +39,9 @@ export default async function DashboardLayout({
         avatarUrl={profile?.avatar_url ?? null}
         email={user.email ?? ''}
         isAdmin={org.role === 'admin'}
+        northStar={brandContext?.north_star}
+        mission={brandContext?.mission}
+        vision={brandContext?.vision}
       />
       <main className="flex-1 overflow-y-auto">
         {children}

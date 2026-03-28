@@ -11,6 +11,7 @@ interface DiscussionsPanelProps {
   parentId: string
   organizationId: string
   sectionKey?: string
+  currentUserId?: string
 }
 
 export function DiscussionsPanel({
@@ -18,6 +19,7 @@ export function DiscussionsPanel({
   parentId,
   organizationId,
   sectionKey,
+  currentUserId,
 }: DiscussionsPanelProps) {
   const [discussions, setDiscussions] = useState<DiscussionRow[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -76,6 +78,7 @@ export function DiscussionsPanel({
             key={selectedDiscussion.id}
             discussion={selectedDiscussion}
             organizationId={organizationId}
+            currentUserId={currentUserId}
             onUpdated={handleUpdated}
           />
         ) : (

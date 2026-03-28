@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
+import { SuggestButton, SuggestBox, type SuggestState, emptySuggestState } from '@/components/company/field-suggest'
 
 interface BrandContextValues {
   company_name: string
@@ -77,6 +78,8 @@ const OPTIONAL_FIELDS: Array<{ key: keyof BrandContextValues; label: string; hin
   },
 ]
 
+const allFields = [...REQUIRED_FIELDS, ...OPTIONAL_FIELDS]
+
 type FieldErrors = Partial<Record<keyof BrandContextValues, string>>
 
 function empty(): BrandContextValues {
@@ -102,6 +105,38 @@ export function BrandContextForm({ initial, isAdmin }: BrandContextFormProps) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
+  const [suggests, setSuggests] = useState<Record<string, SuggestState>>(
+    () => Object.fromEntries(allFields.map((f) => [f.key, emptySuggestState()])),
+  )
+
+  function setSuggest(key: string, update: Partial<SuggestState>) {
+    setSuggests((prev) => ({ ...prev, [key]: { ...prev[key], ...update } }))
+  }
+
+  async function handleSuggest(field: typeof allFields[number]) {
+    setSuggest(field.key, { loading: true, suggestion: null, error: null })
+    const res = await fetch('/api/company/suggest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        field_key: field.key,
+        field_label: field.label,
+        field_hint: field.hint,
+        current_form_values: values,
+      }),
+    })
+    if (!res.ok) {
+      setSuggest(field.key, { loading: false, error: 'Suggestion failed. Try again.' })
+      return
+    }
+    const data = await res.json() as { suggestion: string; sources: string[]; has_conflicts: boolean }
+    setSuggest(field.key, {
+      loading: false,
+      suggestion: data.suggestion,
+      sources: data.sources ?? [],
+      hasConflicts: data.has_conflicts ?? false,
+    })
+  }
 
   function set(key: keyof BrandContextValues, value: string) {
     setValues((prev) => ({ ...prev, [key]: value }))
@@ -147,8 +182,6 @@ export function BrandContextForm({ initial, isAdmin }: BrandContextFormProps) {
     setSaved(true)
   }
 
-  const allFields = [...REQUIRED_FIELDS, ...OPTIONAL_FIELDS]
-
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
       <div className="space-y-5">
@@ -160,14 +193,17 @@ export function BrandContextForm({ initial, isAdmin }: BrandContextFormProps) {
           return (
             <div key={field.key} className="space-y-1.5">
               <div className="flex items-baseline gap-2">
-                <label
-                  htmlFor={field.key}
-                  className="text-sm font-medium text-foreground"
-                >
+                <label htmlFor={field.key} className="text-sm font-medium text-foreground">
                   {field.label}
                 </label>
-                {isOptional && (
-                  <span className="text-xs text-muted-foreground">Optional</span>
+                {isOptional && <span className="text-xs text-muted-foreground">Optional</span>}
+                {isAdmin && (
+                  <SuggestButton
+                    loading={suggests[field.key].loading}
+                    onTrigger={() => handleSuggest(field)}
+                    disabled={saving}
+                    label={field.label}
+                  />
                 )}
               </div>
               <p className="text-xs text-muted-foreground">{field.hint}</p>
@@ -204,6 +240,11 @@ export function BrandContextForm({ initial, isAdmin }: BrandContextFormProps) {
                 />
               )}
 
+              <SuggestBox
+                state={suggests[field.key]}
+                onAccept={(s) => { set(field.key, s); setSuggest(field.key, emptySuggestState()) }}
+                onDismiss={() => setSuggest(field.key, emptySuggestState())}
+              />
               {error && (
                 <p className="text-xs text-destructive">{error}</p>
               )}

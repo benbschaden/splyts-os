@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { PRODUCT_SECTIONS, type ProductSections } from '@/lib/company/product-sections'
+import { SuggestButton, SuggestBox, type SuggestState, emptySuggestState } from '@/components/company/field-suggest'
 
 interface ProductContextFormProps {
   initial: ProductSections | null
@@ -14,6 +15,45 @@ export function ProductContextForm({ initial, isAdmin }: ProductContextFormProps
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const allProductSections = [...PRODUCT_SECTIONS]
+
+  const [suggests, setSuggests] = useState<Record<string, SuggestState>>(
+    () => Object.fromEntries(allProductSections.map((s) => [s.key, emptySuggestState()])),
+  )
+
+  function setSuggest(key: string, update: Partial<SuggestState>) {
+    setSuggests((prev) => ({ ...prev, [key]: { ...prev[key], ...update } }))
+  }
+
+  async function handleSuggest(section: typeof PRODUCT_SECTIONS[number]) {
+    setSuggest(section.key, { loading: true, suggestion: null, error: null })
+    const currentValues: Record<string, string> = {}
+    allProductSections.forEach((s) => {
+      if ((values[s.key] ?? '').trim()) currentValues[s.key] = values[s.key]
+    })
+    const res = await fetch('/api/company/suggest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        field_key: section.key,
+        field_label: section.label,
+        field_hint: section.description,
+        current_form_values: currentValues,
+      }),
+    })
+    if (!res.ok) {
+      setSuggest(section.key, { loading: false, error: 'Suggestion failed. Try again.' })
+      return
+    }
+    const data = await res.json() as { suggestion: string; sources: string[]; has_conflicts: boolean }
+    setSuggest(section.key, {
+      loading: false,
+      suggestion: data.suggestion,
+      sources: data.sources ?? [],
+      hasConflicts: data.has_conflicts ?? false,
+    })
+  }
 
   function set(key: string, value: string) {
     setValues((prev) => ({ ...prev, [key]: value }))
@@ -59,9 +99,19 @@ export function ProductContextForm({ initial, isAdmin }: ProductContextFormProps
         <div className="space-y-5">
           {aiVisible.map((section) => (
             <div key={section.key} className="space-y-1.5">
-              <label htmlFor={section.key} className="text-sm font-medium text-foreground">
-                {section.label}
-              </label>
+              <div className="flex items-baseline gap-2">
+                <label htmlFor={section.key} className="text-sm font-medium text-foreground">
+                  {section.label}
+                </label>
+                {isAdmin && (
+                  <SuggestButton
+                    loading={suggests[section.key].loading}
+                    onTrigger={() => handleSuggest(section)}
+                    disabled={saving}
+                    label={section.label}
+                  />
+                )}
+              </div>
               <p className="text-xs text-muted-foreground">{section.description}</p>
               <textarea
                 id={section.key}
@@ -77,6 +127,11 @@ export function ProductContextForm({ initial, isAdmin }: ProductContextFormProps
                   'disabled:opacity-60 disabled:cursor-not-allowed',
                 )}
               />
+              <SuggestBox
+                state={suggests[section.key]}
+                onAccept={(s) => { set(section.key, s); setSuggest(section.key, emptySuggestState()) }}
+                onDismiss={() => setSuggest(section.key, emptySuggestState())}
+              />
             </div>
           ))}
         </div>
@@ -87,9 +142,19 @@ export function ProductContextForm({ initial, isAdmin }: ProductContextFormProps
         <div className="space-y-5">
           {notVisible.map((section) => (
             <div key={section.key} className="space-y-1.5">
-              <label htmlFor={section.key} className="text-sm font-medium text-foreground">
-                {section.label}
-              </label>
+              <div className="flex items-baseline gap-2">
+                <label htmlFor={section.key} className="text-sm font-medium text-foreground">
+                  {section.label}
+                </label>
+                {isAdmin && (
+                  <SuggestButton
+                    loading={suggests[section.key].loading}
+                    onTrigger={() => handleSuggest(section)}
+                    disabled={saving}
+                    label={section.label}
+                  />
+                )}
+              </div>
               <p className="text-xs text-muted-foreground">{section.description}</p>
               <textarea
                 id={section.key}
@@ -104,6 +169,11 @@ export function ProductContextForm({ initial, isAdmin }: ProductContextFormProps
                   'focus:outline-none focus:ring-2 focus:ring-ring',
                   'disabled:opacity-60 disabled:cursor-not-allowed',
                 )}
+              />
+              <SuggestBox
+                state={suggests[section.key]}
+                onAccept={(s) => { set(section.key, s); setSuggest(section.key, emptySuggestState()) }}
+                onDismiss={() => setSuggest(section.key, emptySuggestState())}
               />
             </div>
           ))}

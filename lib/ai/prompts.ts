@@ -748,3 +748,104 @@ export function buildProjectArchivePrompt(params: {
 
   return lines.join('\n')
 }
+
+// ─── Company Knowledge: Conflict Detection ────────────────────────────────────
+
+export interface KnowledgeDoc {
+  fileName: string
+  text: string
+}
+
+/**
+ * Prompt asking Claude to identify contradictions between a set of uploaded documents.
+ * Returns a JSON array of conflict objects.
+ * ISOLATION: Only called from lib/company/conflict-detect.ts
+ */
+export function buildConflictDetectPrompt(docs: KnowledgeDoc[]): string {
+  const docBlocks = docs
+    .map((d, i) => `DOCUMENT ${i + 1} — ${d.fileName}:\n${d.text.slice(0, 10000)}`)
+    .join('\n\n---\n\n')
+
+  const firstName = docs[0]?.fileName ?? 'Document 1'
+
+  return `You are reviewing a set of company documents to identify contradictions.
+
+${docBlocks}
+
+---
+
+Identify any direct contradictions between these documents on topics such as:
+- Company vision or long-term direction
+- Strategic roadmap or priorities
+- Target audience or market positioning
+- Mission or company purpose
+- Product capabilities or features
+- Goals or success metrics
+
+For each contradiction found, return a JSON object. If no contradictions are found, return an empty array.
+
+Respond ONLY with a valid JSON array — no explanation, no markdown, no code fences:
+
+[
+  {
+    "topic": "short topic name (e.g. 'roadmap', 'target audience')",
+    "description": "One or two sentences explaining the contradiction clearly",
+    "excerpt_a": "Relevant quote from ${firstName} (max 300 chars)",
+    "excerpt_b": "Relevant quote from the other document (max 300 chars)",
+    "file_name_a": "${firstName}",
+    "file_name_b": "name of the other document"
+  }
+]`
+}
+
+// ─── Company Knowledge: Per-Field Suggestion ──────────────────────────────────
+
+export interface FieldSuggestContext {
+  fieldKey: string
+  fieldLabel: string
+  fieldHint: string
+  currentFormValues: Record<string, string>
+  knowledgeDocs: KnowledgeDoc[]
+  hasActiveConflicts: boolean
+}
+
+/**
+ * Prompt asking Claude to draft a value for a specific company profile field.
+ * ISOLATION: Only called from lib/company/suggest-field.ts
+ */
+export function buildSuggestFieldPrompt(ctx: FieldSuggestContext): string {
+  const otherFields = Object.entries(ctx.currentFormValues)
+    .filter(([k, v]) => k !== ctx.fieldKey && v?.trim())
+    .map(([k, v]) => `${k}: ${v.trim()}`)
+    .join('\n')
+
+  const docsBlock =
+    ctx.knowledgeDocs.length > 0
+      ? ctx.knowledgeDocs
+          .map((d) => `--- ${d.fileName} ---\n${d.text.slice(0, 8000)}`)
+          .join('\n\n')
+      : null
+
+  const conflictNote = ctx.hasActiveConflicts
+    ? '\nIMPORTANT: Conflicting information has been detected in the uploaded documents. ' +
+      'If this topic is affected by a conflict, start your response with: ' +
+      '[Conflict detected — verify with your team before accepting]\n'
+    : ''
+
+  return `You are helping a company fill in their company profile.
+
+FIELD TO DRAFT: ${ctx.fieldLabel}
+PURPOSE: ${ctx.fieldHint}
+${conflictNote}
+${otherFields ? `EXISTING COMPANY CONTEXT:\n${otherFields}\n` : ''}
+${docsBlock ? `UPLOADED COMPANY DOCUMENTS:\n${docsBlock}\n` : ''}
+---
+
+Write a concise, specific value for the "${ctx.fieldLabel}" field. Requirements:
+- Be specific to this company, not generic
+- Match the expected format (a few sentences for narrative fields, comma-separated for lists)
+- Reflect what you learned from the documents and context above
+- Do NOT include any preamble, explanation, or label — only the field value itself
+
+Respond with ONLY the field value.`
+}

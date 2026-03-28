@@ -10,6 +10,12 @@ const overviewHref = '/dashboard/company'
 
 const navGroups = [
   {
+    label: 'Setup',
+    items: [
+      { name: 'Knowledge', href: '/dashboard/company/knowledge' },
+    ],
+  },
+  {
     label: 'Strategy',
     items: [
       { name: 'Business plan', href: '/dashboard/company/business-plan' },

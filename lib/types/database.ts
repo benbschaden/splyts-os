@@ -2063,6 +2063,126 @@ export type Database = {
           },
         ]
       }
+      company_knowledge_files: {
+        Row: {
+          id: string
+          organization_id: string
+          created_by: string
+          file_name: string
+          file_url: string
+          file_mime: string
+          file_size_bytes: number | null
+          processed_text: string | null
+          processing_status: 'pending' | 'processing' | 'ready' | 'failed'
+          processing_error: string | null
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          created_by: string
+          file_name: string
+          file_url: string
+          file_mime: string
+          file_size_bytes?: number | null
+          processed_text?: string | null
+          processing_status?: 'pending' | 'processing' | 'ready' | 'failed'
+          processing_error?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          created_by?: string
+          file_name?: string
+          file_url?: string
+          file_mime?: string
+          file_size_bytes?: number | null
+          processed_text?: string | null
+          processing_status?: 'pending' | 'processing' | 'ready' | 'failed'
+          processing_error?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_knowledge_files_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_knowledge_conflicts: {
+        Row: {
+          id: string
+          organization_id: string
+          file_id_a: string
+          file_id_b: string
+          topic: string
+          description: string
+          excerpt_a: string | null
+          excerpt_b: string | null
+          dismissed_at: string | null
+          dismissed_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          file_id_a: string
+          file_id_b: string
+          topic: string
+          description: string
+          excerpt_a?: string | null
+          excerpt_b?: string | null
+          dismissed_at?: string | null
+          dismissed_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          file_id_a?: string
+          file_id_b?: string
+          topic?: string
+          description?: string
+          excerpt_a?: string | null
+          excerpt_b?: string | null
+          dismissed_at?: string | null
+          dismissed_by?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_knowledge_conflicts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_knowledge_conflicts_file_id_a_fkey"
+            columns: ["file_id_a"]
+            isOneToOne: false
+            referencedRelation: "company_knowledge_files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_knowledge_conflicts_file_id_b_fkey"
+            columns: ["file_id_b"]
+            isOneToOne: false
+            referencedRelation: "company_knowledge_files"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

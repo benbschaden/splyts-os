@@ -1,4 +1,6 @@
-import { PDFParse } from 'pdf-parse'
+// Import from the internal path to avoid Next.js attempting to load pdf-parse's
+// test fixtures at module init time, which throws in App Router environments.
+import pdfParse from 'pdf-parse/lib/pdf-parse.js'
 import mammoth from 'mammoth'
 
 export type SupportedMime =
@@ -34,9 +36,8 @@ export const MIME_TO_EXT: Record<string, string> = {
  */
 export async function extractText(buffer: Buffer, mimeType: string): Promise<string> {
   if (mimeType === 'application/pdf') {
-    const parser = new PDFParse({ data: buffer })
-    const result = await parser.getText()
-    const text = result.text?.trim() ?? ''
+    const data = await pdfParse(buffer)
+    const text = data.text?.trim() ?? ''
     if (!text) throw new Error('PDF appears to be image-based (scanned). Only text-based PDFs are supported.')
     return text
   }

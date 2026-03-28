@@ -1047,6 +1047,192 @@ export type Database = {
         }
         Relationships: []
       }
+      discussion_decisions: {
+        Row: {
+          id: string
+          discussion_id: string
+          text: string
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          discussion_id: string
+          text: string
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          discussion_id?: string
+          text?: string
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      discussion_document_links: {
+        Row: {
+          id: string
+          discussion_id: string
+          document_id: string
+          relationship_type: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          discussion_id: string
+          document_id: string
+          relationship_type?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          discussion_id?: string
+          document_id?: string
+          relationship_type?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      discussion_learnings: {
+        Row: {
+          id: string
+          discussion_id: string
+          text: string
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          discussion_id: string
+          text: string
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          discussion_id?: string
+          text?: string
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      discussion_messages: {
+        Row: {
+          id: string
+          discussion_id: string
+          user_id: string
+          content: string
+          message_type: string
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          discussion_id: string
+          user_id: string
+          content: string
+          message_type?: string
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          discussion_id?: string
+          user_id?: string
+          content?: string
+          message_type?: string
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: []
+      }
+      discussion_next_steps: {
+        Row: {
+          id: string
+          discussion_id: string
+          text: string
+          owner_id: string | null
+          status: string
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          discussion_id: string
+          text: string
+          owner_id?: string | null
+          status?: string
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          discussion_id?: string
+          text?: string
+          owner_id?: string | null
+          status?: string
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      discussions: {
+        Row: {
+          id: string
+          organization_id: string
+          parent_type: string
+          parent_id: string
+          section_key: string | null
+          mode: string
+          title: string
+          status: string
+          created_by: string
+          created_at: string
+          updated_at: string
+          resolved_at: string | null
+          resolved_by: string | null
+          ai_summary: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          parent_type: string
+          parent_id: string
+          section_key?: string | null
+          mode?: string
+          title: string
+          status?: string
+          created_by: string
+          created_at?: string
+          updated_at?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          ai_summary?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          parent_type?: string
+          parent_id?: string
+          section_key?: string | null
+          mode?: string
+          title?: string
+          status?: string
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          ai_summary?: string | null
+        }
+        Relationships: []
+      }
       documents: {
         Row: {
           id: string

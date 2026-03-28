@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import { Check, Download, Loader2, ChevronDown, ChevronRight, FileText, Sparkles, ShieldAlert } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { SuggestButton, SuggestBox, type SuggestState, emptySuggestState } from '@/components/company/field-suggest'
 import {
   BUSINESS_PLAN_SECTIONS,
   AI_CONTEXT_KEYS_FIELD,
@@ -26,6 +27,42 @@ export function BusinessPlanForm({ initial, isAdmin, lastSaved }: BusinessPlanFo
   const [expandedKey, setExpandedKey] = useState<string | null>(
     BUSINESS_PLAN_SECTIONS[0]?.key ?? null,
   )
+  const [suggests, setSuggests] = useState<Record<string, SuggestState>>(
+    () => Object.fromEntries(BUSINESS_PLAN_SECTIONS.map((s) => [s.key, emptySuggestState()])),
+  )
+
+  function setSuggest(key: string, update: Partial<SuggestState>) {
+    setSuggests((prev) => ({ ...prev, [key]: { ...prev[key], ...update } }))
+  }
+
+  async function handleSuggest(section: typeof BUSINESS_PLAN_SECTIONS[number]) {
+    setSuggest(section.key, { loading: true, suggestion: null, error: null })
+    const currentValues: Record<string, string> = {}
+    BUSINESS_PLAN_SECTIONS.forEach((s) => {
+      if ((sections[s.key] ?? '').trim()) currentValues[s.key] = sections[s.key]
+    })
+    const res = await fetch('/api/company/suggest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        field_key: section.key,
+        field_label: section.label,
+        field_hint: section.description,
+        current_form_values: currentValues,
+      }),
+    })
+    if (!res.ok) {
+      setSuggest(section.key, { loading: false, error: 'Suggestion failed. Try again.' })
+      return
+    }
+    const data = await res.json() as { suggestion: string; sources: string[]; has_conflicts: boolean }
+    setSuggest(section.key, {
+      loading: false,
+      suggestion: data.suggestion,
+      sources: data.sources ?? [],
+      hasConflicts: data.has_conflicts ?? false,
+    })
+  }
 
   const filledCount = BUSINESS_PLAN_SECTIONS.filter(
     (s) => (sections[s.key] ?? '').trim().length > 0,
@@ -209,13 +246,31 @@ export function BusinessPlanForm({ initial, isAdmin, lastSaved }: BusinessPlanFo
               {/* Expanded panel */}
               {isExpanded && (
                 <div className="px-4 pb-4 pt-1">
-                  <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                    {section.description}
-                  </p>
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {section.description}
+                    </p>
+                    {isAdmin && (
+                      <SuggestButton
+                        loading={suggests[section.key].loading}
+                        onTrigger={() => handleSuggest(section)}
+                        disabled={saving}
+                        label={section.label}
+                      />
+                    )}
+                  </div>
+                  <SuggestBox
+                    state={suggests[section.key]}
+                    onAccept={(s) => {
+                      handleChange(section.key, s)
+                      setSuggest(section.key, emptySuggestState())
+                    }}
+                    onDismiss={() => setSuggest(section.key, emptySuggestState())}
+                  />
 
                   {/* AI visibility toggle */}
                   {isAdmin && (
-                    <label className="mb-3 flex items-center gap-2 cursor-pointer select-none">
+                    <label className="mb-3 mt-3 flex items-center gap-2 cursor-pointer select-none">
                       <button
                         type="button"
                         role="switch"

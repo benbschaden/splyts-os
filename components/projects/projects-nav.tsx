@@ -3,16 +3,21 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { ChevronDown, FolderOpen } from 'lucide-react'
+import { ChevronDown, FolderOpen, Wrench } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+interface Tool {
+  id: string
+  name: string
+}
 
 interface ProjectsNavProps {
   categories: string[]
-  /** Total projects visible to the user; shown as a subtle count next to the label */
   projectCount?: number
+  tools?: Tool[]
 }
 
-export function ProjectsNav({ categories, projectCount }: ProjectsNavProps) {
+export function ProjectsNav({ categories, projectCount, tools = [] }: ProjectsNavProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const activeCategory = searchParams.get('category')
@@ -21,7 +26,38 @@ export function ProjectsNav({ categories, projectCount }: ProjectsNavProps) {
   const [open, setOpen] = useState(true)
 
   return (
-    <div>
+    <div className="flex flex-col gap-0.5">
+      {/* Tools section */}
+      {tools.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 px-3 py-1.5">
+            <Wrench className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" aria-hidden />
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/60">
+              Tools
+            </span>
+          </div>
+          <div className="flex flex-col gap-0.5 pl-4">
+            {tools.map((tool) => {
+              const isActive = pathname === `/dashboard/projects/${tool.id}`
+              return (
+                <Link
+                  key={tool.id}
+                  href={`/dashboard/projects/${tool.id}`}
+                  className={cn(
+                    'min-w-0 truncate rounded-md px-3 py-1.5 text-sm transition-colors',
+                    isActive
+                      ? 'bg-accent text-accent-foreground font-medium'
+                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                  )}
+                >
+                  {tool.name}
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Projects root link + expand toggle */}
       <div className="flex items-center gap-0.5">
         <Link

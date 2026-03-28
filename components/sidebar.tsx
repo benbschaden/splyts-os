@@ -14,6 +14,11 @@ const bottomNavigation = [
   { name: 'Settings', href: '/dashboard/settings/profile', icon: Settings },
 ]
 
+interface Tool {
+  id: string
+  name: string
+}
+
 interface SidebarProps {
   orgName: string
   userName: string
@@ -25,9 +30,10 @@ interface SidebarProps {
   vision?: string | null
   projectCategories?: string[]
   projectCount?: number
+  tools?: Tool[]
 }
 
-export function Sidebar({ orgName, userName, avatarUrl, email, isAdmin, northStar, mission, vision, projectCategories = [], projectCount }: SidebarProps) {
+export function Sidebar({ orgName, userName, avatarUrl, email, isAdmin, northStar, mission, vision, projectCategories = [], projectCount, tools = [] }: SidebarProps) {
   const displayName = userName || email?.split('@')[0] || ''
   const initials = displayName?.[0]?.toUpperCase() ?? '?'
 
@@ -67,7 +73,7 @@ export function Sidebar({ orgName, userName, avatarUrl, email, isAdmin, northSta
       {/* Main nav */}
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3">
         {/* Projects with expandable categories */}
-        <ProjectsNav categories={projectCategories} projectCount={projectCount} />
+        <ProjectsNav categories={projectCategories} projectCount={projectCount} tools={tools} />
 
         {/* Other nav items */}
         {otherNavItems.map((item) => (

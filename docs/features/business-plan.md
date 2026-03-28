@@ -13,6 +13,8 @@ Feature: Business plan template under Company
     Given at least one section has content
     When the admin clicks the PDF button
     Then a formatted PDF downloads with a cover page, section headings, and body text
+    And the PDF includes a Competitive Landscape section sourced from the Competitors table
+    And only competitors with include_in_ai set to true appear in the PDF
 
   Scenario: Business plan feeds into AI generation
     Given the admin has filled in sections of the business plan

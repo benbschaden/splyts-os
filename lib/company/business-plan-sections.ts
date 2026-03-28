@@ -43,13 +43,6 @@ export const BUSINESS_PLAN_SECTIONS: BusinessPlanSection[] = [
     aiVisibleByDefault: false,
   },
   {
-    key: 'competitive_landscape',
-    label: 'Competitive landscape',
-    description: 'Key competitors, your differentiation, and sustainable advantages.',
-    placeholder: 'Who else operates in this space and what sets you apart?',
-    aiVisibleByDefault: false,
-  },
-  {
     key: 'go_to_market',
     label: 'Go-to-market strategy',
     description: 'How you acquire, convert, and retain customers — channels, partnerships, and launch plan.',

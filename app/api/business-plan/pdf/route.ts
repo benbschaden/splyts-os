@@ -4,6 +4,7 @@ import { getBusinessPlan } from '@/lib/queries/business-plan'
 import { getBrandContext } from '@/lib/queries/brand-context'
 import { getProductRoadmapItems } from '@/lib/queries/product-roadmap'
 import { getCompanyMilestones } from '@/lib/queries/company-milestones'
+import { getCompetitors } from '@/lib/queries/competitors'
 import { BUSINESS_PLAN_SECTIONS } from '@/lib/company/business-plan-sections'
 import { jsPDF } from 'jspdf'
 
@@ -15,11 +16,12 @@ export async function GET() {
   const org = await getOrganizationForUser(user.id)
   if (!org) return Response.json({ error: 'Not found' }, { status: 404 })
 
-  const [plan, brand, roadmapItems, milestones] = await Promise.all([
+  const [plan, brand, roadmapItems, milestones, competitors] = await Promise.all([
     getBusinessPlan(org.id),
     getBrandContext(org.id),
     getProductRoadmapItems(org.id),
     getCompanyMilestones(org.id),
+    getCompetitors(org.id),
   ])
 
   const sections = plan?.sections ?? {}
@@ -148,6 +150,24 @@ export async function GET() {
       .join('\n\n')
 
     addSection('Company Milestones', milestonesText)
+  }
+
+  // --- Competitive landscape section (sourced from competitors table) ---
+  const pdfCompetitors = competitors.filter((c) => c.include_in_ai)
+  if (pdfCompetitors.length > 0) {
+    const competitorLines: string[] = []
+
+    for (const c of pdfCompetitors) {
+      const header = c.website ? `${c.name} — ${c.website}` : c.name
+      competitorLines.push(header)
+      if (c.positioning) competitorLines.push(`  Positioning: ${c.positioning}`)
+      if (c.strengths) competitorLines.push(`  Strengths: ${c.strengths}`)
+      if (c.weaknesses) competitorLines.push(`  Weaknesses: ${c.weaknesses}`)
+      if (c.pricing_notes) competitorLines.push(`  Pricing: ${c.pricing_notes}`)
+      competitorLines.push('')
+    }
+
+    addSection('Competitive Landscape', competitorLines.join('\n').trimEnd())
   }
 
   // Footer on each page

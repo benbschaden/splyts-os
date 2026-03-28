@@ -849,3 +849,58 @@ Write a concise, specific value for the "${ctx.fieldLabel}" field. Requirements:
 
 Respond with ONLY the field value.`
 }
+
+export function buildDiscussionResolutionPrompt(params: {
+  title: string
+  messageStream: string
+}): string {
+  return `You are analysing a team discussion to extract structured knowledge from it.
+
+Discussion title: "${params.title}"
+
+Messages:
+${params.messageStream}
+
+Extract the following from this discussion and respond with ONLY valid JSON — no markdown, no explanation, just the JSON object:
+
+{
+  "summary": "A concise 2-4 sentence summary of what was discussed and concluded.",
+  "decisions": ["Decision 1", "Decision 2"],
+  "learnings": ["Learning 1", "Learning 2"],
+  "nextSteps": ["Action item 1", "Action item 2"]
+}
+
+Rules:
+- summary: always present, 2-4 sentences
+- decisions: concrete choices that were made; empty array [] if none
+- learnings: insights, realisations, or knowledge gained; empty array [] if none
+- nextSteps: specific action items mentioned or implied; empty array [] if none
+- Keep each item concise (one sentence)
+- Do not fabricate items not present in the discussion`
+}
+
+export function buildDiscussionDocumentPrompt(params: {
+  discussionTitle: string
+  documentType: string
+  messageStream: string
+  orgName: string
+}): string {
+  return `You are drafting a ${params.documentType} document from a team discussion.
+
+Organisation: ${params.orgName}
+Discussion title: "${params.discussionTitle}"
+Document type: ${params.documentType}
+
+Discussion messages:
+${params.messageStream}
+
+Write a well-structured ${params.documentType} document that captures the key content, decisions, and insights from this discussion. The document should:
+- Have a clear, informative title on the first line (as a # heading)
+- Be structured with ## headings for major sections
+- Include a brief summary or executive summary section
+- Capture all key points, decisions, and recommendations discussed
+- Be written in professional prose, not as a transcript
+- Omit conversational filler, keep only the substance
+
+Write the document now:`
+}

@@ -76,8 +76,10 @@ export async function createDocument(input: {
   content: string
   docType: string
   sourceSessionId?: string
+  visibility?: DocumentVisibility
 }): Promise<{ document: DocumentRow | null; error: string | null }> {
   const supabase = createServiceClient()
+  const visibility = input.visibility ?? 'private'
 
   const { data, error } = await supabase
     .from('documents')
@@ -87,7 +89,7 @@ export async function createDocument(input: {
       title: input.title,
       content: input.content,
       doc_type: input.docType,
-      visibility: 'private',
+      visibility,
       source_session_id: input.sourceSessionId ?? null,
     })
     .select(DOCUMENT_SELECT)

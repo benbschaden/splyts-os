@@ -25,6 +25,7 @@ const DEFAULT_CONTEXT: ContextConfig = {
   social_proof: false,
   kpis: false,
   browser: false,
+  project_materials: false,
 }
 
 // Category definitions — each category owns a set of context keys

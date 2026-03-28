@@ -145,6 +145,51 @@ function buildTerminologyBlock(terms: TerminologyRow[]): string {
   }).join('\n')
 }
 
+export type ProjectMaterialForPrompt = {
+  material_type: string
+  title: string | null
+  content: string | null
+  file_name: string | null
+  link_url: string | null
+}
+
+function buildProjectMaterialsBlock(materials: ProjectMaterialForPrompt[]): string {
+  const grouped: Record<string, ProjectMaterialForPrompt[]> = {}
+  for (const m of materials) {
+    const key = m.material_type
+    if (!grouped[key]) grouped[key] = []
+    grouped[key].push(m)
+  }
+
+  const lines: string[] = []
+
+  if (grouped['note']) {
+    lines.push('Notes:')
+    for (const m of grouped['note']) {
+      const title = m.title ? m.title.slice(0, 200) : 'Untitled note'
+      lines.push(`- ${title}`)
+      if (m.content) lines.push(`  ${m.content.slice(0, 500)}`)
+    }
+  }
+
+  if (grouped['file']) {
+    lines.push('Files:')
+    for (const m of grouped['file']) {
+      lines.push(`- ${m.file_name ?? 'Unnamed file'}`)
+    }
+  }
+
+  if (grouped['link']) {
+    lines.push('Links:')
+    for (const m of grouped['link']) {
+      const label = m.title ? `${m.title}: ${m.link_url ?? ''}` : (m.link_url ?? 'Unknown link')
+      lines.push(`- ${label}`)
+    }
+  }
+
+  return lines.join('\n')
+}
+
 function buildKpiSnapshotBlock(
   definitions: KpiDefinitionRow[],
   snapshot: KpiSnapshotRow | null,
@@ -185,6 +230,8 @@ export function buildChatSystemPrompt(params: {
   includeCompetitors: boolean
   includeSocialProof: boolean
   includeKpis: boolean
+  projectMaterials?: ProjectMaterialForPrompt[]
+  includeProjectMaterials?: boolean
 }): string {
   const {
     brand, businessPlanSections, personas, productSections, productFeatures,
@@ -192,7 +239,7 @@ export function buildChatSystemPrompt(params: {
     kpiDefinitions, kpiSnapshot,
     includeBrand, includeBusinessPlan, includePersonas, includeProduct,
     includeCurrentGoals, includeFiledDocs, includeCompetitors, includeSocialProof,
-    includeKpis,
+    includeKpis, projectMaterials, includeProjectMaterials,
   } = params
 
   const lines: string[] = []
@@ -312,6 +359,15 @@ export function buildChatSystemPrompt(params: {
     lines.push('')
   }
 
+  if (includeProjectMaterials && projectMaterials && projectMaterials.length > 0) {
+    const materialsBlock = buildProjectMaterialsBlock(projectMaterials)
+    if (materialsBlock) {
+      lines.push('[PROJECT MATERIALS — research, notes, and references for this project]')
+      lines.push(materialsBlock)
+      lines.push('')
+    }
+  }
+
   if (includeKpis && kpiDefinitions.length > 0) {
     const kpiBlock = buildKpiSnapshotBlock(kpiDefinitions, kpiSnapshot)
     if (kpiBlock) {
@@ -359,12 +415,14 @@ export function buildGenerationSystemPrompt(params: {
   customRules: string
   cadence: string | null
   author: GenerationAuthor
+  projectMaterials?: ProjectMaterialForPrompt[]
 }): string {
   const {
     brand, businessPlanSections, personas, productSections, productFeatures,
     currentGoals, competitors, socialProof, narratives, terminology,
     kpiDefinitions, kpiSnapshot, topPerformers,
     contentTypeName, basePrompt, customRules, cadence, author,
+    projectMaterials,
   } = params
 
   const lines: string[] = []
@@ -490,6 +548,11 @@ export function buildGenerationSystemPrompt(params: {
     }
   }
 
+  if (projectMaterials && projectMaterials.length > 0) {
+    const materialsBlock = buildProjectMaterialsBlock(projectMaterials)
+    if (materialsBlock) addSection('RESEARCH MATERIALS', 'Use these as source material and evidence for the content.\n' + materialsBlock)
+  }
+
   if (basePrompt) {
     addSection('CONTENT TYPE STRUCTURE', basePrompt)
   }
@@ -567,6 +630,90 @@ export function buildDocumentCapturePrompt(params: {
   lines.push('---')
   lines.push(`Now write a well-structured ${documentType} that captures the key insights, decisions, and next steps from this conversation.`)
   lines.push('Format it clearly with headings and sections where appropriate.')
+  lines.push('Output only the document content — no preamble, no explanation.')
+
+  return lines.join('\n')
+}
+
+export function buildExtractPrompt(params: {
+  conversationText: string
+  projectName: string
+  brand: BrandContext | null
+}): string {
+  const { conversationText, projectName, brand } = params
+
+  const lines: string[] = []
+
+  lines.push(`You are reviewing a conversation from the project "${projectName}".`)
+  if (brand) {
+    lines.push(`This project belongs to ${brand.company_name}.`)
+  }
+  lines.push('')
+  lines.push('[CONVERSATION]')
+  lines.push(conversationText)
+  lines.push('')
+  lines.push('---')
+  lines.push('Extract the key information from this conversation into a concise reference note.')
+  lines.push('Include the following sections where applicable:')
+  lines.push('Key Findings: important facts, data points, or insights discovered')
+  lines.push('Decisions: any decisions made or direction chosen')
+  lines.push('Data Insights: specific numbers, metrics, or data-driven observations')
+  lines.push('Action Items: concrete next steps or tasks identified')
+  lines.push('')
+  lines.push('Format as plain text with labeled sections (e.g. "Key Findings:" on its own line).')
+  lines.push('Be concise — this is a reference note, not a full document.')
+  lines.push('Omit any section that has no relevant content.')
+  lines.push('Output only the note content — no preamble, no explanation.')
+
+  return lines.join('\n')
+}
+
+export function buildProjectArchivePrompt(params: {
+  projectName: string
+  materials: ProjectMaterialForPrompt[]
+  outputSummaries: { brief: string; content: string }[]
+  brand: BrandContext | null
+}): string {
+  const { projectName, materials, outputSummaries, brand } = params
+
+  const lines: string[] = []
+
+  lines.push(`You are producing a comprehensive knowledge document for the project "${projectName}".`)
+  if (brand) {
+    lines.push(`This project belongs to ${brand.company_name}.`)
+    lines.push(`Write in the company voice: ${brand.voice || 'clear and professional'}.`)
+  }
+  lines.push('')
+
+  if (materials.length > 0) {
+    const materialsBlock = buildProjectMaterialsBlock(materials)
+    if (materialsBlock) {
+      lines.push('[PROJECT MATERIALS]')
+      lines.push(materialsBlock)
+      lines.push('')
+    }
+  }
+
+  if (outputSummaries.length > 0) {
+    lines.push('[OUTPUTS PRODUCED]')
+    for (const o of outputSummaries) {
+      lines.push(`Brief: ${o.brief.slice(0, 200)}`)
+      lines.push(`Content: ${o.content.slice(0, 400)}${o.content.length > 400 ? '…' : ''}`)
+      lines.push('')
+    }
+  }
+
+  lines.push('---')
+  lines.push('Produce a comprehensive knowledge document that covers:')
+  lines.push('Key Findings: the most important discoveries and insights from this project')
+  lines.push('Decisions: choices made and reasoning behind them')
+  lines.push('Methodology: how work was approached and what processes were used')
+  lines.push('Data Summaries: key numbers, metrics, and data-driven observations')
+  lines.push('Outputs Produced: a summary of what was created')
+  lines.push('Lessons Learned: what worked well, what could improve')
+  lines.push('')
+  lines.push('Format as plain text with clearly labeled sections.')
+  lines.push('This document will be filed as a permanent company record.')
   lines.push('Output only the document content — no preamble, no explanation.')
 
   return lines.join('\n')

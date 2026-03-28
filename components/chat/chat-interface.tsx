@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Send, FileDown, Loader2, ChevronDown, Globe } from 'lucide-react'
+import { ArrowLeft, Send, FileDown, FileText, Loader2, ChevronDown, Globe } from 'lucide-react'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -29,6 +29,8 @@ export function ChatInterface({ session, initialMessages }: ChatInterfaceProps) 
   const [showModelPicker, setShowModelPicker] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showCapture, setShowCapture] = useState(false)
+  const [isExtracting, setIsExtracting] = useState(false)
+  const [extractSuccess, setExtractSuccess] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -101,6 +103,32 @@ export function ChatInterface({ session, initialMessages }: ChatInterfaceProps) 
     }
   }
 
+  async function handleExtractToNote() {
+    setIsExtracting(true)
+    setError(null)
+    setExtractSuccess(false)
+
+    try {
+      const res = await fetch(`/api/chat/sessions/${session.id}/extract`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error ?? 'Failed to extract note')
+        return
+      }
+
+      setExtractSuccess(true)
+      setTimeout(() => setExtractSuccess(false), 3000)
+    } catch {
+      setError('Failed to extract note. Please try again.')
+    } finally {
+      setIsExtracting(false)
+    }
+  }
+
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -120,6 +148,7 @@ export function ChatInterface({ session, initialMessages }: ChatInterfaceProps) 
     session.context_config.kpis && 'KPIs',
     session.context_config.filed_documents && 'Docs',
     session.context_config.browser && 'Browser',
+    session.context_config.project_materials && 'Project Materials',
   ].filter(Boolean)
 
   return (
@@ -173,13 +202,29 @@ export function ChatInterface({ session, initialMessages }: ChatInterfaceProps) 
           </div>
 
           {messages.length > 0 && (
-            <button
-              onClick={() => setShowCapture(true)}
-              className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            >
-              <FileDown className="h-4 w-4" />
-              Capture as Document
-            </button>
+            <>
+              {session.project_id && (
+                <button
+                  onClick={handleExtractToNote}
+                  disabled={isExtracting}
+                  className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+                >
+                  {isExtracting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileText className="h-4 w-4" />
+                  )}
+                  {extractSuccess ? 'Extracted!' : 'Extract to Note'}
+                </button>
+              )}
+              <button
+                onClick={() => setShowCapture(true)}
+                className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <FileDown className="h-4 w-4" />
+                Capture as Document
+              </button>
+            </>
           )}
         </div>
       </div>

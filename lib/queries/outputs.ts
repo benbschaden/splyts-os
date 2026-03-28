@@ -16,19 +16,22 @@ export type OutputWithCreator = {
   reach_metric: string | null
   engagement: number | null
   performance_notes: string | null
+  metadata: Record<string, unknown> | null
   content_types: { name: string } | null
   projects: { name: string } | null
   creator_full_name: string | null
 }
 
-async function attachCreatorNames<
-  T extends { created_by: string },
->(rows: T[] | null): Promise<(T & { creator_full_name: string | null })[]> {
+/** Row from DB before creator join (`metadata` is not a column; we set null in attach) */
+type OutputRow = Omit<OutputWithCreator, 'creator_full_name' | 'metadata'>
+
+async function attachCreatorNames(rows: OutputRow[] | null): Promise<OutputWithCreator[]> {
   if (!rows?.length) return []
   const ids = rows.map((r) => r.created_by)
   const names = await getUserDisplayNamesByIds(ids)
   return rows.map((r) => ({
     ...r,
+    metadata: null,
     creator_full_name: names[r.created_by] ?? null,
   }))
 }
@@ -62,7 +65,7 @@ export async function getAllOutputsForOrg(organizationId: string): Promise<Outpu
     .order('created_at', { ascending: false })
 
   if (error) return []
-  return attachCreatorNames(data ?? [])
+  return await attachCreatorNames((data ?? []) as unknown as OutputRow[])
 }
 
 export async function getOutputsForProject(
@@ -82,7 +85,7 @@ export async function getOutputsForProject(
     .order('created_at', { ascending: false })
 
   if (error) return []
-  return attachCreatorNames(data ?? [])
+  return await attachCreatorNames((data ?? []) as unknown as OutputRow[])
 }
 
 export async function createOutput(params: {

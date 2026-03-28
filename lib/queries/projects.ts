@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { createServiceClient } from '@/lib/supabase/service'
 
 // Returns distinct populated categories in a consistent order
@@ -25,12 +26,12 @@ export async function getProjectCategories(organizationId: string): Promise<stri
   })
 }
 
-export async function getProjectsForOrg(organizationId: string) {
+export const getProjectsForOrg = cache(async function getProjectsForOrg(organizationId: string) {
   const supabase = createServiceClient()
 
   const { data, error } = await supabase
     .from('projects')
-    .select('id, name, description, category, created_at, updated_at')
+    .select('id, name, description, category, visibility, status, tags, created_at, updated_at')
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
     .order('updated_at', { ascending: false })
@@ -38,14 +39,14 @@ export async function getProjectsForOrg(organizationId: string) {
 
   if (error) return []
   return data
-}
+})
 
 export async function getProjectById(projectId: string, organizationId: string) {
   const supabase = createServiceClient()
 
   const { data, error } = await supabase
     .from('projects')
-    .select('id, name, description, created_at, updated_at, created_by')
+    .select('id, name, description, created_at, updated_at, created_by, visibility, status, tags')
     .eq('id', projectId)
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
@@ -61,6 +62,8 @@ export async function createProject(
   organizationId: string,
   userId: string,
   category?: string | null,
+  visibility: 'private' | 'shared' = 'shared',
+  tags: string[] = [],
 ) {
   const supabase = createServiceClient()
 
@@ -72,8 +75,10 @@ export async function createProject(
       organization_id: organizationId,
       created_by: userId,
       category: category ?? null,
+      visibility,
+      tags: tags.length > 0 ? tags : [],
     })
-    .select('id, name, description, category, created_at, updated_at')
+    .select('id, name, description, category, visibility, status, tags, created_at, updated_at')
     .single()
 
   if (error) return { project: null, error: 'Failed to create project' }
@@ -83,7 +88,12 @@ export async function createProject(
 export async function updateProject(
   projectId: string,
   organizationId: string,
-  updates: { name?: string; description?: string | null; category?: string | null },
+  updates: {
+    name?: string
+    description?: string | null
+    category?: string | null
+    status?: 'active' | 'archived'
+  },
 ) {
   const supabase = createServiceClient()
 
@@ -93,7 +103,7 @@ export async function updateProject(
     .eq('id', projectId)
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
-    .select('id, name, description, category, updated_at')
+    .select('id, name, description, category, status, updated_at')
     .single()
 
   if (error) return { project: null, error: 'Failed to update project' }

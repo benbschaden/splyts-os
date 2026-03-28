@@ -13,6 +13,7 @@ export interface ContextConfig {
   social_proof: boolean
   kpis: boolean
   browser: boolean
+  project_materials: boolean
 }
 
 export interface ChatSessionRow {
@@ -22,6 +23,7 @@ export interface ChatSessionRow {
   title: string
   model_id: string
   context_config: ContextConfig
+  project_id: string | null
   created_at: string
   updated_at: string
 }
@@ -34,7 +36,7 @@ export interface ChatMessageRow {
   created_at: string
 }
 
-const SESSION_SELECT = 'id, organization_id, created_by, title, model_id, context_config, created_at, updated_at'
+const SESSION_SELECT = 'id, organization_id, created_by, title, model_id, context_config, project_id, created_at, updated_at'
 const MESSAGE_SELECT = 'id, session_id, role, content, created_at'
 
 export async function getChatSessions(
@@ -48,6 +50,26 @@ export async function getChatSessions(
     .select(SESSION_SELECT)
     .eq('organization_id', organizationId)
     .eq('created_by', userId)
+    .is('deleted_at', null)
+    .order('updated_at', { ascending: false })
+
+  if (error) return []
+  return data as ChatSessionRow[]
+}
+
+export async function getProjectChatSessions(
+  projectId: string,
+  organizationId: string,
+  userId: string,
+): Promise<ChatSessionRow[]> {
+  const supabase = createServiceClient()
+
+  const { data, error } = await supabase
+    .from('chat_sessions')
+    .select(SESSION_SELECT)
+    .eq('organization_id', organizationId)
+    .eq('created_by', userId)
+    .eq('project_id', projectId)
     .is('deleted_at', null)
     .order('updated_at', { ascending: false })
 
@@ -78,6 +100,7 @@ export async function createChatSession(
   userId: string,
   contextConfig: ContextConfig,
   modelId: string,
+  projectId?: string | null,
 ): Promise<{ session: ChatSessionRow | null; error: string | null }> {
   const supabase = createServiceClient()
 
@@ -88,6 +111,7 @@ export async function createChatSession(
       created_by: userId,
       context_config: contextConfig,
       model_id: modelId,
+      project_id: projectId ?? null,
     })
     .select(SESSION_SELECT)
     .single()

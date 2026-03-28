@@ -8,9 +8,11 @@ import { cn } from '@/lib/utils'
 
 interface ProjectsNavProps {
   categories: string[]
+  /** Total projects visible to the user; shown as a subtle count next to the label */
+  projectCount?: number
 }
 
-export function ProjectsNav({ categories }: ProjectsNavProps) {
+export function ProjectsNav({ categories, projectCount }: ProjectsNavProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const activeCategory = searchParams.get('category')
@@ -25,14 +27,25 @@ export function ProjectsNav({ categories }: ProjectsNavProps) {
         <Link
           href="/dashboard/projects"
           className={cn(
-            'flex flex-1 items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+            'flex min-w-0 flex-1 items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
             isProjects && !activeCategory
               ? 'bg-accent text-accent-foreground'
               : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
           )}
         >
           <FolderOpen className="h-4 w-4 shrink-0" />
-          Projects
+          <span className="min-w-0 flex-1 truncate">Projects</span>
+          {typeof projectCount === 'number' && (
+            <span
+              className={cn(
+                'shrink-0 rounded-md bg-muted/80 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground',
+                isProjects && !activeCategory && 'bg-background/60 text-foreground/80',
+              )}
+              aria-label={`${projectCount} projects`}
+            >
+              {projectCount}
+            </span>
+          )}
         </Link>
 
         {categories.length > 0 && (
@@ -59,7 +72,7 @@ export function ProjectsNav({ categories }: ProjectsNavProps) {
                 key={cat}
                 href={`/dashboard/projects?category=${encodeURIComponent(cat)}`}
                 className={cn(
-                  'rounded-md px-3 py-1.5 text-sm transition-colors',
+                  'min-w-0 truncate rounded-md px-3 py-1.5 text-sm transition-colors',
                   isActive
                     ? 'bg-accent text-accent-foreground font-medium'
                     : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',

@@ -24,9 +24,10 @@ interface SidebarProps {
   mission?: string | null
   vision?: string | null
   projectCategories?: string[]
+  projectCount?: number
 }
 
-export function Sidebar({ orgName, userName, avatarUrl, email, isAdmin, northStar, mission, vision, projectCategories = [] }: SidebarProps) {
+export function Sidebar({ orgName, userName, avatarUrl, email, isAdmin, northStar, mission, vision, projectCategories = [], projectCount }: SidebarProps) {
   const displayName = userName || email?.split('@')[0] || ''
   const initials = displayName?.[0]?.toUpperCase() ?? '?'
 
@@ -66,7 +67,7 @@ export function Sidebar({ orgName, userName, avatarUrl, email, isAdmin, northSta
       {/* Main nav */}
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3">
         {/* Projects with expandable categories */}
-        <ProjectsNav categories={projectCategories} />
+        <ProjectsNav categories={projectCategories} projectCount={projectCount} />
 
         {/* Other nav items */}
         {otherNavItems.map((item) => (

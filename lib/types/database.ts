@@ -515,6 +515,7 @@ export type Database = {
           reach_metric: string | null
           engagement: number | null
           performance_notes: string | null
+          metadata: Json | null
         }
         Insert: {
           brief: string
@@ -533,6 +534,7 @@ export type Database = {
           reach_metric?: string | null
           engagement?: number | null
           performance_notes?: string | null
+          metadata?: Json | null
         }
         Update: {
           brief?: string
@@ -551,6 +553,7 @@ export type Database = {
           reach_metric?: string | null
           engagement?: number | null
           performance_notes?: string | null
+          metadata?: Json | null
         }
         Relationships: [
           {
@@ -572,6 +575,47 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      output_attachments: {
+        Row: {
+          id: string
+          output_id: string
+          file_url: string
+          file_name: string
+          file_mime: string
+          caption: string | null
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          output_id: string
+          file_url: string
+          file_name: string
+          file_mime: string
+          caption?: string | null
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          output_id?: string
+          file_url?: string
+          file_name?: string
+          file_mime?: string
+          caption?: string | null
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "output_attachments_output_id_fkey"
+            columns: ["output_id"]
+            isOneToOne: false
+            referencedRelation: "outputs"
             referencedColumns: ["id"]
           },
         ]
@@ -605,6 +649,75 @@ export type Database = {
           },
         ]
       }
+      project_materials: {
+        Row: {
+          id: string
+          project_id: string
+          organization_id: string
+          created_by: string
+          material_type: 'note' | 'file' | 'link'
+          title: string | null
+          content: string | null
+          file_url: string | null
+          file_name: string | null
+          file_mime: string | null
+          link_url: string | null
+          sort_order: number
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          organization_id: string
+          created_by: string
+          material_type: 'note' | 'file' | 'link'
+          title?: string | null
+          content?: string | null
+          file_url?: string | null
+          file_name?: string | null
+          file_mime?: string | null
+          link_url?: string | null
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          organization_id?: string
+          created_by?: string
+          material_type?: 'note' | 'file' | 'link'
+          title?: string | null
+          content?: string | null
+          file_url?: string | null
+          file_name?: string | null
+          file_mime?: string | null
+          link_url?: string | null
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_materials_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_materials_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           created_at: string
@@ -616,6 +729,9 @@ export type Database = {
           organization_id: string
           updated_at: string
           category: string | null
+          visibility: string
+          status: string
+          tags: string[] | null
         }
         Insert: {
           created_at?: string
@@ -627,6 +743,9 @@ export type Database = {
           organization_id: string
           updated_at?: string
           category?: string | null
+          visibility?: string
+          status?: string
+          tags?: string[] | null
         }
         Update: {
           created_at?: string
@@ -638,6 +757,9 @@ export type Database = {
           organization_id?: string
           updated_at?: string
           category?: string | null
+          visibility?: string
+          status?: string
+          tags?: string[] | null
         }
         Relationships: [
           {
@@ -667,8 +789,11 @@ export type Database = {
             filed_documents: boolean
             competitors: boolean
             social_proof: boolean
+            kpis: boolean
             browser: boolean
+            project_materials: boolean
           }
+          project_id: string | null
           created_at: string
           updated_at: string
           deleted_at: string | null
@@ -683,10 +808,18 @@ export type Database = {
             brand: boolean
             business_plan: boolean
             personas: boolean
+            product: boolean
+            product_roadmap: boolean
+            company_milestones: boolean
+            current_goals: boolean
+            filed_documents: boolean
             competitors: boolean
             social_proof: boolean
+            kpis: boolean
             browser: boolean
+            project_materials: boolean
           }
+          project_id?: string | null
           created_at?: string
           updated_at?: string
           deleted_at?: string | null
@@ -701,10 +834,18 @@ export type Database = {
             brand: boolean
             business_plan: boolean
             personas: boolean
+            product: boolean
+            product_roadmap: boolean
+            company_milestones: boolean
+            current_goals: boolean
+            filed_documents: boolean
             competitors: boolean
             social_proof: boolean
+            kpis: boolean
             browser: boolean
+            project_materials: boolean
           }
+          project_id?: string | null
           created_at?: string
           updated_at?: string
           deleted_at?: string | null

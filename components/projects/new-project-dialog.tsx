@@ -18,6 +18,8 @@ export function NewProjectDialog({ open, onClose, defaultCategory }: NewProjectD
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState(defaultCategory ?? '')
+  const [visibility, setVisibility] = useState<'private' | 'shared'>('private')
+  const [tagsInput, setTagsInput] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -36,7 +38,16 @@ export function NewProjectDialog({ open, onClose, defaultCategory }: NewProjectD
       const res = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description: description || null, category: category || null }),
+        body: JSON.stringify({
+          name,
+          description: description || null,
+          category: category || null,
+          visibility,
+          tags: tagsInput
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean),
+        }),
       })
 
       if (!res.ok) {
@@ -54,6 +65,8 @@ export function NewProjectDialog({ open, onClose, defaultCategory }: NewProjectD
       onClose()
       setName('')
       setDescription('')
+      setTagsInput('')
+      setVisibility('private')
       router.push(`/dashboard/projects/${json.data.id}`)
       router.refresh()
     } catch {
@@ -67,6 +80,8 @@ export function NewProjectDialog({ open, onClose, defaultCategory }: NewProjectD
     setName('')
     setDescription('')
     setCategory('')
+    setTagsInput('')
+    setVisibility('private')
     setError(null)
     onClose()
   }
@@ -134,6 +149,55 @@ export function NewProjectDialog({ open, onClose, defaultCategory }: NewProjectD
             <datalist id="project-categories">
               {KNOWN_CATEGORIES.map((c) => <option key={c} value={c} />)}
             </datalist>
+          </div>
+
+          <div className="space-y-1.5">
+            <span className="text-sm font-medium text-foreground">Visibility</span>
+            <div className="flex gap-4 pt-0.5">
+              <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                <input
+                  type="radio"
+                  name="project-visibility"
+                  checked={visibility === 'private'}
+                  onChange={() => setVisibility('private')}
+                  disabled={loading}
+                  className="h-3.5 w-3.5 border-input text-primary focus:ring-ring"
+                />
+                Private <span className="text-muted-foreground font-normal">(only you)</span>
+              </label>
+              <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                <input
+                  type="radio"
+                  name="project-visibility"
+                  checked={visibility === 'shared'}
+                  onChange={() => setVisibility('shared')}
+                  disabled={loading}
+                  className="h-3.5 w-3.5 border-input text-primary focus:ring-ring"
+                />
+                Shared <span className="text-muted-foreground font-normal">(team)</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor="project-tags" className="text-sm font-medium text-foreground">
+              Tags
+              <span className="ml-1 text-muted-foreground font-normal">(optional)</span>
+            </label>
+            <input
+              id="project-tags"
+              type="text"
+              value={tagsInput}
+              onChange={(e) => setTagsInput(e.target.value)}
+              placeholder="e.g. campaign, q2, launch"
+              className={cn(
+                'w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground',
+                'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1',
+                'disabled:opacity-50',
+              )}
+              disabled={loading}
+            />
+            <p className="text-xs text-muted-foreground">Comma-separated</p>
           </div>
 
           <div className="space-y-1.5">

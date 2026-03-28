@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Sparkles, Copy, Pencil, Trash2, Check, X, FileText, BarChart2, Send } from 'lucide-react'
+import { Sparkles, Copy, Pencil, Trash2, Check, X, FileText, BarChart2, Send, File } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   GenerationSessionDialog,
@@ -27,6 +27,15 @@ interface Output {
   reach_metric: string | null
   engagement: number | null
   performance_notes: string | null
+  metadata?: Record<string, unknown> | null
+}
+
+export type OutputCardAttachment = {
+  id: string
+  file_url: string
+  file_name: string
+  file_mime: string
+  caption: string | null
 }
 
 interface Author {
@@ -42,6 +51,7 @@ interface ContentType {
 interface OutputsListProps {
   projectId: string
   initialOutputs: Output[]
+  outputAttachmentsByOutputId: Record<string, OutputCardAttachment[]>
   authors: Author[]
   contentTypes: ContentType[]
   hasBrandContext: boolean
@@ -59,12 +69,25 @@ function formatDateTime(iso: string) {
 
 const REACH_METRICS = ['impressions', 'views', 'reach', 'plays', 'opens', 'clicks']
 
+function safeMetadataString(meta: Record<string, unknown> | null | undefined, key: string): string | undefined {
+  const v = meta?.[key]
+  return typeof v === 'string' && v.trim() ? v : undefined
+}
+
+function safeMetadataStringArray(meta: Record<string, unknown> | null | undefined, key: string): string[] {
+  const v = meta?.[key]
+  if (!Array.isArray(v)) return []
+  return v.filter((item): item is string => typeof item === 'string')
+}
+
 function OutputCard({
   output,
+  attachments,
   onUpdated,
   onDeleted,
 }: {
   output: Output
+  attachments?: OutputCardAttachment[]
   onUpdated: (updated: Output) => void
   onDeleted: (id: string) => void
 }) {
@@ -172,6 +195,13 @@ function OutputCard({
   const preview = output.content.slice(0, 180) + (output.content.length > 180 ? '…' : '')
   const modelLabel = getModelById(output.model_id)?.label ?? output.model_id
   const hasPerf = output.reach !== null || output.engagement !== null || output.performance_notes
+  const showExpandedContent = expanded || output.content.length <= 180
+  const meta = output.metadata
+  const abstractText = safeMetadataString(meta, 'abstract')
+  const keyFindings = safeMetadataStringArray(meta, 'key_findings')
+  const chartDescriptions = safeMetadataStringArray(meta, 'chart_descriptions')
+  const referenceItems = safeMetadataStringArray(meta, 'references')
+  const hasAttachments = (attachments?.length ?? 0) > 0
 
   return (
     <div className="rounded-lg border border-border bg-background">
@@ -364,12 +394,92 @@ function OutputCard({
             </div>
           </div>
         ) : (
-          <div>
+          <div className="space-y-3">
+            {showExpandedContent && abstractText && (
+              <blockquote className="border-l-2 border-muted-foreground/25 pl-3 text-sm text-muted-foreground italic leading-relaxed">
+                {abstractText}
+              </blockquote>
+            )}
             <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-              {expanded ? output.content : preview}
+              {expanded || output.content.length <= 180 ? output.content : preview}
             </p>
+            {showExpandedContent && keyFindings.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Key findings</p>
+                <ul className="list-disc space-y-1 pl-5 text-sm text-foreground">
+                  {keyFindings.map((line, i) => (
+                    <li key={i} className="leading-relaxed">
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {showExpandedContent && chartDescriptions.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Charts</p>
+                <div className="flex flex-col gap-3">
+                  {chartDescriptions.map((caption, i) => (
+                    <figure key={i} className="space-y-1.5">
+                      <div
+                        className="rounded-md border border-dashed border-border bg-muted/20 px-3 py-8 text-center text-xs text-muted-foreground"
+                        aria-hidden
+                      >
+                        Chart
+                      </div>
+                      <figcaption className="text-xs text-muted-foreground leading-relaxed">{caption}</figcaption>
+                    </figure>
+                  ))}
+                </div>
+              </div>
+            )}
+            {showExpandedContent && referenceItems.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">References</p>
+                <ol className="list-decimal space-y-1 pl-5 text-sm text-foreground">
+                  {referenceItems.map((line, i) => (
+                    <li key={i} className="leading-relaxed pl-1">
+                      {line}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+            {showExpandedContent && hasAttachments && attachments && (
+              <div className="space-y-2 border-t border-border pt-3">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Attachments</p>
+                <div className="flex flex-col gap-4">
+                  {attachments.map((a) =>
+                    a.file_mime.startsWith('image/') ? (
+                      <figure key={a.id} className="space-y-1.5">
+                        <img
+                          src={a.file_url}
+                          alt={a.caption?.trim() ? a.caption : a.file_name}
+                          className="max-h-96 max-w-full rounded-md border border-border object-contain"
+                        />
+                        {a.caption && (
+                          <figcaption className="text-xs text-muted-foreground leading-relaxed">{a.caption}</figcaption>
+                        )}
+                      </figure>
+                    ) : (
+                      <a
+                        key={a.id}
+                        href={a.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 rounded-md border border-border bg-muted/20 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted/40"
+                      >
+                        <File className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                        <span className="min-w-0 break-words">{a.file_name}</span>
+                      </a>
+                    ),
+                  )}
+                </div>
+              </div>
+            )}
             {output.content.length > 180 && (
               <button
+                type="button"
                 onClick={() => setExpanded(!expanded)}
                 className="mt-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -416,6 +526,7 @@ function OutputCard({
 export function OutputsList({
   projectId,
   initialOutputs,
+  outputAttachmentsByOutputId,
   authors,
   contentTypes,
   hasBrandContext,
@@ -446,6 +557,7 @@ export function OutputsList({
       reach_metric: null,
       engagement: null,
       performance_notes: null,
+      metadata: null,
     }
     setOutputs((prev) => [full, ...prev])
   }
@@ -499,6 +611,7 @@ export function OutputsList({
             <OutputCard
               key={output.id}
               output={output}
+              attachments={outputAttachmentsByOutputId[output.id]}
               onUpdated={handleUpdated}
               onDeleted={handleDeleted}
             />

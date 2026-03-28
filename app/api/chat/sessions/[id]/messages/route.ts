@@ -18,6 +18,7 @@ import { getAiVisibleNarratives } from '@/lib/queries/brand-narratives'
 import { getTerminologyForAi } from '@/lib/queries/terminology'
 import { getKpiDefinitions } from '@/lib/queries/kpi-definitions'
 import { getLatestSnapshot } from '@/lib/queries/kpi-snapshots'
+import { getProjectMaterials } from '@/lib/queries/project-materials'
 import { buildChatSystemPrompt } from '@/lib/ai/prompts'
 import { DEFAULT_MODEL, getModelById } from '@/lib/ai/models'
 
@@ -126,10 +127,13 @@ export async function POST(
       competitors: includeCompetitors = false,
       social_proof: includeSocialProof = false,
       kpis: includeKpis = false,
+      project_materials: includeProjectMaterials = false,
     } = config
     const model = getModelById(session.model_id) ?? DEFAULT_MODEL
 
     // Fetch all enabled context in parallel
+    const shouldLoadMaterials = includeProjectMaterials && !!session.project_id
+
     const [
       brand,
       businessPlan,
@@ -146,6 +150,7 @@ export async function POST(
       terminology,
       kpiDefinitions,
       kpiSnapshot,
+      projectMaterials,
       existingMessages,
     ] = await Promise.all([
       includeBrand ? getBrandContext(org.id) : Promise.resolve(null),
@@ -163,6 +168,7 @@ export async function POST(
       includeBrand ? getTerminologyForAi(org.id) : Promise.resolve([]),
       includeKpis ? getKpiDefinitions(org.id) : Promise.resolve([]),
       includeKpis ? getLatestSnapshot(org.id) : Promise.resolve(null),
+      shouldLoadMaterials ? getProjectMaterials(session.project_id!, org.id) : Promise.resolve([]),
       getChatMessages(id),
     ])
 
@@ -220,6 +226,8 @@ export async function POST(
       includeCompetitors,
       includeSocialProof,
       includeKpis,
+      projectMaterials: shouldLoadMaterials ? projectMaterials : undefined,
+      includeProjectMaterials: shouldLoadMaterials,
     })
 
     const messageHistory: Anthropic.MessageParam[] = [

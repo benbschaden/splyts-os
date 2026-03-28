@@ -1,11 +1,12 @@
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
-import { getChatSessions, createChatSession } from '@/lib/queries/chat'
+import { getChatSessions, getProjectChatSessions, createChatSession } from '@/lib/queries/chat'
 import { DEFAULT_MODEL, getModelById } from '@/lib/ai/models'
 
 const createSchema = z.object({
   model_id: z.string().optional(),
+  project_id: z.string().uuid().optional().nullable(),
   context_config: z.object({
     brand: z.boolean(),
     business_plan: z.boolean(),
@@ -19,6 +20,7 @@ const createSchema = z.object({
     competitors: z.boolean(),
     social_proof: z.boolean(),
     kpis: z.boolean(),
+    project_materials: z.boolean(),
   }).optional().default({
     brand: true,
     business_plan: false,
@@ -32,10 +34,11 @@ const createSchema = z.object({
     competitors: false,
     social_proof: false,
     kpis: false,
+    project_materials: false,
   }),
 })
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -44,7 +47,12 @@ export async function GET() {
     const org = await getOrganizationForUser(user.id)
     if (!org) return Response.json({ error: 'Not found' }, { status: 404 })
 
-    const sessions = await getChatSessions(org.id, user.id)
+    const { searchParams } = new URL(request.url)
+    const projectId = searchParams.get('project_id')
+
+    const sessions = projectId
+      ? await getProjectChatSessions(projectId, org.id, user.id)
+      : await getChatSessions(org.id, user.id)
     return Response.json({ sessions })
   } catch {
     return Response.json({ error: 'Internal error' }, { status: 500 })
@@ -67,7 +75,7 @@ export async function POST(request: Request) {
     }
 
     const modelId = (parsed.data.model_id ? getModelById(parsed.data.model_id) : null)?.id ?? DEFAULT_MODEL.id
-    const { session, error } = await createChatSession(org.id, user.id, parsed.data.context_config, modelId)
+    const { session, error } = await createChatSession(org.id, user.id, parsed.data.context_config, modelId, parsed.data.project_id)
     if (error || !session) {
       return Response.json({ error: 'Failed to create chat session' }, { status: 500 })
     }

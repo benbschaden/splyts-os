@@ -15,6 +15,7 @@ import { getTerminologyForAi } from '@/lib/queries/terminology'
 import { getKpiDefinitions } from '@/lib/queries/kpi-definitions'
 import { getLatestSnapshot } from '@/lib/queries/kpi-snapshots'
 import { getTopPerformingOutputs } from '@/lib/queries/outputs'
+import { getProjectMaterials } from '@/lib/queries/project-materials'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getModelById, DEFAULT_MODEL } from '@/lib/ai/models'
 import { buildGenerationSystemPrompt, type GenerationAuthor } from '@/lib/ai/prompts'
@@ -69,7 +70,7 @@ export async function POST(request: Request): Promise<Response> {
     if (!project) return Response.json({ error: 'Project not found' }, { status: 404 })
 
     // Fetch context in parallel
-    const [brand, businessPlan, personas, productContext, productFeatures, currentGoals, competitors, socialProof, narratives, terminology, kpiDefinitions, kpiSnapshot, topPerformers, contentTypeResult] = await Promise.all([
+    const [brand, businessPlan, personas, productContext, productFeatures, currentGoals, competitors, socialProof, narratives, terminology, kpiDefinitions, kpiSnapshot, topPerformers, projectMaterialsRaw, contentTypeResult] = await Promise.all([
       getBrandContext(org.id),
       getBusinessPlan(org.id),
       getPersonas(org.id),
@@ -83,6 +84,7 @@ export async function POST(request: Request): Promise<Response> {
       getKpiDefinitions(org.id),
       getLatestSnapshot(org.id),
       getTopPerformingOutputs(org.id, 3),
+      getProjectMaterials(projectId, org.id),
       db
         .from('content_types')
         .select('id, name, custom_rules, cadence, template_id, content_type_templates(base_prompt)')
@@ -121,6 +123,14 @@ export async function POST(request: Request): Promise<Response> {
       author = { type: 'named', ...authorProfile }
     }
 
+    const projectMaterials = projectMaterialsRaw.map((m) => ({
+      material_type: m.material_type,
+      title: m.title,
+      content: m.content,
+      file_name: m.file_name,
+      link_url: m.link_url,
+    }))
+
     const systemPrompt = buildGenerationSystemPrompt({
       brand,
       businessPlanSections: businessPlan?.sections ?? null,
@@ -140,6 +150,7 @@ export async function POST(request: Request): Promise<Response> {
       customRules: contentType.custom_rules,
       cadence,
       author,
+      projectMaterials,
     })
 
     const apiKey = process.env.ANTHROPIC_API_KEY

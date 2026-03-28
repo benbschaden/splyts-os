@@ -8,6 +8,8 @@ const createProjectSchema = z.object({
   name: z.string().min(1, 'Project name is required').max(200),
   description: z.string().max(1000).nullable().optional(),
   category: z.string().max(100).nullable().optional(),
+  visibility: z.enum(['private', 'shared']).optional().default('shared'),
+  tags: z.array(z.string().min(1).max(100)).max(50).optional().default([]),
 })
 
 export async function POST(request: Request) {
@@ -39,6 +41,8 @@ export async function POST(request: Request) {
     org.id,
     user.id,
     parsed.data.category ?? null,
+    parsed.data.visibility,
+    parsed.data.tags,
   )
 
   if (error || !project) {

@@ -11,20 +11,38 @@ import {
   Paperclip,
   MessageCircle,
   Archive,
-  Lock,
   Search,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { OutputsList } from '@/components/projects/outputs-list'
 import { ProjectMaterials } from '@/components/projects/project-materials'
 import { DiscoveryFeed } from '@/components/projects/discovery-feed'
+import { SharingSettings } from '@/components/projects/sharing-settings'
+import { Globe, Users, Lock, UserCheck } from 'lucide-react'
 import type { DiscoveryEntryRow } from '@/lib/queries/discovery-entries'
+import type { ProjectVisibility } from '@/lib/queries/projects'
+
+function VisibilityBadge({ visibility }: { visibility: ProjectVisibility }) {
+  const map: Record<ProjectVisibility, { label: string; Icon: typeof Globe }> = {
+    organization: { label: 'Whole company', Icon: Globe },
+    team: { label: 'Team', Icon: Users },
+    specific_users: { label: 'Specific people', Icon: UserCheck },
+    private: { label: 'Only me', Icon: Lock },
+  }
+  const { label, Icon } = map[visibility] ?? map.organization
+  return (
+    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+      <Icon className="h-3.5 w-3.5" aria-hidden />
+      {label}
+    </span>
+  )
+}
 
 interface Project {
   id: string
   name: string
   description: string | null
-  /** DB row uses string; normalized in component state */
+  created_by: string
   status?: string | null
   visibility?: string | null
   tags?: string[] | null
@@ -87,7 +105,9 @@ type Tab = 'content' | 'discovery' | 'materials' | 'chat'
 
 interface ProjectDetailProps {
   project: Project
+  currentUserId: string
   isAdmin: boolean
+  isCreator: boolean
   outputs: Output[]
   outputAttachmentsByOutputId: Record<string, OutputAttachmentListItem[]>
   authors: Author[]
@@ -95,6 +115,10 @@ interface ProjectDetailProps {
   hasBrandContext: boolean
   materials: Material[]
   discoveryEntries: DiscoveryEntryRow[]
+  orgTeams: Array<{ id: string; name: string }>
+  orgMembers: Array<{ user_id: string; full_name: string | null }>
+  projectTeams: Array<{ id: string; name: string }>
+  projectMembers: Array<{ user_id: string; full_name: string | null }>
 }
 
 const TABS: { id: Tab; label: string; icon: typeof FileText }[] = [
@@ -106,7 +130,9 @@ const TABS: { id: Tab; label: string; icon: typeof FileText }[] = [
 
 export function ProjectDetail({
   project,
+  currentUserId,
   isAdmin,
+  isCreator,
   outputs,
   outputAttachmentsByOutputId,
   authors,
@@ -114,6 +140,10 @@ export function ProjectDetail({
   hasBrandContext,
   materials,
   discoveryEntries,
+  orgTeams,
+  orgMembers,
+  projectTeams,
+  projectMembers,
 }: ProjectDetailProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<Tab>('content')
@@ -128,9 +158,15 @@ export function ProjectDetail({
   const [projectStatus, setProjectStatus] = useState<'active' | 'archived'>(() =>
     project.status === 'archived' ? 'archived' : 'active',
   )
+  const [currentVisibility, setCurrentVisibility] = useState<ProjectVisibility>(
+    (project.visibility as ProjectVisibility) ?? 'organization',
+  )
+  const [currentProjectTeams, setCurrentProjectTeams] = useState(projectTeams)
+  const [currentProjectMembers, setCurrentProjectMembers] = useState(projectMembers)
   const [error, setError] = useState<string | null>(null)
 
   const isArchived = projectStatus === 'archived'
+  const canEditSharing = isCreator || isAdmin
 
   useEffect(() => {
     const s = project.status === 'archived' ? 'archived' : 'active'
@@ -319,13 +355,23 @@ export function ProjectDetail({
 
       {!editing && (
         <div className="flex flex-wrap items-center gap-2 border-b border-border px-6 py-2">
-          {(project.visibility ?? 'shared') === 'private' ? (
-            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-              <Lock className="h-3.5 w-3.5" aria-hidden />
-              Private
-            </span>
+          {canEditSharing ? (
+            <SharingSettings
+              projectId={project.id}
+              currentVisibility={currentVisibility}
+              currentTeamIds={currentProjectTeams.map((t) => t.id)}
+              currentMemberIds={currentProjectMembers.map((m) => m.user_id)}
+              currentUserId={currentUserId}
+              onSaved={(newVisibility) => {
+                setCurrentVisibility(newVisibility)
+                // Clear local access lists since they'll be reloaded on next open
+                if (newVisibility !== 'team') setCurrentProjectTeams([])
+                if (newVisibility !== 'specific_users') setCurrentProjectMembers([])
+                router.refresh()
+              }}
+            />
           ) : (
-            <span className="text-xs text-muted-foreground">Shared with team</span>
+            <VisibilityBadge visibility={currentVisibility} />
           )}
           {(project.tags ?? []).filter(Boolean).map((tag) => (
             <span

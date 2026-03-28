@@ -29,7 +29,7 @@ export default async function DashboardLayout({
   const [brandContext, projectCategories, projectsForNav] = await Promise.all([
     getBrandContext(org.id),
     getProjectCategories(org.id),
-    getProjectsForOrg(org.id),
+    getProjectsForOrg(org.id, user.id),
   ])
 
   const displayName = profile?.full_name?.trim().split(' ')[0]

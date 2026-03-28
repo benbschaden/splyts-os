@@ -22,20 +22,21 @@ interface ProjectsListProps {
   projects: Project[]
   userName: string
   activeCategory: string | null
+  currentUserId?: string
 }
 
-type VisibilityFilter = 'all' | 'my' | 'team'
+type VisibilityFilter = 'all' | 'my' | 'shared'
 
-export function ProjectsList({ projects, userName, activeCategory }: ProjectsListProps) {
+export function ProjectsList({ projects, userName, activeCategory, currentUserId }: ProjectsListProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all')
 
   const filteredProjects = useMemo(() => {
     if (visibilityFilter === 'my') {
-      return projects.filter((p) => (p.visibility ?? 'shared') === 'private')
+      return projects.filter((p) => (p.visibility ?? 'organization') === 'private')
     }
-    if (visibilityFilter === 'team') {
-      return projects.filter((p) => (p.visibility ?? 'shared') === 'shared')
+    if (visibilityFilter === 'shared') {
+      return projects.filter((p) => (p.visibility ?? 'organization') !== 'private')
     }
     return projects
   }, [projects, visibilityFilter])
@@ -73,9 +74,9 @@ export function ProjectsList({ projects, userName, activeCategory }: ProjectsLis
         {projects.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 border-t border-border px-8 py-3">
             <span className="text-xs font-medium text-muted-foreground">Show:</span>
-            {(['all', 'my', 'team'] as const).map((key) => {
+            {(['all', 'my', 'shared'] as const).map((key) => {
               const label =
-                key === 'all' ? 'All' : key === 'my' ? 'My projects' : 'Team projects'
+                key === 'all' ? 'All' : key === 'my' ? 'Private' : 'Shared'
               const isActive = visibilityFilter === key
               return (
                 <button
@@ -153,6 +154,7 @@ export function ProjectsList({ projects, userName, activeCategory }: ProjectsLis
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         defaultCategory={activeCategory ?? undefined}
+        currentUserId={currentUserId}
       />
     </>
   )

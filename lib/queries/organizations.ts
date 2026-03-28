@@ -1,5 +1,6 @@
 import { cache } from 'react'
 import { createServiceClient } from '@/lib/supabase/service'
+import { seedTeamsForOrg } from '@/lib/queries/teams'
 
 // Wrapped with React cache() so multiple calls within a single render
 // (e.g. dashboard layout + page) share one DB round-trip.
@@ -81,6 +82,9 @@ export async function createOrganization(name: string, userId: string) {
       })),
     )
   }
+
+  // Seed default teams from org_team_seeds
+  await seedTeamsForOrg(org.id, userId)
 
   return { organization: org, error: null }
 }

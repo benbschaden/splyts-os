@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
-import { Lock } from 'lucide-react'
+import { Globe, Lock, Users, UserCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface ProjectCardProps {
@@ -11,6 +11,13 @@ interface ProjectCardProps {
   visibility?: string | null
   status?: string | null
   tags?: string[] | null
+}
+
+const VISIBILITY_ICONS: Record<string, { icon: typeof Globe; label: string }> = {
+  organization: { icon: Globe, label: 'Whole company' },
+  team: { icon: Users, label: 'Team' },
+  specific_users: { icon: UserCheck, label: 'Specific people' },
+  private: { icon: Lock, label: 'Private' },
 }
 
 export function ProjectCard({
@@ -24,7 +31,10 @@ export function ProjectCard({
 }: ProjectCardProps) {
   const tagList = tags?.filter(Boolean) ?? []
   const isArchived = status === 'archived'
-  const isPrivate = visibility === 'private'
+  const visibilityKey = visibility ?? 'organization'
+  const visInfo = VISIBILITY_ICONS[visibilityKey] ?? VISIBILITY_ICONS.organization
+  const VisIcon = visInfo.icon
+  const showVisIcon = visibilityKey !== 'organization'
 
   return (
     <Link
@@ -33,10 +43,10 @@ export function ProjectCard({
     >
       <div className="flex items-start justify-between gap-2 min-w-0">
         <div className="flex items-start gap-1.5 min-w-0 flex-1">
-          {isPrivate && (
-            <Lock
+          {showVisIcon && (
+            <VisIcon
               className="h-3.5 w-3.5 shrink-0 mt-0.5 text-muted-foreground"
-              aria-hidden
+              aria-label={visInfo.label}
             />
           )}
           <h3 className="text-sm font-semibold text-foreground leading-snug group-hover:text-primary transition-colors line-clamp-2">

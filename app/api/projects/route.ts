@@ -8,13 +8,20 @@ const createProjectSchema = z.object({
   name: z.string().min(1, 'Project name is required').max(200),
   description: z.string().max(1000).nullable().optional(),
   category: z.string().max(100).nullable().optional(),
-  visibility: z.enum(['private', 'shared']).optional().default('shared'),
+  visibility: z
+    .enum(['private', 'organization', 'team', 'specific_users'])
+    .optional()
+    .default('organization'),
   tags: z.array(z.string().min(1).max(100)).max(50).optional().default([]),
+  teamIds: z.array(z.string().uuid()).optional().default([]),
+  memberIds: z.array(z.string().uuid()).optional().default([]),
 })
 
 export async function POST(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -43,6 +50,8 @@ export async function POST(request: Request) {
     parsed.data.category ?? null,
     parsed.data.visibility,
     parsed.data.tags,
+    parsed.data.teamIds,
+    parsed.data.memberIds,
   )
 
   if (error || !project) {

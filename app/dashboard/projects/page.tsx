@@ -23,7 +23,7 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
   const { category } = await searchParams
 
   const [allProjects, profile] = await Promise.all([
-    getProjectsForOrg(org.id),
+    getProjectsForOrg(org.id, user.id),
     getUserProfile(user.id),
   ])
 
@@ -39,6 +39,7 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
       projects={projects}
       userName={userName}
       activeCategory={category ?? null}
+      currentUserId={user.id}
     />
   )
 }

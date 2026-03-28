@@ -1,4 +1,7 @@
-import { createServiceClient } from '@/lib/supabase/service'
+import { createUntypedServiceClient } from '@/lib/supabase/service'
+
+// current_goals table is not yet in the generated Database types.
+// Switch to createServiceClient once types are regenerated after migration is applied.
 import type { CurrentGoalsSections } from '@/lib/company/current-goals-sections'
 
 export type CurrentGoalsRow = {
@@ -11,7 +14,7 @@ export type CurrentGoalsRow = {
 }
 
 export async function getCurrentGoals(organizationId: string): Promise<CurrentGoalsRow | null> {
-  const supabase = createServiceClient()
+  const supabase = createUntypedServiceClient()
   const { data, error } = await supabase
     .from('current_goals')
     .select('id, organization_id, sections, updated_by, created_at, updated_at')
@@ -19,7 +22,7 @@ export async function getCurrentGoals(organizationId: string): Promise<CurrentGo
     .maybeSingle()
 
   if (error) return null
-  return data as CurrentGoalsRow | null
+  return data as unknown as CurrentGoalsRow | null
 }
 
 export async function upsertCurrentGoals(
@@ -27,7 +30,7 @@ export async function upsertCurrentGoals(
   sections: CurrentGoalsSections,
   userId: string,
 ): Promise<{ data: CurrentGoalsRow | null; error: string | null }> {
-  const supabase = createServiceClient()
+  const supabase = createUntypedServiceClient()
 
   const { data, error } = await supabase
     .from('current_goals')
@@ -44,5 +47,5 @@ export async function upsertCurrentGoals(
     .single()
 
   if (error) return { data: null, error: 'Failed to save current goals' }
-  return { data: data as CurrentGoalsRow, error: null }
+  return { data: data as unknown as CurrentGoalsRow, error: null }
 }

@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getTeamMembers, getPendingInvites } from '@/lib/queries/team'
+import { getTeamMembersWithRoles, getTeamsForOrg } from '@/lib/queries/teams'
 import { TeamManager } from '@/components/settings/team-manager'
 import { AccessDenied } from '@/components/shared/access-denied'
 
@@ -20,10 +21,19 @@ export default async function TeamPage() {
     return <AccessDenied message="You do not have permission to manage team members." backHref="/dashboard" backLabel="Back to dashboard" />
   }
 
-  const [members, pendingInvites] = await Promise.all([
+  const [members, pendingInvites, teams] = await Promise.all([
     getTeamMembers(org.id),
     getPendingInvites(org.id),
+    getTeamsForOrg(org.id),
   ])
+
+  const reviewerTeams = await Promise.all(
+    teams.map(async (team) => ({
+      id: team.id,
+      name: team.name,
+      members: await getTeamMembersWithRoles(team.id),
+    })),
+  )
 
   return (
     <div className="space-y-6">
@@ -38,6 +48,7 @@ export default async function TeamPage() {
         members={members}
         pendingInvites={pendingInvites}
         currentUserId={user.id}
+        reviewerTeams={reviewerTeams}
       />
     </div>
   )

@@ -511,18 +511,21 @@ export type Database = {
         Row: {
           added_at: string
           added_by: string
+          role: string
           team_id: string
           user_id: string
         }
         Insert: {
           added_at?: string
           added_by: string
+          role?: string
           team_id: string
           user_id: string
         }
         Update: {
           added_at?: string
           added_by?: string
+          role?: string
           team_id?: string
           user_id?: string
         }
@@ -1059,6 +1062,9 @@ export type Database = {
           locked_at: string | null
           filed_at: string | null
           filed_by: string | null
+          review_requested_at: string | null
+          review_requested_by: string | null
+          team_id: string | null
           summary: string | null
           created_at: string
           updated_at: string
@@ -1078,6 +1084,9 @@ export type Database = {
           locked_at?: string | null
           filed_at?: string | null
           filed_by?: string | null
+          review_requested_at?: string | null
+          review_requested_by?: string | null
+          team_id?: string | null
           summary?: string | null
           created_at?: string
           updated_at?: string
@@ -1097,6 +1106,9 @@ export type Database = {
           locked_at?: string | null
           filed_at?: string | null
           filed_by?: string | null
+          review_requested_at?: string | null
+          review_requested_by?: string | null
+          team_id?: string | null
           summary?: string | null
           created_at?: string
           updated_at?: string

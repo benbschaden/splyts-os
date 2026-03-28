@@ -16,6 +16,9 @@ export interface DocumentRow {
   locked_at: string | null
   filed_at: string | null
   filed_by: string | null
+  review_requested_at: string | null
+  review_requested_by: string | null
+  team_id: string | null
   summary: string | null
   created_at: string
   updated_at: string
@@ -33,7 +36,7 @@ export interface DocumentVersionRow {
 }
 
 const DOCUMENT_SELECT =
-  'id, organization_id, created_by, title, content, doc_type, visibility, source_session_id, version, locked_by, locked_at, filed_at, filed_by, summary, created_at, updated_at'
+  'id, organization_id, created_by, title, content, doc_type, visibility, source_session_id, version, locked_by, locked_at, filed_at, filed_by, review_requested_at, review_requested_by, team_id, summary, created_at, updated_at'
 
 export async function getDocuments(
   organizationId: string,
@@ -252,7 +255,7 @@ export async function unlockDocument(id: string, userId: string): Promise<void> 
 
 export async function fileDocument(
   id: string,
-  userId: string,
+  filedByUserId: string,
   organizationId: string,
   summary: string,
 ): Promise<{ document: DocumentRow | null; error: string | null }> {
@@ -263,19 +266,81 @@ export async function fileDocument(
     .update({
       visibility: 'filed',
       filed_at: new Date().toISOString(),
-      filed_by: userId,
+      filed_by: filedByUserId,
+      review_requested_at: null,
+      review_requested_by: null,
       summary,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
     .eq('organization_id', organizationId)
-    .eq('created_by', userId)
     .is('deleted_at', null)
     .select(DOCUMENT_SELECT)
     .single()
 
   if (error) return { document: null, error: 'Failed to file document' }
   return { document: data as DocumentRow, error: null }
+}
+
+export function canUserFileDocument(input: {
+  userId: string
+  userRole: 'admin' | 'member'
+  document: Pick<DocumentRow, 'team_id'>
+  reviewerTeamIds: string[]
+}): boolean {
+  const { userRole, document, reviewerTeamIds } = input
+  if (userRole === 'admin') return true
+  if (!document.team_id) return false
+  return reviewerTeamIds.includes(document.team_id)
+}
+
+export async function requestDocumentReview(
+  id: string,
+  userId: string,
+): Promise<{ document: DocumentRow | null; error: string | null }> {
+  const supabase = createServiceClient()
+
+  const { data, error } = await supabase
+    .from('documents')
+    .update({
+      review_requested_at: new Date().toISOString(),
+      review_requested_by: userId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .eq('created_by', userId)
+    .is('deleted_at', null)
+    .select(DOCUMENT_SELECT)
+    .single()
+
+  if (error) return { document: null, error: 'Failed to request review' }
+  return { document: data as DocumentRow, error: null }
+}
+
+export async function getPendingReviewDocuments(
+  organizationId: string,
+  reviewerTeamIds: string[],
+  userRole: 'admin' | 'member',
+): Promise<DocumentRow[]> {
+  const supabase = createServiceClient()
+
+  let query = supabase
+    .from('documents')
+    .select(DOCUMENT_SELECT)
+    .eq('organization_id', organizationId)
+    .is('deleted_at', null)
+    .not('review_requested_at', 'is', null)
+    .neq('visibility', 'filed')
+    .order('review_requested_at', { ascending: false })
+
+  if (userRole !== 'admin') {
+    if (reviewerTeamIds.length === 0) return []
+    query = query.in('team_id', reviewerTeamIds)
+  }
+
+  const { data, error } = await query.limit(50)
+  if (error) return []
+  return data as DocumentRow[]
 }
 
 export async function getDocumentVersions(

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, Download, Share2, Building2, Lock, Trash2, Pencil, Check, X,
-  History, AlertTriangle, Loader2,
+  History, AlertTriangle, Loader2, Users,
 } from 'lucide-react'
 import type { DocumentRow, DocumentVisibility } from '@/lib/queries/documents'
 import { DocumentVersionsDrawer } from './document-versions-drawer'
@@ -13,6 +13,8 @@ import { DocumentVersionsDrawer } from './document-versions-drawer'
 interface DocumentViewerProps {
   document: DocumentRow
   isOwner: boolean
+  isAdmin: boolean
+  canFile: boolean
 }
 
 const VISIBILITY_LABELS: Record<DocumentVisibility, string> = {
@@ -21,7 +23,7 @@ const VISIBILITY_LABELS: Record<DocumentVisibility, string> = {
   filed: 'Filed to company',
 }
 
-export function DocumentViewer({ document: initialDocument, isOwner }: DocumentViewerProps) {
+export function DocumentViewer({ document: initialDocument, isOwner, isAdmin, canFile }: DocumentViewerProps) {
   const router = useRouter()
   const [document, setDocument] = useState(initialDocument)
   const [isEditingTitle, setIsEditingTitle] = useState(false)
@@ -30,6 +32,7 @@ export function DocumentViewer({ document: initialDocument, isOwner }: DocumentV
   const [editContent, setEditContent] = useState(initialDocument.content)
   const [isSaving, setIsSaving] = useState(false)
   const [isFiling, setIsFiling] = useState(false)
+  const [isRequestingReview, setIsRequestingReview] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [conflictVersion, setConflictVersion] = useState<number | null>(null)
   const [lockWarning, setLockWarning] = useState<string | null>(null)
@@ -146,6 +149,24 @@ export function DocumentViewer({ document: initialDocument, isOwner }: DocumentV
     await patch({ visibility })
   }
 
+  async function handleRequestReview() {
+    setIsRequestingReview(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/documents/${document.id}/request-review`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error ?? 'Failed to request review')
+      } else {
+        setDocument(data.document)
+      }
+    } catch {
+      setError('Failed to request review')
+    } finally {
+      setIsRequestingReview(false)
+    }
+  }
+
   async function handleDelete() {
     if (!confirm('Delete this document? This cannot be undone.')) return
     const res = await fetch(`/api/documents/${document.id}`, { method: 'DELETE' })
@@ -187,19 +208,19 @@ export function DocumentViewer({ document: initialDocument, isOwner }: DocumentV
         </div>
 
         <div className="flex items-center gap-2">
-          {isOwner && (
+          {(isOwner || canFile) && (
             <>
               {document.visibility === 'private' && (
                 <button
                   onClick={() => handleVisibilityChange('shared')}
-                  disabled={isSaving || isFiling}
+                  disabled={isSaving || isFiling || !isOwner}
                   className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
                 >
                   <Share2 className="h-3.5 w-3.5" />
                   Share with team
                 </button>
               )}
-              {document.visibility !== 'filed' && (
+              {document.visibility !== 'filed' && canFile && (
                 <button
                   onClick={() => handleVisibilityChange('filed')}
                   disabled={isSaving || isFiling}
@@ -213,23 +234,48 @@ export function DocumentViewer({ document: initialDocument, isOwner }: DocumentV
                   {isFiling ? 'Filing…' : 'File to company'}
                 </button>
               )}
+              {document.visibility === 'shared' && !canFile && isOwner && !document.review_requested_at && (
+                <button
+                  onClick={handleRequestReview}
+                  disabled={isSaving || isRequestingReview}
+                  className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+                >
+                  {isRequestingReview ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Users className="h-3.5 w-3.5" />
+                  )}
+                  {isRequestingReview ? 'Requesting…' : 'Request review'}
+                </button>
+              )}
+              {document.visibility === 'shared' && !canFile && isOwner && !!document.review_requested_at && (
+                <button
+                  disabled
+                  className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground opacity-70"
+                >
+                  <Users className="h-3.5 w-3.5" />
+                  Review requested
+                </button>
+              )}
               {document.visibility === 'shared' && (
                 <button
                   onClick={() => handleVisibilityChange('private')}
-                  disabled={isSaving || isFiling}
+                  disabled={isSaving || isFiling || !isOwner}
                   className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
                 >
                   <Lock className="h-3.5 w-3.5" />
                   Make private
                 </button>
               )}
-              <button
-                onClick={() => setShowVersions(true)}
-                className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              >
-                <History className="h-3.5 w-3.5" />
-                History
-              </button>
+              {isOwner && (
+                <button
+                  onClick={() => setShowVersions(true)}
+                  className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <History className="h-3.5 w-3.5" />
+                  History
+                </button>
+              )}
             </>
           )}
           <button
@@ -306,6 +352,9 @@ export function DocumentViewer({ document: initialDocument, isOwner }: DocumentV
             {document.filed_at && document.visibility === 'filed' && (
               <> · Filed {new Date(document.filed_at).toLocaleDateString()}</>
             )}
+            {document.review_requested_at && document.visibility !== 'filed' && (
+              <> · Review requested {new Date(document.review_requested_at).toLocaleDateString()}</>
+            )}
             {document.source_session_id && (
               <>
                 {' · '}
@@ -322,6 +371,12 @@ export function DocumentViewer({ document: initialDocument, isOwner }: DocumentV
           {document.summary && document.visibility === 'filed' && (
             <p className="mb-6 rounded-lg border border-border bg-accent/30 px-4 py-2 text-xs text-muted-foreground italic">
               {document.summary}
+            </p>
+          )}
+
+          {!canFile && !isAdmin && isOwner && document.visibility === 'shared' && !document.review_requested_at && (
+            <p className="mb-4 rounded-lg border border-border bg-accent/30 px-4 py-2 text-xs text-muted-foreground">
+              Only admins or team reviewers can file documents to company knowledge. Request a review to continue.
             </p>
           )}
 

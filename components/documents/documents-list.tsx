@@ -2,11 +2,13 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { FileText, Lock, Users, Building2 } from 'lucide-react'
+import { FileText, Lock, Users, Building2, Loader2 } from 'lucide-react'
 import type { DocumentRow, DocumentVisibility } from '@/lib/queries/documents'
 
 interface DocumentsListProps {
   documents: DocumentRow[]
+  pendingReviewDocuments: DocumentRow[]
+  canReview: boolean
 }
 
 const VISIBILITY_META: Record<
@@ -18,8 +20,26 @@ const VISIBILITY_META: Record<
   filed: { label: 'Filed', icon: Building2, className: 'text-green-600' },
 }
 
-export function DocumentsList({ documents: initialDocuments }: DocumentsListProps) {
+export function DocumentsList({
+  documents: initialDocuments,
+  pendingReviewDocuments: initialPendingReviewDocuments,
+  canReview,
+}: DocumentsListProps) {
   const [documents] = useState(initialDocuments)
+  const [pendingReviewDocuments, setPendingReviewDocuments] = useState(initialPendingReviewDocuments)
+  const [filingDocumentId, setFilingDocumentId] = useState<string | null>(null)
+
+  async function handleFileDocument(documentId: string) {
+    setFilingDocumentId(documentId)
+    try {
+      const res = await fetch(`/api/documents/${documentId}/file`, { method: 'POST' })
+      if (res.ok) {
+        setPendingReviewDocuments((prev) => prev.filter((doc) => doc.id !== documentId))
+      }
+    } finally {
+      setFilingDocumentId(null)
+    }
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -35,6 +55,34 @@ export function DocumentsList({ documents: initialDocuments }: DocumentsListProp
 
       {/* List */}
       <div className="flex-1 overflow-y-auto px-6 py-4">
+        {canReview && pendingReviewDocuments.length > 0 && (
+          <div className="mb-6">
+            <h2 className="mb-2 text-sm font-semibold text-foreground">Pending review</h2>
+            <ul className="space-y-1">
+              {pendingReviewDocuments.map((doc) => (
+                <li key={doc.id} className="flex items-center justify-between rounded-lg border border-border bg-background px-4 py-3">
+                  <div className="min-w-0">
+                    <Link href={`/dashboard/documents/${doc.id}`} className="block">
+                      <p className="truncate text-sm font-medium text-foreground hover:underline">{doc.title}</p>
+                    </Link>
+                    <p className="text-xs text-muted-foreground">
+                      {doc.doc_type} · Requested {doc.review_requested_at ? new Date(doc.review_requested_at).toLocaleDateString() : 'recently'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleFileDocument(doc.id)}
+                    disabled={filingDocumentId === doc.id}
+                    className="ml-3 inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
+                  >
+                    {filingDocumentId === doc.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Building2 className="h-3.5 w-3.5" />}
+                    File
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {documents.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <FileText className="mb-4 h-10 w-10 text-muted-foreground/40" />

@@ -3,8 +3,9 @@ export const dynamic = 'force-dynamic'
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
-import { getDocumentById } from '@/lib/queries/documents'
+import { canUserFileDocument, getDocumentById } from '@/lib/queries/documents'
 import { DocumentViewer } from '@/components/documents/document-viewer'
+import { getReviewerTeamsForUser } from '@/lib/queries/teams'
 
 export default async function DocumentPage({
   params,
@@ -29,6 +30,20 @@ export default async function DocumentPage({
   }
 
   const isOwner = document.created_by === user.id
+  const reviewerTeamIds = await getReviewerTeamsForUser(user.id, org.id)
+  const canFile = canUserFileDocument({
+    userId: user.id,
+    userRole: org.role,
+    document,
+    reviewerTeamIds,
+  })
 
-  return <DocumentViewer document={document} isOwner={isOwner} />
+  return (
+    <DocumentViewer
+      document={document}
+      isOwner={isOwner}
+      isAdmin={org.role === 'admin'}
+      canFile={canFile}
+    />
+  )
 }

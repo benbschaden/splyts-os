@@ -24,6 +24,19 @@ interface TeamManagerProps {
   members: Member[]
   pendingInvites: PendingInvite[]
   currentUserId: string
+  reviewerTeams: ReviewerTeam[]
+}
+
+interface ReviewerTeamMember {
+  user_id: string
+  role: 'member' | 'reviewer'
+  full_name: string | null
+}
+
+interface ReviewerTeam {
+  id: string
+  name: string
+  members: ReviewerTeamMember[]
 }
 
 function formatDate(iso: string) {
@@ -34,7 +47,7 @@ function formatDate(iso: string) {
   })
 }
 
-export function TeamManager({ members, pendingInvites, currentUserId }: TeamManagerProps) {
+export function TeamManager({ members, pendingInvites, currentUserId, reviewerTeams }: TeamManagerProps) {
   const router = useRouter()
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState<'member' | 'admin'>('member')
@@ -43,6 +56,7 @@ export function TeamManager({ members, pendingInvites, currentUserId }: TeamMana
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null)
   const [localMembers, setLocalMembers] = useState<Member[]>(members)
   const [localInvites, setLocalInvites] = useState<PendingInvite[]>(pendingInvites)
+  const [localReviewerTeams, setLocalReviewerTeams] = useState<ReviewerTeam[]>(reviewerTeams)
   const [actionError, setActionError] = useState<string | null>(null)
 
   async function handleInvite(e: React.FormEvent) {
@@ -117,6 +131,35 @@ export function TeamManager({ members, pendingInvites, currentUserId }: TeamMana
 
     setLocalInvites((prev) => prev.filter((i) => i.id !== inviteId))
     router.refresh()
+  }
+
+  async function handleReviewerRoleChange(
+    teamId: string,
+    userId: string,
+    role: 'member' | 'reviewer',
+  ) {
+    setActionError(null)
+    const res = await fetch(`/api/teams/${teamId}/members/${userId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role }),
+    })
+
+    if (!res.ok) {
+      const data = await res.json()
+      setActionError(data.error ?? 'Failed to update reviewer role.')
+      return
+    }
+
+    setLocalReviewerTeams((prev) =>
+      prev.map((team) => {
+        if (team.id !== teamId) return team
+        return {
+          ...team,
+          members: team.members.map((m) => (m.user_id === userId ? { ...m, role } : m)),
+        }
+      }),
+    )
   }
 
   return (
@@ -260,6 +303,49 @@ export function TeamManager({ members, pendingInvites, currentUserId }: TeamMana
           </div>
         </div>
       )}
+
+      {/* Team reviewer controls */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-foreground">
+          Team reviewers
+          <span className="ml-1 font-normal text-muted-foreground">
+            (who can approve team documents for filing)
+          </span>
+        </h3>
+
+        {localReviewerTeams.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No teams found.</p>
+        ) : (
+          <div className="space-y-3">
+            {localReviewerTeams.map((team) => (
+              <div key={team.id} className="rounded-lg border border-border">
+                <div className="border-b border-border px-4 py-2.5">
+                  <p className="text-sm font-medium text-foreground">{team.name}</p>
+                </div>
+                {team.members.length === 0 ? (
+                  <p className="px-4 py-3 text-xs text-muted-foreground">No members assigned to this team.</p>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {team.members.map((member) => (
+                      <div key={member.user_id} className="flex items-center justify-between px-4 py-2.5">
+                        <span className="text-sm text-foreground">{member.full_name ?? 'Unknown user'}</span>
+                        <select
+                          value={member.role}
+                          onChange={(e) => handleReviewerRoleChange(team.id, member.user_id, e.target.value as 'member' | 'reviewer')}
+                          className="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                        >
+                          <option value="member">Member</option>
+                          <option value="reviewer">Reviewer</option>
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
     </div>
   )

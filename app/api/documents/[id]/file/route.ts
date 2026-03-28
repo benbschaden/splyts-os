@@ -1,7 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
-import { getDocumentById, fileDocument } from '@/lib/queries/documents'
+import { canUserFileDocument, getDocumentById, fileDocument } from '@/lib/queries/documents'
 import { generateDocumentSummary } from '@/lib/retrieval/summarize'
+import { getReviewerTeamsForUser } from '@/lib/queries/teams'
 
 export async function POST(
   _request: Request,
@@ -18,9 +19,14 @@ export async function POST(
 
     const existing = await getDocumentById(id, org.id)
     if (!existing) return Response.json({ error: 'Not found' }, { status: 404 })
-    if (existing.created_by !== user.id) {
-      return Response.json({ error: 'Not found' }, { status: 404 })
-    }
+    const reviewerTeamIds = await getReviewerTeamsForUser(user.id, org.id)
+    const canFile = canUserFileDocument({
+      userId: user.id,
+      userRole: org.role,
+      document: existing,
+      reviewerTeamIds,
+    })
+    if (!canFile) return Response.json({ error: 'Not found' }, { status: 404 })
 
     // Generate AI summary if not already present
     const summary = existing.summary ?? await generateDocumentSummary(existing.content, existing.title)

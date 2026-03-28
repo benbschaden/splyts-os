@@ -176,21 +176,51 @@ export async function deleteConflictsForFilePair(
     .eq('file_id_b', fileIdA)
 }
 
+export async function getConflictById(
+  supabase: SupabaseClient<Database>,
+  conflictId: string,
+  organizationId: string,
+) {
+  return supabase
+    .from('company_knowledge_conflicts')
+    .select('id, file_id_a, file_id_b, excerpt_a, excerpt_b, dismissed_at')
+    .eq('id', conflictId)
+    .eq('organization_id', organizationId)
+    .is('dismissed_at', null)
+    .single()
+}
+
 export async function dismissConflict(
   supabase: SupabaseClient<Database>,
   conflictId: string,
   organizationId: string,
   dismissedBy: string,
+  trust?: { trustedFileId: string; trustedExcerpt: string },
 ) {
   return supabase
     .from('company_knowledge_conflicts')
     .update({
       dismissed_at: new Date().toISOString(),
       dismissed_by: dismissedBy,
+      ...(trust
+        ? { trusted_file_id: trust.trustedFileId, trusted_excerpt: trust.trustedExcerpt }
+        : {}),
     })
     .eq('id', conflictId)
     .eq('organization_id', organizationId)
     .is('dismissed_at', null)
     .select('id')
     .single()
+}
+
+export async function getResolvedConflictExcerpts(
+  supabase: SupabaseClient<Database>,
+  organizationId: string,
+) {
+  return supabase
+    .from('company_knowledge_conflicts')
+    .select('topic, trusted_excerpt')
+    .eq('organization_id', organizationId)
+    .not('dismissed_at', 'is', null)
+    .not('trusted_excerpt', 'is', null)
 }

@@ -73,6 +73,7 @@ export function KnowledgePanel({ initialFiles, initialConflicts, isAdmin }: Know
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [conflictsOpen, setConflictsOpen] = useState(initialConflicts.length > 0)
+  const [resolvingConflict, setResolvingConflict] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -122,10 +123,14 @@ export function KnowledgePanel({ initialFiles, initialConflicts, isAdmin }: Know
     setFiles((prev) => prev.filter((f) => f.id !== fileId))
   }
 
-  async function handleDismissConflict(conflictId: string) {
+  async function handleResolveConflict(conflictId: string, trust?: 'a' | 'b') {
+    setResolvingConflict(conflictId)
     const res = await fetch(`/api/company-knowledge/conflicts/${conflictId}`, {
       method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(trust ? { trust } : {}),
     })
+    setResolvingConflict(null)
     if (!res.ok) return
     setConflicts((prev) => prev.filter((c) => c.id !== conflictId))
   }
@@ -230,9 +235,10 @@ export function KnowledgePanel({ initialFiles, initialConflicts, isAdmin }: Know
 
           {conflictsOpen && (
             <div className="divide-y divide-amber-200 dark:divide-amber-900 border-t border-amber-200 dark:border-amber-900">
-              {conflicts.map((conflict) => (
-                <div key={conflict.id} className="px-4 py-3 space-y-2">
-                  <div className="flex items-start justify-between gap-3">
+              {conflicts.map((conflict) => {
+                const isResolving = resolvingConflict === conflict.id
+                return (
+                  <div key={conflict.id} className="px-4 py-3 space-y-2">
                     <div className="space-y-1">
                       <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
                         {conflict.topic}
@@ -241,41 +247,64 @@ export function KnowledgePanel({ initialFiles, initialConflicts, isAdmin }: Know
                         {conflict.description}
                       </p>
                     </div>
+
+                    {(conflict.excerpt_a || conflict.excerpt_b) && (
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        {conflict.excerpt_a && (
+                          <div className="rounded bg-amber-100 dark:bg-amber-900/40 p-2 space-y-2">
+                            <p className="font-medium text-amber-700 dark:text-amber-300">
+                              {conflict.file_a?.file_name}
+                            </p>
+                            <p className="text-amber-800 dark:text-amber-200 line-clamp-3">
+                              {conflict.excerpt_a}
+                            </p>
+                            {isAdmin && (
+                              <button
+                                onClick={() => handleResolveConflict(conflict.id, 'a')}
+                                disabled={isResolving}
+                                className="mt-1 inline-flex items-center gap-1 rounded border border-amber-400 px-2 py-1 text-xs font-medium text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-800/40 disabled:opacity-50 transition-colors"
+                              >
+                                {isResolving ? 'Saving…' : 'Trust this version'}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        {conflict.excerpt_b && (
+                          <div className="rounded bg-amber-100 dark:bg-amber-900/40 p-2 space-y-2">
+                            <p className="font-medium text-amber-700 dark:text-amber-300">
+                              {conflict.file_b?.file_name}
+                            </p>
+                            <p className="text-amber-800 dark:text-amber-200 line-clamp-3">
+                              {conflict.excerpt_b}
+                            </p>
+                            {isAdmin && (
+                              <button
+                                onClick={() => handleResolveConflict(conflict.id, 'b')}
+                                disabled={isResolving}
+                                className="mt-1 inline-flex items-center gap-1 rounded border border-amber-400 px-2 py-1 text-xs font-medium text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-800/40 disabled:opacity-50 transition-colors"
+                              >
+                                {isResolving ? 'Saving…' : 'Trust this version'}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {isAdmin && (
-                      <button
-                        onClick={() => handleDismissConflict(conflict.id)}
-                        className="shrink-0 text-xs text-amber-700 dark:text-amber-300 hover:underline"
-                      >
-                        Dismiss
-                      </button>
+                      <div className="flex justify-end">
+                        <button
+                          onClick={() => handleResolveConflict(conflict.id)}
+                          disabled={isResolving}
+                          className="text-xs text-amber-600 dark:text-amber-400 hover:underline disabled:opacity-50"
+                        >
+                          Dismiss without resolving
+                        </button>
+                      </div>
                     )}
                   </div>
-                  {(conflict.excerpt_a || conflict.excerpt_b) && (
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      {conflict.excerpt_a && (
-                        <div className="rounded bg-amber-100 dark:bg-amber-900/40 p-2">
-                          <p className="font-medium text-amber-700 dark:text-amber-300 mb-0.5">
-                            {conflict.file_a?.file_name}
-                          </p>
-                          <p className="text-amber-800 dark:text-amber-200 line-clamp-3">
-                            {conflict.excerpt_a}
-                          </p>
-                        </div>
-                      )}
-                      {conflict.excerpt_b && (
-                        <div className="rounded bg-amber-100 dark:bg-amber-900/40 p-2">
-                          <p className="font-medium text-amber-700 dark:text-amber-300 mb-0.5">
-                            {conflict.file_b?.file_name}
-                          </p>
-                          <p className="text-amber-800 dark:text-amber-200 line-clamp-3">
-                            {conflict.excerpt_b}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

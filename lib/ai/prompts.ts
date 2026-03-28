@@ -824,6 +824,11 @@ Respond ONLY with a valid JSON array — no explanation, no markdown, no code fe
 
 // ─── Company Knowledge: Per-Field Suggestion ──────────────────────────────────
 
+export interface ResolvedConflictContext {
+  topic: string
+  trusted_excerpt: string
+}
+
 export interface FieldSuggestContext {
   fieldKey: string
   fieldLabel: string
@@ -831,6 +836,7 @@ export interface FieldSuggestContext {
   currentFormValues: Record<string, string>
   knowledgeDocs: KnowledgeDoc[]
   hasActiveConflicts: boolean
+  resolvedConflicts: ResolvedConflictContext[]
 }
 
 /**
@@ -850,17 +856,26 @@ export function buildSuggestFieldPrompt(ctx: FieldSuggestContext): string {
           .join('\n\n')
       : null
 
-  const conflictNote = ctx.hasActiveConflicts
-    ? '\nIMPORTANT: Conflicting information has been detected in the uploaded documents. ' +
-      'If this topic is affected by a conflict, start your response with: ' +
-      '[Conflict detected — verify with your team before accepting]\n'
-    : ''
+  const resolvedBlock =
+    ctx.resolvedConflicts.length > 0
+      ? ctx.resolvedConflicts
+          .map((r) => `Topic: ${r.topic}\nAuthoritative version: ${r.trusted_excerpt}`)
+          .join('\n\n')
+      : null
+
+  const conflictNote =
+    ctx.hasActiveConflicts && !resolvedBlock
+      ? '\nIMPORTANT: Conflicting information has been detected in the uploaded documents. ' +
+        'If this topic is affected by a conflict, start your response with: ' +
+        '[Conflict detected — verify with your team before accepting]\n'
+      : ''
 
   return `You are helping a company fill in their company profile.
 
 FIELD TO DRAFT: ${ctx.fieldLabel}
 PURPOSE: ${ctx.fieldHint}
 ${conflictNote}
+${resolvedBlock ? `CONFLICT RESOLUTIONS — treat these as authoritative for their topics, overriding any contradictory text in the documents below:\n${resolvedBlock}\n` : ''}
 ${otherFields ? `EXISTING COMPANY CONTEXT:\n${otherFields}\n` : ''}
 ${docsBlock ? `UPLOADED COMPANY DOCUMENTS:\n${docsBlock}\n` : ''}
 ---

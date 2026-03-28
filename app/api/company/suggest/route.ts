@@ -5,6 +5,7 @@ import { getOrganizationForUser } from '@/lib/queries/organizations'
 import {
   getKnowledgeFilesWithText,
   countActiveConflicts,
+  getResolvedConflictExcerpts,
 } from '@/lib/queries/company-knowledge'
 import { suggestField } from '@/lib/company/suggest-field'
 
@@ -39,14 +40,19 @@ export async function POST(request: Request) {
 
     const service = createServiceClient()
 
-    const [{ data: filesRaw }, conflictCount] = await Promise.all([
+    const [{ data: filesRaw }, conflictCount, { data: resolvedRaw }] = await Promise.all([
       getKnowledgeFilesWithText(service, org.id),
       countActiveConflicts(service, org.id),
+      getResolvedConflictExcerpts(service, org.id),
     ])
 
     const knowledgeDocs = (filesRaw ?? [])
       .filter((f): f is typeof f & { processed_text: string } => f.processed_text !== null)
       .map((f) => ({ fileName: f.file_name, text: f.processed_text }))
+
+    const resolvedConflicts = (resolvedRaw ?? [])
+      .filter((r): r is typeof r & { trusted_excerpt: string } => r.trusted_excerpt !== null)
+      .map((r) => ({ topic: r.topic, trusted_excerpt: r.trusted_excerpt }))
 
     const result = await suggestField({
       fieldKey: field_key,
@@ -55,6 +61,7 @@ export async function POST(request: Request) {
       currentFormValues: current_form_values,
       knowledgeDocs,
       hasActiveConflicts: conflictCount > 0,
+      resolvedConflicts,
     })
 
     return Response.json({

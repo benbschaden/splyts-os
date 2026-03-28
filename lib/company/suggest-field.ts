@@ -2,6 +2,11 @@ import Anthropic from '@anthropic-ai/sdk'
 import { DEFAULT_MODEL } from '@/lib/ai/models'
 import { buildSuggestFieldPrompt, type KnowledgeDoc } from '@/lib/ai/prompts'
 
+export interface ResolvedConflict {
+  topic: string
+  trusted_excerpt: string
+}
+
 export interface SuggestFieldInput {
   fieldKey: string
   fieldLabel: string
@@ -9,6 +14,7 @@ export interface SuggestFieldInput {
   currentFormValues: Record<string, string>
   knowledgeDocs: KnowledgeDoc[]
   hasActiveConflicts: boolean
+  resolvedConflicts: ResolvedConflict[]
 }
 
 export interface SuggestFieldResult {

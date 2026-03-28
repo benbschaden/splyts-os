@@ -1,9 +1,14 @@
+import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
-import { dismissConflict } from '@/lib/queries/company-knowledge'
+import { getConflictById, dismissConflict } from '@/lib/queries/company-knowledge'
+
+const schema = z.object({
+  trust: z.enum(['a', 'b']).optional(),
+})
 
 export async function PATCH(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
@@ -21,7 +26,33 @@ export async function PATCH(
     }
 
     const { id } = await params
-    const { data, error } = await dismissConflict(supabase, id, org.id, user.id)
+
+    const body = await request.json().catch(() => ({}))
+    const parsed = schema.safeParse(body)
+    if (!parsed.success) {
+      return Response.json({ error: 'Invalid input' }, { status: 400 })
+    }
+    const { trust } = parsed.data
+
+    let trustPayload: { trustedFileId: string; trustedExcerpt: string } | undefined
+
+    if (trust) {
+      const { data: conflict, error: fetchError } = await getConflictById(supabase, id, org.id)
+      if (fetchError || !conflict) {
+        return Response.json({ error: 'Not found' }, { status: 404 })
+      }
+
+      const trustedFileId = trust === 'a' ? conflict.file_id_a : conflict.file_id_b
+      const trustedExcerpt = trust === 'a' ? conflict.excerpt_a : conflict.excerpt_b
+
+      if (!trustedExcerpt) {
+        return Response.json({ error: 'No excerpt available for this side' }, { status: 400 })
+      }
+
+      trustPayload = { trustedFileId, trustedExcerpt }
+    }
+
+    const { data, error } = await dismissConflict(supabase, id, org.id, user.id, trustPayload)
 
     if (error || !data) {
       return Response.json({ error: 'Not found' }, { status: 404 })

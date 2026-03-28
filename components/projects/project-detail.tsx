@@ -18,6 +18,7 @@ import { OutputsList } from '@/components/projects/outputs-list'
 import { ProjectMaterials } from '@/components/projects/project-materials'
 import { DiscoveryFeed } from '@/components/projects/discovery-feed'
 import { SharingSettings } from '@/components/projects/sharing-settings'
+import { DiscussionsPanel } from '@/components/discussions/discussions-panel'
 import { Globe, Users, Lock, UserCheck } from 'lucide-react'
 import type { DiscoveryEntryRow } from '@/lib/queries/discovery-entries'
 import type { ProjectVisibility } from '@/lib/queries/projects'
@@ -101,10 +102,11 @@ interface Material {
   updated_at: string
 }
 
-type Tab = 'content' | 'discovery' | 'materials' | 'chat'
+type Tab = 'content' | 'discovery' | 'materials' | 'discussions'
 
 interface ProjectDetailProps {
   project: Project
+  organizationId: string
   currentUserId: string
   isAdmin: boolean
   isCreator: boolean
@@ -125,11 +127,12 @@ const TABS: { id: Tab; label: string; icon: typeof FileText }[] = [
   { id: 'content', label: 'Content', icon: FileText },
   { id: 'discovery', label: 'Discovery', icon: Search },
   { id: 'materials', label: 'Materials', icon: Paperclip },
-  { id: 'chat', label: 'Chat', icon: MessageCircle },
+  { id: 'discussions', label: 'Discussions', icon: MessageCircle },
 ]
 
 export function ProjectDetail({
   project,
+  organizationId,
   currentUserId,
   isAdmin,
   isCreator,
@@ -483,17 +486,13 @@ export function ProjectDetail({
                 />
               )}
 
-              {activeTab === 'chat' && (
-                <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border py-16 text-center">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                    <MessageCircle className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-foreground">Project chat coming soon</p>
-                    <p className="text-sm text-muted-foreground">
-                      Discuss this project with your team and AI.
-                    </p>
-                  </div>
+              {activeTab === 'discussions' && (
+                <div className="flex h-[calc(100vh-200px)]">
+                  <DiscussionsPanel
+                    parentType="project"
+                    parentId={project.id}
+                    organizationId={organizationId}
+                  />
                 </div>
               )}
             </div>

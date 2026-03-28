@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import type { DocumentRow, DocumentVisibility } from '@/lib/queries/documents'
 import { DocumentVersionsDrawer } from './document-versions-drawer'
+import { DiscussionsPanel } from '@/components/discussions/discussions-panel'
 
 interface DocumentViewerProps {
   document: DocumentRow
@@ -37,6 +38,7 @@ export function DocumentViewer({ document: initialDocument, isOwner, isAdmin, ca
   const [conflictVersion, setConflictVersion] = useState<number | null>(null)
   const [lockWarning, setLockWarning] = useState<string | null>(null)
   const [showVersions, setShowVersions] = useState(false)
+  const [activeView, setActiveView] = useState<'content' | 'discussions'>('content')
 
   // Unlock on page unload
   const unlock = useCallback(async () => {
@@ -297,7 +299,25 @@ export function DocumentViewer({ document: initialDocument, isOwner, isAdmin, ca
         </div>
       </div>
 
+      {/* View tabs */}
+      <div className="flex border-b border-border px-6">
+        {(['content', 'discussions'] as const).map((v) => (
+          <button
+            key={v}
+            onClick={() => setActiveView(v)}
+            className={`mr-4 py-2.5 text-sm font-medium border-b-2 transition-colors capitalize ${
+              activeView === v
+                ? 'border-foreground text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {v}
+          </button>
+        ))}
+      </div>
+
       {/* Document body */}
+      {activeView === 'content' && (
       <div className="flex-1 overflow-y-auto px-6 py-8">
         <div className="mx-auto max-w-2xl">
           {/* Title */}
@@ -454,6 +474,17 @@ export function DocumentViewer({ document: initialDocument, isOwner, isAdmin, ca
           )}
         </div>
       </div>
+      )}
+
+      {activeView === 'discussions' && (
+        <div className="flex h-[calc(100vh-160px)]">
+          <DiscussionsPanel
+            parentType="document"
+            parentId={document.id}
+            organizationId={document.organization_id}
+          />
+        </div>
+      )}
 
       {/* Version history drawer */}
       {showVersions && (

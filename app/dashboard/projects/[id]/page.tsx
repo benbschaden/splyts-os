@@ -77,6 +77,7 @@ export default async function ProjectPage({ params }: PageProps) {
   return (
     <ProjectDetail
       project={project}
+      organizationId={org.id}
       currentUserId={user.id}
       isAdmin={org.role === 'admin'}
       isCreator={project.created_by === user.id}

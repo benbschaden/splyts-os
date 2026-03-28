@@ -3,10 +3,9 @@ export const dynamic = 'force-dynamic'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
-import { getCurrentGoals } from '@/lib/queries/current-goals'
-import { CurrentGoalsForm } from '@/components/company/current-goals-form'
+import { GoalPeriodsView } from '@/components/company/goal-periods-view'
 
-export default async function CurrentGoalsPage() {
+export default async function GoalPeriodsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -15,12 +14,5 @@ export default async function CurrentGoalsPage() {
   const org = await getOrganizationForUser(user.id)
   if (!org) redirect('/setup')
 
-  const goals = await getCurrentGoals(org.id)
-
-  return (
-    <CurrentGoalsForm
-      initial={goals?.sections ?? null}
-      isAdmin={org.role === 'admin'}
-    />
-  )
+  return <GoalPeriodsView isAdmin={org.role === 'admin'} />
 }

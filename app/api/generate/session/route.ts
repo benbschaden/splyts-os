@@ -7,7 +7,7 @@ import { getBusinessPlan } from '@/lib/queries/business-plan'
 import { getPersonas } from '@/lib/queries/personas'
 import { getProductContext } from '@/lib/queries/product-context'
 import { getAiVisibleProductFeatures } from '@/lib/queries/product-features'
-import { getCurrentGoals } from '@/lib/queries/current-goals'
+import { getActiveGoalPeriod } from '@/lib/queries/goal-periods'
 import { getAiVisibleCompetitors } from '@/lib/queries/competitors'
 import { getApprovedSocialProof } from '@/lib/queries/social-proof'
 import { getAiVisibleNarratives } from '@/lib/queries/brand-narratives'
@@ -80,7 +80,7 @@ export async function POST(request: Request): Promise<Response> {
       getPersonas(org.id),
       getProductContext(org.id),
       getAiVisibleProductFeatures(org.id),
-      getCurrentGoals(org.id),
+      getActiveGoalPeriod(org.id),
       getAiVisibleCompetitors(org.id),
       getApprovedSocialProof(org.id),
       getAiVisibleNarratives(org.id),

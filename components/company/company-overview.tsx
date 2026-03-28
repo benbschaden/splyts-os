@@ -6,7 +6,7 @@ const sections = [
     description: 'Core business documents that inform AI context and long-term planning.',
     items: [
       { href: '/dashboard/company/business-plan', name: 'Business plan', desc: '12-section plan with PDF export, roadmap and milestone injection' },
-      { href: '/dashboard/company/goals', name: 'Current goals', desc: 'Quarterly focus, key results, and what to push/defer — injected into AI' },
+      { href: '/dashboard/company/goals', name: 'Goals', desc: 'Quarterly goals with review cycle, carry-forward, and AI injection' },
       { href: '/dashboard/company/milestones', name: 'Milestones', desc: 'Key moments in company history, included in business plan PDF' },
       { href: '/dashboard/company/competitors', name: 'Competitors', desc: 'Structured competitive intelligence — positioning, strengths, battle cards' },
       { href: '/dashboard/company/kpis', name: 'KPIs & Metrics', desc: 'Define metrics, enter weekly values — highlighted KPIs show on home dashboard' },

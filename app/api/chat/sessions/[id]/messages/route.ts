@@ -10,7 +10,7 @@ import { getProductContext } from '@/lib/queries/product-context'
 import { getAiVisibleProductFeatures } from '@/lib/queries/product-features'
 import { getProductRoadmapItems } from '@/lib/queries/product-roadmap'
 import { getCompanyMilestones } from '@/lib/queries/company-milestones'
-import { getCurrentGoals } from '@/lib/queries/current-goals'
+import { getActiveGoalPeriod } from '@/lib/queries/goal-periods'
 import { getSharedDocuments } from '@/lib/queries/documents'
 import { getAiVisibleCompetitors } from '@/lib/queries/competitors'
 import { getApprovedSocialProof } from '@/lib/queries/social-proof'
@@ -162,7 +162,7 @@ export async function POST(
       includeProduct ? getAiVisibleProductFeatures(org.id) : Promise.resolve([]),
       includeProductRoadmap ? getProductRoadmapItems(org.id) : Promise.resolve([]),
       includeCompanyMilestones ? getCompanyMilestones(org.id) : Promise.resolve([]),
-      includeCurrentGoals ? getCurrentGoals(org.id) : Promise.resolve(null),
+      includeCurrentGoals ? getActiveGoalPeriod(org.id) : Promise.resolve(null),
       includeFiledDocs ? getSharedDocuments(org.id) : Promise.resolve([]),
       includeCompetitors ? getAiVisibleCompetitors(org.id) : Promise.resolve([]),
       includeSocialProof ? getApprovedSocialProof(org.id) : Promise.resolve([]),

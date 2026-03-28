@@ -2,7 +2,7 @@ import { BUSINESS_PLAN_SECTIONS, getAiVisibleKeys, type BusinessPlanSections } f
 import { PRODUCT_SECTIONS, type ProductSections } from '@/lib/company/product-sections'
 import type { PersonaRow } from '@/lib/queries/personas'
 import type { ProductFeatureRow } from '@/lib/queries/product-features'
-import type { CurrentGoalsRow } from '@/lib/queries/current-goals'
+import type { GoalPeriodWithGoals } from '@/lib/queries/goal-periods'
 import type { CompetitorRow } from '@/lib/queries/competitors'
 import type { SocialProofRow } from '@/lib/queries/social-proof'
 import type { BrandNarrativeRow } from '@/lib/queries/brand-narratives'
@@ -79,14 +79,15 @@ function buildProductFeaturesBlock(features: ProductFeatureRow[], nameOnly = fal
   }).join('\n')
 }
 
-function buildCurrentGoalsBlock(goals: CurrentGoalsRow): string {
-  const { sections } = goals
+function buildCurrentGoalsBlock(period: GoalPeriodWithGoals): string {
   const parts: string[] = []
-  if (sections.period_label?.trim()) parts.push(`Period: ${sections.period_label.trim()}`)
-  if (sections.focus_areas?.trim()) parts.push(`Focus areas: ${sections.focus_areas.trim()}`)
-  if (sections.key_results?.trim()) parts.push(`Key results: ${sections.key_results.trim()}`)
-  if (sections.what_to_push?.trim()) parts.push(`What to push: ${sections.what_to_push.trim()}`)
-  if (sections.what_to_defer?.trim()) parts.push(`What to defer: ${sections.what_to_defer.trim()}`)
+  parts.push(`Period: ${period.period_label}`)
+  if (period.focus_areas?.trim()) parts.push(`Focus areas: ${period.focus_areas.trim()}`)
+  if (period.goals.length > 0) {
+    parts.push(`Goals:\n${period.goals.map((g) => `  - ${g.title}${g.description ? `: ${g.description}` : ''}`).join('\n')}`)
+  }
+  if (period.what_to_push?.trim()) parts.push(`What to push: ${period.what_to_push.trim()}`)
+  if (period.what_to_defer?.trim()) parts.push(`What to defer: ${period.what_to_defer.trim()}`)
   return parts.join('\n')
 }
 
@@ -227,7 +228,7 @@ export function buildChatSystemPrompt(params: {
   personas: PersonaRow[]
   productSections: ProductSections | null
   productFeatures: ProductFeatureRow[]
-  currentGoals: CurrentGoalsRow | null
+  currentGoals: GoalPeriodWithGoals | null
   filedDocs: { title: string; body: string }[]
   competitors: CompetitorRow[]
   socialProof: SocialProofRow[]
@@ -425,7 +426,7 @@ export function buildGenerationSystemPrompt(params: {
   personas: PersonaRow[]
   productSections: ProductSections | null
   productFeatures: ProductFeatureRow[]
-  currentGoals: CurrentGoalsRow | null
+  currentGoals: GoalPeriodWithGoals | null
   competitors: CompetitorRow[]
   socialProof: SocialProofRow[]
   narratives: BrandNarrativeRow[]

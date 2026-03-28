@@ -1470,28 +1470,97 @@ export type Database = {
         }
         Relationships: []
       }
-      current_goals: {
+      goal_periods: {
         Row: {
           id: string
           organization_id: string
-          sections: Json
-          updated_by: string | null
+          period_label: string
+          period_start: string
+          period_end: string
+          status: string
+          focus_areas: string | null
+          what_to_push: string | null
+          what_to_defer: string | null
+          review_summary: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          created_by: string
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
           organization_id: string
-          sections?: Json
-          updated_by?: string | null
+          period_label: string
+          period_start: string
+          period_end: string
+          status?: string
+          focus_areas?: string | null
+          what_to_push?: string | null
+          what_to_defer?: string | null
+          review_summary?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          created_by: string
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
           organization_id?: string
-          sections?: Json
-          updated_by?: string | null
+          period_label?: string
+          period_start?: string
+          period_end?: string
+          status?: string
+          focus_areas?: string | null
+          what_to_push?: string | null
+          what_to_defer?: string | null
+          review_summary?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      period_goals: {
+        Row: {
+          id: string
+          goal_period_id: string
+          organization_id: string
+          title: string
+          description: string | null
+          sort_order: number
+          outcome: string | null
+          outcome_notes: string | null
+          carried_from_goal_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          goal_period_id: string
+          organization_id: string
+          title: string
+          description?: string | null
+          sort_order?: number
+          outcome?: string | null
+          outcome_notes?: string | null
+          carried_from_goal_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          goal_period_id?: string
+          organization_id?: string
+          title?: string
+          description?: string | null
+          sort_order?: number
+          outcome?: string | null
+          outcome_notes?: string | null
+          carried_from_goal_id?: string | null
           created_at?: string
           updated_at?: string
         }

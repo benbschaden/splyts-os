@@ -8,7 +8,7 @@ import { BUSINESS_PLAN_SECTIONS, type BusinessPlanSections, getAiVisibleKeys } f
 import { getPersonas, type PersonaRow } from '@/lib/queries/personas'
 import { getProductContext } from '@/lib/queries/product-context'
 import { getAiVisibleProductFeatures } from '@/lib/queries/product-features'
-import { getCurrentGoals } from '@/lib/queries/current-goals'
+import { getActiveGoalPeriod } from '@/lib/queries/goal-periods'
 import { getAiVisibleCompetitors } from '@/lib/queries/competitors'
 import { getApprovedSocialProof } from '@/lib/queries/social-proof'
 import { getAiVisibleNarratives } from '@/lib/queries/brand-narratives'
@@ -266,13 +266,13 @@ export async function POST(request: Request) {
   if (!project) return Response.json({ error: 'Project not found' }, { status: 404 })
 
   // Fetch brand context, business plan, personas, and new context in parallel
-  const [brand, businessPlan, personas, productContext, productFeatures, currentGoals, competitors, socialProof, narratives, terminology, topPerformers] = await Promise.all([
+  const [brand, businessPlan, personas, productContext, productFeatures, activeGoalPeriod, competitors, socialProof, narratives, terminology, topPerformers] = await Promise.all([
     getBrandContext(org.id),
     getBusinessPlan(org.id),
     getPersonas(org.id),
     getProductContext(org.id),
     getAiVisibleProductFeatures(org.id),
-    getCurrentGoals(org.id),
+    getActiveGoalPeriod(org.id),
     getAiVisibleCompetitors(org.id),
     getApprovedSocialProof(org.id),
     getAiVisibleNarratives(org.id),
@@ -339,18 +339,17 @@ export async function POST(request: Request) {
         .join('\n')
     : ''
 
-  // Build current goals text
-  const currentGoalsText = currentGoals?.sections
-    ? Object.entries({
-        'Period': currentGoals.sections.period_label,
-        'Focus areas': currentGoals.sections.focus_areas,
-        'Key results': currentGoals.sections.key_results,
-        'What to push': currentGoals.sections.what_to_push,
-        'What to defer': currentGoals.sections.what_to_defer,
-      })
-        .filter(([, v]) => v?.trim())
-        .map(([k, v]) => `${k}: ${v.trim()}`)
-        .join('\n')
+  // Build current goals text from active goal period
+  const currentGoalsText = activeGoalPeriod
+    ? [
+        `Period: ${activeGoalPeriod.period_label}`,
+        activeGoalPeriod.focus_areas?.trim() ? `Focus areas: ${activeGoalPeriod.focus_areas.trim()}` : '',
+        activeGoalPeriod.goals.length > 0
+          ? `Goals:\n${activeGoalPeriod.goals.map((g) => `  - ${g.title}${g.description ? `: ${g.description}` : ''}`).join('\n')}`
+          : '',
+        activeGoalPeriod.what_to_push?.trim() ? `What to push: ${activeGoalPeriod.what_to_push.trim()}` : '',
+        activeGoalPeriod.what_to_defer?.trim() ? `What to defer: ${activeGoalPeriod.what_to_defer.trim()}` : '',
+      ].filter(Boolean).join('\n')
     : ''
 
   // Build competitors text

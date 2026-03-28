@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getUserProfile } from '@/lib/queries/user-profile'
 import { getBrandContext } from '@/lib/queries/brand-context'
-import { getProjectCategories, getProjectsForOrg } from '@/lib/queries/projects'
+import { getProjectCategories, getProjectsForOrg, getToolsForOrg } from '@/lib/queries/projects'
 import { Sidebar } from '@/components/sidebar'
 
 export default async function DashboardLayout({
@@ -26,10 +26,11 @@ export default async function DashboardLayout({
   // New members who haven't completed their profile yet
   if (!profile?.full_name?.trim()) redirect('/welcome')
 
-  const [brandContext, projectCategories, projectsForNav] = await Promise.all([
+  const [brandContext, projectCategories, projectsForNav, tools] = await Promise.all([
     getBrandContext(org.id),
     getProjectCategories(org.id),
     getProjectsForOrg(org.id, user.id),
+    getToolsForOrg(org.id),
   ])
 
   const displayName = profile?.full_name?.trim().split(' ')[0]
@@ -48,7 +49,8 @@ export default async function DashboardLayout({
         mission={brandContext?.mission}
         vision={brandContext?.vision}
         projectCategories={projectCategories}
-        projectCount={projectsForNav.length}
+        projectCount={projectsForNav.filter((p) => p.project_type !== 'tool').length}
+        tools={tools}
       />
       <main className="flex-1 overflow-y-auto">
         {children}

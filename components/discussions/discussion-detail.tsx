@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { ArrowUpRight, CheckCircle2, ChevronUp, FileText, Loader2 } from 'lucide-react'
-import type { DiscussionRow, DiscussionMessageRow, DiscussionResolutionData } from '@/lib/queries/discussions'
+import type { DiscussionRow, DiscussionMessageRow, DiscussionResolutionData, DiscussionParticipantRow } from '@/lib/queries/discussions'
 import { DiscussionMessageStream } from './discussion-message-stream'
 import { ResolveDiscussionDialog } from './resolve-discussion-dialog'
 import { CreateDocFromDiscussionDialog } from './create-doc-from-discussion-dialog'
@@ -23,6 +23,7 @@ export function DiscussionDetail({
   const [discussion, setDiscussion] = useState(initialDiscussion)
   const [messages, setMessages] = useState<DiscussionMessageRow[]>([])
   const [resolution, setResolution] = useState<DiscussionResolutionData | null>(null)
+  const [participants, setParticipants] = useState<DiscussionParticipantRow[]>([])
   const [isLoadingMessages, setIsLoadingMessages] = useState(true)
   const [messageText, setMessageText] = useState('')
   const [isSending, setIsSending] = useState(false)
@@ -42,10 +43,19 @@ export function DiscussionDetail({
 
   async function loadMessages(): Promise<void> {
     setIsLoadingMessages(true)
-    const res = await fetch(`/api/discussions/${discussion.id}/messages`)
-    if (res.ok) {
-      const data = (await res.json()) as { messages: DiscussionMessageRow[] }
+
+    const [messagesRes, participantsRes] = await Promise.all([
+      fetch(`/api/discussions/${discussion.id}/messages`),
+      fetch(`/api/discussions/${discussion.id}/participants`),
+    ])
+
+    if (messagesRes.ok) {
+      const data = (await messagesRes.json()) as { messages: DiscussionMessageRow[] }
       setMessages(data.messages ?? [])
+    }
+    if (participantsRes.ok) {
+      const data = (await participantsRes.json()) as { participants: DiscussionParticipantRow[] }
+      setParticipants(data.participants ?? [])
     }
 
     if (discussion.status === 'resolved') {
@@ -131,6 +141,24 @@ export function DiscussionDetail({
               <> · Resolved {new Date(discussion.resolved_at).toLocaleDateString()}</>
             )}
           </p>
+          {participants.length > 0 && (
+            <div className="mt-1.5 flex items-center gap-1.5">
+              <div className="flex -space-x-1.5">
+                {participants.slice(0, 5).map((p) => (
+                  <div
+                    key={p.user_id}
+                    title={p.user_id}
+                    className="flex h-5 w-5 items-center justify-center rounded-full border border-background bg-foreground/10 text-[9px] font-semibold text-foreground ring-1 ring-border"
+                  >
+                    {p.user_id.slice(0, 2).toUpperCase()}
+                  </div>
+                ))}
+              </div>
+              {participants.length > 5 && (
+                <span className="text-xs text-muted-foreground">+{participants.length - 5} more</span>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="ml-2 flex shrink-0 items-center gap-2">

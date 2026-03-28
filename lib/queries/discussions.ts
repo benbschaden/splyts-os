@@ -69,6 +69,13 @@ export interface DiscussionDocumentLinkRow {
   created_at: string
 }
 
+export interface DiscussionParticipantRow {
+  discussion_id: string
+  user_id: string
+  added_by: string
+  added_at: string
+}
+
 export interface DiscussionResolutionData {
   decisions: DiscussionDecisionRow[]
   learnings: DiscussionLearningRow[]
@@ -311,6 +318,44 @@ export async function getDiscussionResolution(
     learnings: (learningsRes.data ?? []) as DiscussionLearningRow[],
     nextSteps: (nextStepsRes.data ?? []) as DiscussionNextStepRow[],
   }
+}
+
+// -------------------------------------------------------
+// Participants
+// -------------------------------------------------------
+
+export async function addDiscussionParticipants(
+  discussionId: string,
+  userIds: string[],
+  addedBy: string,
+): Promise<void> {
+  if (userIds.length === 0) return
+  const supabase = createServiceClient()
+  await supabase.from('discussion_participants').upsert(
+    userIds.map((userId) => ({
+      discussion_id: discussionId,
+      user_id: userId,
+      added_by: addedBy,
+    })),
+    { onConflict: 'discussion_id,user_id' },
+  )
+}
+
+export async function getDiscussionParticipants(
+  discussionId: string,
+  organizationId: string,
+): Promise<DiscussionParticipantRow[]> {
+  const discussion = await getDiscussionById(discussionId, organizationId)
+  if (!discussion) return []
+
+  const supabase = createServiceClient()
+  const { data, error } = await supabase
+    .from('discussion_participants')
+    .select('discussion_id, user_id, added_by, added_at')
+    .eq('discussion_id', discussionId)
+    .order('added_at')
+  if (error) return []
+  return data as DiscussionParticipantRow[]
 }
 
 // -------------------------------------------------------

@@ -1182,6 +1182,27 @@ export type Database = {
         }
         Relationships: []
       }
+      discussion_participants: {
+        Row: {
+          discussion_id: string
+          user_id: string
+          added_by: string
+          added_at: string
+        }
+        Insert: {
+          discussion_id: string
+          user_id: string
+          added_by: string
+          added_at?: string
+        }
+        Update: {
+          discussion_id?: string
+          user_id?: string
+          added_by?: string
+          added_at?: string
+        }
+        Relationships: []
+      }
       discussions: {
         Row: {
           id: string

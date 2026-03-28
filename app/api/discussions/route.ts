@@ -4,6 +4,7 @@ import { getOrganizationForUser } from '@/lib/queries/organizations'
 import {
   createDiscussion,
   getDiscussionsForParent,
+  addDiscussionParticipants,
 } from '@/lib/queries/discussions'
 import type { DiscussionParentType, DiscussionMode, DiscussionStatus } from '@/lib/queries/discussions'
 
@@ -13,6 +14,7 @@ const CreateSchema = z.object({
   section_key: z.string().min(1).optional(),
   mode: z.enum(['lightweight', 'structured']),
   title: z.string().min(1).max(300),
+  participant_ids: z.array(z.string().uuid()).min(1, 'At least one participant is required'),
 })
 
 const ListSchema = z.object({
@@ -66,7 +68,7 @@ export async function POST(request: Request) {
       return Response.json({ error: parsed.error.errors[0].message }, { status: 400 })
     }
 
-    const { parent_type, parent_id, section_key, mode, title } = parsed.data
+    const { parent_type, parent_id, section_key, mode, title, participant_ids } = parsed.data
     const { discussion, error } = await createDiscussion({
       organizationId: org.id,
       userId: user.id,
@@ -80,6 +82,10 @@ export async function POST(request: Request) {
     if (error || !discussion) {
       return Response.json({ error: 'Failed to create discussion' }, { status: 500 })
     }
+
+    // Creator + all selected participants
+    const allParticipants = Array.from(new Set([user.id, ...participant_ids]))
+    await addDiscussionParticipants(discussion.id, allParticipants, user.id)
 
     return Response.json({ discussion }, { status: 201 })
   } catch {

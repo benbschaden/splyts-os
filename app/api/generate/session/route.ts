@@ -19,6 +19,7 @@ import { getProjectMaterials } from '@/lib/queries/project-materials'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getModelById, DEFAULT_MODEL } from '@/lib/ai/models'
 import { buildGenerationSystemPrompt, type GenerationAuthor } from '@/lib/ai/prompts'
+import { retrieveRelevantDocuments } from '@/lib/retrieval/search'
 
 const schema = z.object({
   projectId: z.string().uuid(),
@@ -69,8 +70,11 @@ export async function POST(request: Request): Promise<Response> {
 
     if (!project) return Response.json({ error: 'Project not found' }, { status: 404 })
 
+    // Use first user message as retrieval query if available, otherwise use projectId description
+    const firstUserMessage = messages.find((m) => m.role === 'user')?.content ?? ''
+
     // Fetch context in parallel
-    const [brand, businessPlan, personas, productContext, productFeatures, currentGoals, competitors, socialProof, narratives, terminology, kpiDefinitions, kpiSnapshot, topPerformers, projectMaterialsRaw, contentTypeResult] = await Promise.all([
+    const [brand, businessPlan, personas, productContext, productFeatures, currentGoals, competitors, socialProof, narratives, terminology, kpiDefinitions, kpiSnapshot, topPerformers, projectMaterialsRaw, contentTypeResult, retrievedContext] = await Promise.all([
       getBrandContext(org.id),
       getBusinessPlan(org.id),
       getPersonas(org.id),
@@ -93,6 +97,15 @@ export async function POST(request: Request): Promise<Response> {
         .eq('is_active', true)
         .is('deleted_at', null)
         .maybeSingle(),
+      firstUserMessage
+        ? retrieveRelevantDocuments({
+            query: firstUserMessage,
+            organizationId: org.id,
+            userId: user.id,
+            projectId,
+            limit: 5,
+          })
+        : Promise.resolve([]),
     ])
 
     if (!brand || !brand.mission || !brand.vision) {
@@ -151,6 +164,7 @@ export async function POST(request: Request): Promise<Response> {
       cadence,
       author,
       projectMaterials,
+      retrievedContext: retrievedContext.length > 0 ? retrievedContext : undefined,
     })
 
     const apiKey = process.env.ANTHROPIC_API_KEY

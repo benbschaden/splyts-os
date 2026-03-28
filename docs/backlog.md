@@ -1,6 +1,91 @@
 # Feature Backlog
 
-Future feature ideas that emerged from the project materials and rich content design session.
+Future features planned but not yet built. Items marked **High** should be prioritised in the next sprint.
+
+---
+
+## Stale Document Detection
+
+**Priority:** Medium
+**Depends on:** Document control, filing system
+
+### Problem
+
+Filed documents become outdated but remain in AI context as if they are current truth. A KPI definition from 6 months ago may no longer be accurate, but the system has no way to know.
+
+### Solution
+
+Surface a "Review needed" indicator on documents that have not been updated in 90+ days.
+
+### How it works
+
+- Documents list shows a visual indicator (e.g. clock icon) on docs where `updated_at` is older than 90 days
+- AI retrieval applies a recency penalty to stale docs (lower effective weight)
+- Admin can dismiss the flag by saving a minor edit (bumps `updated_at`)
+
+### Scope
+
+- Documents list UI: stale indicator
+- Retrieval: recency-weighted scoring (score × decay factor based on age)
+- No schema change required
+
+---
+
+## Document Conflict Detection
+
+**Priority:** Medium
+**Depends on:** Document control, retrieval infrastructure
+
+### Problem
+
+A newly filed document may contradict an existing filed document. Without detection, both become "canonical truth" in AI context, leading to contradictory outputs.
+
+### Solution
+
+When a user clicks "File to company", compare the document against existing filed documents using AI and surface a warning if contradictions are found.
+
+### How it works
+
+- On `POST /api/documents/[id]/file`, retrieve the top 5 semantically similar filed documents
+- Run a brief AI comparison: "Does this document contradict any of the following?"
+- If conflicts detected, return a `warnings` array alongside the filed document
+- UI shows: "This may conflict with: [Document Name]. Review before continuing."
+- User can acknowledge and file anyway, or cancel to revise
+
+### Scope
+
+- `/api/documents/[id]/file` route: add conflict check step
+- New `buildConflictCheckPrompt` in `lib/ai/prompts.ts`
+- `FileDocumentDialog` component (replaces inline button) to display warnings
+
+---
+
+## Trust Scoring
+
+**Priority:** Low
+**Depends on:** Document control, retrieval infrastructure
+
+### Problem
+
+Not all filed documents are equally trustworthy. A strategy document reviewed last week is more reliable than a draft filed 2 years ago. The retrieval system currently treats all filed documents equally.
+
+### Solution
+
+Add a trust score to documents based on multiple signals. Use the score to weight retrieval results beyond the visibility-based weighting.
+
+### Scoring signals
+
+- Visibility level (filed > shared > private)
+- Recency (decays over time)
+- How often the document has been cited in outputs (future tracking)
+- Whether an admin has explicitly reviewed it
+
+### Scope
+
+- `documents` table: add `trust_score FLOAT` column (migration)
+- Score computed on filing and updated on review
+- Retrieval: replace `applyQualityWeight` with trust score-based weighting
+- Documents list: show trust score badge for admins
 
 ---
 

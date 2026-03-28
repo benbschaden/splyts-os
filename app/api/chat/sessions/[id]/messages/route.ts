@@ -21,6 +21,7 @@ import { getLatestSnapshot } from '@/lib/queries/kpi-snapshots'
 import { getProjectMaterials } from '@/lib/queries/project-materials'
 import { buildChatSystemPrompt } from '@/lib/ai/prompts'
 import { DEFAULT_MODEL, getModelById } from '@/lib/ai/models'
+import { retrieveRelevantDocuments } from '@/lib/retrieval/search'
 
 const schema = z.object({
   content: z.string().min(1, 'Message cannot be empty').max(10000),
@@ -152,6 +153,7 @@ export async function POST(
       kpiSnapshot,
       projectMaterials,
       existingMessages,
+      retrievedContext,
     ] = await Promise.all([
       includeBrand ? getBrandContext(org.id) : Promise.resolve(null),
       includeBusinessPlan ? getBusinessPlan(org.id) : Promise.resolve(null),
@@ -170,10 +172,17 @@ export async function POST(
       includeKpis ? getLatestSnapshot(org.id) : Promise.resolve(null),
       shouldLoadMaterials ? getProjectMaterials(session.project_id!, org.id) : Promise.resolve([]),
       getChatMessages(id),
+      retrieveRelevantDocuments({
+        query: content,
+        organizationId: org.id,
+        userId: user.id,
+        projectId: session.project_id ?? undefined,
+        limit: 5,
+      }),
     ])
 
-    // Build filed docs for context
-    const filedDocs = includeFiledDocs
+    // Build filed docs fallback (used only when retrieval returns nothing — e.g. embeddings not yet generated)
+    const filedDocs = (retrievedContext.length === 0 && includeFiledDocs)
       ? sharedDocs
           .filter((d) => d.visibility === 'filed')
           .slice(0, 3)
@@ -228,6 +237,7 @@ export async function POST(
       includeKpis,
       projectMaterials: shouldLoadMaterials ? projectMaterials : undefined,
       includeProjectMaterials: shouldLoadMaterials,
+      retrievedContext: retrievedContext.length > 0 ? retrievedContext : undefined,
     })
 
     const messageHistory: Anthropic.MessageParam[] = [

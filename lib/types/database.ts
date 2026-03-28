@@ -886,6 +886,12 @@ export type Database = {
           doc_type: string
           visibility: 'private' | 'shared' | 'filed'
           source_session_id: string | null
+          version: number
+          locked_by: string | null
+          locked_at: string | null
+          filed_at: string | null
+          filed_by: string | null
+          summary: string | null
           created_at: string
           updated_at: string
           deleted_at: string | null
@@ -899,6 +905,12 @@ export type Database = {
           doc_type?: string
           visibility?: 'private' | 'shared' | 'filed'
           source_session_id?: string | null
+          version?: number
+          locked_by?: string | null
+          locked_at?: string | null
+          filed_at?: string | null
+          filed_by?: string | null
+          summary?: string | null
           created_at?: string
           updated_at?: string
           deleted_at?: string | null
@@ -912,11 +924,119 @@ export type Database = {
           doc_type?: string
           visibility?: 'private' | 'shared' | 'filed'
           source_session_id?: string | null
+          version?: number
+          locked_by?: string | null
+          locked_at?: string | null
+          filed_at?: string | null
+          filed_by?: string | null
+          summary?: string | null
           created_at?: string
           updated_at?: string
           deleted_at?: string | null
         }
         Relationships: []
+      }
+      document_versions: {
+        Row: {
+          id: string
+          document_id: string
+          version: number
+          content: string
+          title: string
+          edited_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          document_id: string
+          version: number
+          content: string
+          title: string
+          edited_by: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          document_id?: string
+          version?: number
+          content?: string
+          title?: string
+          edited_by?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_versions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_embeddings: {
+        Row: {
+          id: string
+          document_id: string
+          content: string
+          embedding: number[] | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          document_id: string
+          content: string
+          embedding?: number[] | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          document_id?: string
+          content?: string
+          embedding?: number[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_embeddings_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: true
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_material_embeddings: {
+        Row: {
+          id: string
+          material_id: string
+          content: string
+          embedding: number[] | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          material_id: string
+          content: string
+          embedding?: number[] | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          material_id?: string
+          content?: string
+          embedding?: number[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_material_embeddings_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: true
+            referencedRelation: "project_materials"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       product_context: {
         Row: {
@@ -1589,7 +1709,36 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      search_documents_by_embedding: {
+        Args: {
+          query_embedding: number[]
+          org_id: string
+          searching_user_id: string
+          result_limit?: number
+        }
+        Returns: {
+          document_id: string
+          similarity: number
+          title: string
+          summary: string
+          visibility: string
+        }[]
+      }
+      search_materials_by_embedding: {
+        Args: {
+          query_embedding: number[]
+          org_id: string
+          project_id_filter?: string | null
+          result_limit?: number
+        }
+        Returns: {
+          material_id: string
+          similarity: number
+          title: string
+          content_preview: string
+          mat_project_id: string
+        }[]
+      }
     }
     Enums: {
       member_role: "admin" | "member"

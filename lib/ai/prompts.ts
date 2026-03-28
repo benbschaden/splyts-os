@@ -9,6 +9,7 @@ import type { BrandNarrativeRow } from '@/lib/queries/brand-narratives'
 import type { TerminologyRow } from '@/lib/queries/terminology'
 import type { KpiDefinitionRow } from '@/lib/queries/kpi-definitions'
 import type { KpiSnapshotRow } from '@/lib/queries/kpi-snapshots'
+import type { RetrievedContext } from '@/lib/retrieval/search'
 
 export type { BusinessPlanSections }
 
@@ -190,6 +191,19 @@ function buildProjectMaterialsBlock(materials: ProjectMaterialForPrompt[]): stri
   return lines.join('\n')
 }
 
+function buildRetrievedContextBlock(items: RetrievedContext[]): string {
+  if (items.length === 0) return ''
+  return items.map((item) => {
+    const typeLabel = item.visibility === 'filed'
+      ? 'Filed document (canonical)'
+      : item.type === 'material'
+        ? 'Project material'
+        : 'Shared document'
+    const title = item.title ? item.title : 'Untitled'
+    return `[${typeLabel}] ${title}\n${item.summary}`
+  }).join('\n\n')
+}
+
 function buildKpiSnapshotBlock(
   definitions: KpiDefinitionRow[],
   snapshot: KpiSnapshotRow | null,
@@ -232,6 +246,7 @@ export function buildChatSystemPrompt(params: {
   includeKpis: boolean
   projectMaterials?: ProjectMaterialForPrompt[]
   includeProjectMaterials?: boolean
+  retrievedContext?: RetrievedContext[]
 }): string {
   const {
     brand, businessPlanSections, personas, productSections, productFeatures,
@@ -239,7 +254,7 @@ export function buildChatSystemPrompt(params: {
     kpiDefinitions, kpiSnapshot,
     includeBrand, includeBusinessPlan, includePersonas, includeProduct,
     includeCurrentGoals, includeFiledDocs, includeCompetitors, includeSocialProof,
-    includeKpis, projectMaterials, includeProjectMaterials,
+    includeKpis, projectMaterials, includeProjectMaterials, retrievedContext,
   } = params
 
   const lines: string[] = []
@@ -350,7 +365,15 @@ export function buildChatSystemPrompt(params: {
     }
   }
 
-  if (includeFiledDocs && filedDocs.length > 0) {
+  if (retrievedContext && retrievedContext.length > 0) {
+    const contextBlock = buildRetrievedContextBlock(retrievedContext)
+    if (contextBlock) {
+      lines.push('[RELEVANT KNOWLEDGE — retrieved based on this conversation]')
+      lines.push('Filed documents are canonical company truth. Use them with high confidence.')
+      lines.push(contextBlock)
+      lines.push('')
+    }
+  } else if (includeFiledDocs && filedDocs.length > 0) {
     lines.push('[FILED DOCUMENTS]')
     filedDocs.slice(0, 3).forEach((doc) => {
       lines.push(`Document: ${doc.title}`)
@@ -416,13 +439,14 @@ export function buildGenerationSystemPrompt(params: {
   cadence: string | null
   author: GenerationAuthor
   projectMaterials?: ProjectMaterialForPrompt[]
+  retrievedContext?: RetrievedContext[]
 }): string {
   const {
     brand, businessPlanSections, personas, productSections, productFeatures,
     currentGoals, competitors, socialProof, narratives, terminology,
     kpiDefinitions, kpiSnapshot, topPerformers,
     contentTypeName, basePrompt, customRules, cadence, author,
-    projectMaterials,
+    projectMaterials, retrievedContext,
   } = params
 
   const lines: string[] = []
@@ -551,6 +575,11 @@ export function buildGenerationSystemPrompt(params: {
   if (projectMaterials && projectMaterials.length > 0) {
     const materialsBlock = buildProjectMaterialsBlock(projectMaterials)
     if (materialsBlock) addSection('RESEARCH MATERIALS', 'Use these as source material and evidence for the content.\n' + materialsBlock)
+  }
+
+  if (retrievedContext && retrievedContext.length > 0) {
+    const contextBlock = buildRetrievedContextBlock(retrievedContext)
+    if (contextBlock) addSection('RELEVANT COMPANY KNOWLEDGE', 'Retrieved from company documents. Filed documents are canonical — use with highest confidence.\n' + contextBlock)
   }
 
   if (basePrompt) {

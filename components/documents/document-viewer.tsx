@@ -1,10 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Download, Share2, Building2, Lock, Trash2, Pencil, Check, X } from 'lucide-react'
+import {
+  ArrowLeft, Download, Share2, Building2, Lock, Trash2, Pencil, Check, X,
+  History, AlertTriangle, Loader2,
+} from 'lucide-react'
 import type { DocumentRow, DocumentVisibility } from '@/lib/queries/documents'
+import { DocumentVersionsDrawer } from './document-versions-drawer'
 
 interface DocumentViewerProps {
   document: DocumentRow
@@ -25,22 +29,74 @@ export function DocumentViewer({ document: initialDocument, isOwner }: DocumentV
   const [isEditingContent, setIsEditingContent] = useState(false)
   const [editContent, setEditContent] = useState(initialDocument.content)
   const [isSaving, setIsSaving] = useState(false)
+  const [isFiling, setIsFiling] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [conflictVersion, setConflictVersion] = useState<number | null>(null)
+  const [lockWarning, setLockWarning] = useState<string | null>(null)
+  const [showVersions, setShowVersions] = useState(false)
 
-  async function patch(updates: Partial<Pick<DocumentRow, 'title' | 'content' | 'visibility'>>) {
+  // Unlock on page unload
+  const unlock = useCallback(async () => {
+    await fetch(`/api/documents/${document.id}/unlock`, { method: 'POST' })
+  }, [document.id])
+
+  useEffect(() => {
+    window.addEventListener('beforeunload', unlock)
+    return () => window.removeEventListener('beforeunload', unlock)
+  }, [unlock])
+
+  async function handleEnterEditContent() {
+    // Attempt soft lock
+    const res = await fetch(`/api/documents/${document.id}/lock`, { method: 'POST' })
+    if (res.status === 423) {
+      const data = await res.json()
+      // Still allow editing but show warning
+      setLockWarning(`Someone else may be editing this document.`)
+      console.info('[document-viewer] Lock unavailable:', data)
+    }
+    setIsEditingContent(true)
+    setEditContent(document.content)
+    setConflictVersion(null)
+    setError(null)
+  }
+
+  async function handleCancelEditContent() {
+    setIsEditingContent(false)
+    setLockWarning(null)
+    setConflictVersion(null)
+    setError(null)
+    setEditContent(document.content)
+    await unlock()
+  }
+
+  async function patch(
+    updates: Partial<Pick<DocumentRow, 'title' | 'content' | 'doc_type' | 'visibility'>>,
+    withVersion?: number,
+  ) {
     setIsSaving(true)
     setError(null)
     try {
+      const body: Record<string, unknown> = { ...updates }
+      if (withVersion !== undefined) body.version = withVersion
+
       const res = await fetch(`/api/documents/${document.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
+
+      if (res.status === 409) {
+        setConflictVersion(data.currentVersion as number)
+        setError('This document was modified by someone else. Reload to see the latest version before saving.')
+        return false
+      }
+
       if (!res.ok) {
         setError(data.error ?? 'Failed to save')
         return false
       }
+
       setDocument(data.document)
       return true
     } catch {
@@ -52,16 +108,41 @@ export function DocumentViewer({ document: initialDocument, isOwner }: DocumentV
   }
 
   async function handleSaveTitle() {
-    const ok = await patch({ title: editTitle.trim() })
+    const ok = await patch({ title: editTitle.trim() }, document.version)
     if (ok) setIsEditingTitle(false)
   }
 
   async function handleSaveContent() {
-    const ok = await patch({ content: editContent })
-    if (ok) setIsEditingContent(false)
+    const ok = await patch({ content: editContent }, document.version)
+    if (ok) {
+      setIsEditingContent(false)
+      setLockWarning(null)
+      setConflictVersion(null)
+      await unlock()
+    }
   }
 
   async function handleVisibilityChange(visibility: DocumentVisibility) {
+    if (visibility === 'filed') {
+      // Use the dedicated /file endpoint which generates summary and records audit trail
+      setIsFiling(true)
+      setError(null)
+      try {
+        const res = await fetch(`/api/documents/${document.id}/file`, { method: 'POST' })
+        const data = await res.json()
+        if (!res.ok) {
+          setError(data.error ?? 'Failed to file document')
+        } else {
+          setDocument(data.document)
+        }
+      } catch {
+        setError('Failed to file document')
+      } finally {
+        setIsFiling(false)
+      }
+      return
+    }
+
     await patch({ visibility })
   }
 
@@ -77,6 +158,13 @@ export function DocumentViewer({ document: initialDocument, isOwner }: DocumentV
     window.location.href = `/api/documents/${document.id}/download`
   }
 
+  function handleVersionRestored(restoredDoc: DocumentRow) {
+    setDocument(restoredDoc)
+    setShowVersions(false)
+    setEditContent(restoredDoc.content)
+    setEditTitle(restoredDoc.title)
+  }
+
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
@@ -89,9 +177,13 @@ export function DocumentViewer({ document: initialDocument, isOwner }: DocumentV
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          <span className="text-xs text-muted-foreground">
-            {VISIBILITY_LABELS[document.visibility]}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">
+              {VISIBILITY_LABELS[document.visibility]}
+            </span>
+            <span className="text-xs text-muted-foreground">·</span>
+            <span className="text-xs text-muted-foreground">v{document.version}</span>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -100,7 +192,7 @@ export function DocumentViewer({ document: initialDocument, isOwner }: DocumentV
               {document.visibility === 'private' && (
                 <button
                   onClick={() => handleVisibilityChange('shared')}
-                  disabled={isSaving}
+                  disabled={isSaving || isFiling}
                   className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
                 >
                   <Share2 className="h-3.5 w-3.5" />
@@ -110,23 +202,34 @@ export function DocumentViewer({ document: initialDocument, isOwner }: DocumentV
               {document.visibility !== 'filed' && (
                 <button
                   onClick={() => handleVisibilityChange('filed')}
-                  disabled={isSaving}
+                  disabled={isSaving || isFiling}
                   className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
                 >
-                  <Building2 className="h-3.5 w-3.5" />
-                  File to company
+                  {isFiling ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Building2 className="h-3.5 w-3.5" />
+                  )}
+                  {isFiling ? 'Filing…' : 'File to company'}
                 </button>
               )}
               {document.visibility === 'shared' && (
                 <button
                   onClick={() => handleVisibilityChange('private')}
-                  disabled={isSaving}
+                  disabled={isSaving || isFiling}
                   className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
                 >
                   <Lock className="h-3.5 w-3.5" />
                   Make private
                 </button>
               )}
+              <button
+                onClick={() => setShowVersions(true)}
+                className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <History className="h-3.5 w-3.5" />
+                History
+              </button>
             </>
           )}
           <button
@@ -198,8 +301,11 @@ export function DocumentViewer({ document: initialDocument, isOwner }: DocumentV
             )}
           </div>
 
-          <p className="mb-6 text-xs text-muted-foreground">
+          <p className="mb-2 text-xs text-muted-foreground">
             {document.doc_type} · Last updated {new Date(document.updated_at).toLocaleDateString()}
+            {document.filed_at && document.visibility === 'filed' && (
+              <> · Filed {new Date(document.filed_at).toLocaleDateString()}</>
+            )}
             {document.source_session_id && (
               <>
                 {' · '}
@@ -212,6 +318,33 @@ export function DocumentViewer({ document: initialDocument, isOwner }: DocumentV
               </>
             )}
           </p>
+
+          {document.summary && document.visibility === 'filed' && (
+            <p className="mb-6 rounded-lg border border-border bg-accent/30 px-4 py-2 text-xs text-muted-foreground italic">
+              {document.summary}
+            </p>
+          )}
+
+          {/* Lock warning */}
+          {lockWarning && (
+            <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 dark:border-amber-900/50 dark:bg-amber-950/30">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+              <p className="text-xs text-amber-700 dark:text-amber-300">{lockWarning}</p>
+            </div>
+          )}
+
+          {/* Conflict warning */}
+          {conflictVersion !== null && (
+            <div className="mb-4 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-2">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+              <div>
+                <p className="text-xs font-medium text-destructive">Version conflict</p>
+                <p className="text-xs text-muted-foreground">
+                  This document was modified (now at v{conflictVersion}). Reload to see the latest version before saving your changes.
+                </p>
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="mb-4 rounded-lg bg-destructive/10 px-4 py-2">
@@ -239,7 +372,7 @@ export function DocumentViewer({ document: initialDocument, isOwner }: DocumentV
                   {isSaving ? 'Saving…' : 'Save'}
                 </button>
                 <button
-                  onClick={() => { setIsEditingContent(false); setEditContent(document.content) }}
+                  onClick={handleCancelEditContent}
                   className="rounded-md border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-accent"
                 >
                   Cancel
@@ -255,7 +388,7 @@ export function DocumentViewer({ document: initialDocument, isOwner }: DocumentV
               </div>
               {isOwner && (
                 <button
-                  onClick={() => setIsEditingContent(true)}
+                  onClick={handleEnterEditContent}
                   className="absolute right-0 top-0 flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent"
                 >
                   <Pencil className="h-3 w-3" />
@@ -266,6 +399,15 @@ export function DocumentViewer({ document: initialDocument, isOwner }: DocumentV
           )}
         </div>
       </div>
+
+      {/* Version history drawer */}
+      {showVersions && (
+        <DocumentVersionsDrawer
+          documentId={document.id}
+          onClose={() => setShowVersions(false)}
+          onRestored={handleVersionRestored}
+        />
+      )}
     </div>
   )
 }

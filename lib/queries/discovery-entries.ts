@@ -1,6 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/service'
 
-export type DiscoveryEntryType = 'interview' | 'review' | 'survey' | 'observation'
+export type DiscoveryEntryType = 'interview' | 'review' | 'survey' | 'observation' | 'email'
 export type DiscoverySentiment = 'positive' | 'neutral' | 'negative' | 'mixed'
 export type DiscoveryUserSegment = 'new' | 'active' | 'power' | 'churned' | 'free' | 'paid'
 export type DiscoveryPlatform = 'app_store' | 'product_hunt' | 'g2' | 'reddit' | 'twitter' | 'other'
@@ -25,12 +25,13 @@ export type DiscoveryEntryRow = {
   star_rating: number | null
   platform: DiscoveryPlatform | null
   source_material_id: string | null
+  study_id: string | null
   created_at: string
   updated_at: string
 }
 
 const SELECT_COLUMNS =
-  'id, organization_id, project_id, created_by, entry_type, source, entry_date, raw_content, sentiment, tags, include_in_ai, user_segment, key_quote_1, key_quote_2, key_quote_3, jtbd, star_rating, platform, source_material_id, created_at, updated_at'
+  'id, organization_id, project_id, created_by, entry_type, source, entry_date, raw_content, sentiment, tags, include_in_ai, user_segment, key_quote_1, key_quote_2, key_quote_3, jtbd, star_rating, platform, source_material_id, study_id, created_at, updated_at'
 
 export async function getDiscoveryEntries(
   projectId: string,
@@ -47,7 +48,7 @@ export async function getDiscoveryEntries(
     .order('created_at', { ascending: false })
 
   if (error) return []
-  return (data ?? []) as DiscoveryEntryRow[]
+  return (data ?? []) as unknown as DiscoveryEntryRow[]
 }
 
 export async function getAiVisibleDiscoveryEntries(
@@ -66,7 +67,7 @@ export async function getAiVisibleDiscoveryEntries(
     .order('created_at', { ascending: false })
 
   if (error) return []
-  return (data ?? []) as DiscoveryEntryRow[]
+  return (data ?? []) as unknown as DiscoveryEntryRow[]
 }
 
 export type CreateDiscoveryEntryParams = {
@@ -88,6 +89,7 @@ export type CreateDiscoveryEntryParams = {
   star_rating: number | null
   platform: DiscoveryPlatform | null
   source_material_id: string | null
+  study_id: string | null
 }
 
 export async function createDiscoveryEntry(
@@ -115,12 +117,13 @@ export async function createDiscoveryEntry(
       star_rating: params.star_rating,
       platform: params.platform,
       source_material_id: params.source_material_id,
+      study_id: params.study_id,
     })
     .select(SELECT_COLUMNS)
     .single()
 
   if (error) return { entry: null, error: 'Failed to create discovery entry' }
-  return { entry: data as DiscoveryEntryRow, error: null }
+  return { entry: data as unknown as DiscoveryEntryRow, error: null }
 }
 
 export type UpdateDiscoveryEntryParams = {
@@ -139,6 +142,7 @@ export type UpdateDiscoveryEntryParams = {
   star_rating?: number | null
   platform?: DiscoveryPlatform | null
   source_material_id?: string | null
+  study_id?: string | null
 }
 
 export async function updateDiscoveryEntry(
@@ -157,7 +161,7 @@ export async function updateDiscoveryEntry(
     .single()
 
   if (error) return { entry: null, error: 'Failed to update discovery entry' }
-  return { entry: data as DiscoveryEntryRow, error: null }
+  return { entry: data as unknown as DiscoveryEntryRow, error: null }
 }
 
 export async function deleteDiscoveryEntry(

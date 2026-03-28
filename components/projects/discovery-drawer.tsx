@@ -17,6 +17,7 @@ interface DiscoveryDrawerProps {
   onSaved: () => void
   editing: DiscoveryEntryRow | null
   projectId: string
+  studyId?: string
   availableTags: string[]
 }
 
@@ -61,6 +62,7 @@ const TYPE_OPTIONS: { value: DiscoveryEntryType; label: string; desc: string }[]
   { value: 'review', label: 'Review', desc: 'Public review from App Store, G2, Reddit, etc.' },
   { value: 'survey', label: 'Survey', desc: 'Survey or NPS response' },
   { value: 'observation', label: 'Observation', desc: 'Synthesised pattern or support theme' },
+  { value: 'email', label: 'Email', desc: 'Direct email or beta feedback' },
 ]
 
 const SEGMENT_OPTIONS: { value: DiscoveryUserSegment; label: string }[] = [
@@ -86,6 +88,7 @@ const RAW_CONTENT_LABELS: Record<DiscoveryEntryType, string> = {
   review: 'Review text',
   survey: 'Response',
   observation: 'What you observed',
+  email: 'Email content',
 }
 
 const SOURCE_PLACEHOLDERS: Record<DiscoveryEntryType, string> = {
@@ -93,6 +96,7 @@ const SOURCE_PLACEHOLDERS: Record<DiscoveryEntryType, string> = {
   review: 'e.g. App Store, G2, Reddit',
   survey: 'e.g. NPS survey, Exit survey',
   observation: 'e.g. Support tickets, Session recordings',
+  email: 'e.g. sender@email.com',
 }
 
 export function DiscoveryDrawer({
@@ -101,6 +105,7 @@ export function DiscoveryDrawer({
   onSaved,
   editing,
   projectId,
+  studyId,
   availableTags,
 }: DiscoveryDrawerProps) {
   const [form, setForm] = useState<FormData>(EMPTY)
@@ -181,6 +186,7 @@ export function DiscoveryDrawer({
       star_rating: form.entry_type === 'review' ? form.star_rating : null,
       platform: form.entry_type === 'review' ? (form.platform || null) : null,
       source_material_id: null,
+      study_id: studyId ?? null,
     }
 
     const url = editing ? `/api/discovery-entries/${editing.id}` : '/api/discovery-entries'
@@ -304,6 +310,8 @@ export function DiscoveryDrawer({
                   ? 'The full review text…'
                   : form.entry_type === 'survey'
                   ? 'The survey response…'
+                  : form.entry_type === 'email'
+                  ? 'Paste the email content here…'
                   : 'Describe the pattern or theme you observed…'
               }
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground resize-none placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring"

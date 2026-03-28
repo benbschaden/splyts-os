@@ -1,0 +1,55 @@
+import { z } from 'zod'
+import { createClient } from '@/lib/supabase/server'
+import { getOrganizationForUser } from '@/lib/queries/organizations'
+import { getCurrentGoals, upsertCurrentGoals } from '@/lib/queries/current-goals'
+import { CURRENT_GOALS_SECTIONS } from '@/lib/company/current-goals-sections'
+
+const patchSchema = z.object({
+  sections: z.record(z.string()),
+})
+
+export async function GET() {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const org = await getOrganizationForUser(user.id)
+    if (!org) return Response.json({ error: 'Not found' }, { status: 404 })
+
+    const goals = await getCurrentGoals(org.id)
+    return Response.json({ data: goals })
+  } catch {
+    return Response.json({ error: 'Internal error' }, { status: 500 })
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const org = await getOrganizationForUser(user.id)
+    if (!org) return Response.json({ error: 'Not found' }, { status: 404 })
+    if (org.role !== 'admin') return Response.json({ error: 'Not found' }, { status: 404 })
+
+    const body = await request.json()
+    const parsed = patchSchema.safeParse(body)
+    if (!parsed.success) return Response.json({ error: 'Invalid input' }, { status: 400 })
+
+    // Only allow known section keys
+    const validKeys = new Set(CURRENT_GOALS_SECTIONS.map((s) => s.key))
+    const filteredSections: Record<string, string> = {}
+    for (const [k, v] of Object.entries(parsed.data.sections)) {
+      if (validKeys.has(k)) filteredSections[k] = v
+    }
+
+    const { data, error } = await upsertCurrentGoals(org.id, filteredSections, user.id)
+    if (error || !data) return Response.json({ error }, { status: 500 })
+
+    return Response.json({ data })
+  } catch {
+    return Response.json({ error: 'Internal error' }, { status: 500 })
+  }
+}

@@ -16,12 +16,13 @@ import {
 import { cn } from '@/lib/utils'
 import { OutputsList } from '@/components/projects/outputs-list'
 import { ProjectMaterials } from '@/components/projects/project-materials'
-import { DiscoveryFeed } from '@/components/projects/discovery-feed'
+import { DiscoveryHub } from '@/components/projects/discovery-hub'
 import { SharingSettings } from '@/components/projects/sharing-settings'
 import { DiscussionsPanel } from '@/components/discussions/discussions-panel'
 import { ContentStudioDetail } from '@/components/content-studio/content-studio-detail'
 import { Globe, Users, Lock, UserCheck } from 'lucide-react'
 import type { DiscoveryEntryRow } from '@/lib/queries/discovery-entries'
+import type { DiscoveryStudyRow } from '@/lib/queries/discovery-studies'
 import type { ProjectVisibility } from '@/lib/queries/projects'
 import type { ContentIdeaRow } from '@/lib/queries/content-ideas'
 import type { PublishedOutput } from '@/lib/queries/outputs'
@@ -123,6 +124,7 @@ interface ProjectDetailProps {
   hasBrandContext: boolean
   materials: Material[]
   discoveryEntries: DiscoveryEntryRow[]
+  discoveryStudies: DiscoveryStudyRow[]
   orgTeams: Array<{ id: string; name: string }>
   orgMembers: Array<{ user_id: string; full_name: string | null }>
   projectTeams: Array<{ id: string; name: string }>
@@ -144,6 +146,7 @@ export function ProjectDetail({
   hasBrandContext,
   materials,
   discoveryEntries,
+  discoveryStudies,
   orgTeams,
   orgMembers,
   projectTeams,
@@ -503,8 +506,9 @@ export function ProjectDetail({
               )}
 
               {activeTab === 'discovery' && (
-                <DiscoveryFeed
+                <DiscoveryHub
                   projectId={project.id}
+                  initialStudies={discoveryStudies}
                   initialEntries={discoveryEntries}
                 />
               )}

@@ -11,6 +11,7 @@ import { getAuthorProfiles } from '@/lib/queries/author-profiles'
 import { getBrandContext } from '@/lib/queries/brand-context'
 import { getProjectMaterials } from '@/lib/queries/project-materials'
 import { getDiscoveryEntries } from '@/lib/queries/discovery-entries'
+import { getDiscoveryStudies } from '@/lib/queries/discovery-studies'
 import { getTeamsForOrg, getOrgMembersWithProfiles } from '@/lib/queries/teams'
 import { getContentIdeasForProject } from '@/lib/queries/content-ideas'
 import { getPublishedOutputsForOrg } from '@/lib/queries/outputs'
@@ -43,6 +44,7 @@ export default async function ProjectPage({ params }: PageProps) {
     orgMembers,
     contentIdeas,
     publishedOutputs,
+    discoveryStudies,
   ] = await Promise.all([
     getProjectById(id, org.id, user.id),
     getOutputsForProject(id, org.id),
@@ -55,6 +57,7 @@ export default async function ProjectPage({ params }: PageProps) {
     getOrgMembersWithProfiles(org.id),
     getContentIdeasForProject(id, org.id),
     getPublishedOutputsForOrg(org.id),
+    getDiscoveryStudies(id, org.id),
   ])
 
   if (!project) notFound()
@@ -94,6 +97,7 @@ export default async function ProjectPage({ params }: PageProps) {
       hasBrandContext={!!(brandContext?.mission && brandContext?.company_name)}
       materials={materials}
       discoveryEntries={discoveryEntries}
+      discoveryStudies={discoveryStudies}
       orgTeams={orgTeams.map((t) => ({ id: t.id, name: t.name }))}
       orgMembers={orgMembers.map((m) => ({ user_id: m.user_id, full_name: m.full_name }))}
       projectTeams={projectTeams}

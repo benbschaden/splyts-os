@@ -18,6 +18,7 @@ const TYPE_LABELS: Record<DiscoveryEntryType, string> = {
   review: 'Review',
   survey: 'Survey',
   observation: 'Observation',
+  email: 'Email',
 }
 
 const TYPE_COLORS: Record<DiscoveryEntryType, string> = {
@@ -25,6 +26,7 @@ const TYPE_COLORS: Record<DiscoveryEntryType, string> = {
   review: 'bg-amber-50 text-amber-700 border-amber-200',
   survey: 'bg-green-50 text-green-700 border-green-200',
   observation: 'bg-purple-50 text-purple-700 border-purple-200',
+  email: 'bg-rose-50 text-rose-700 border-rose-200',
 }
 
 const SENTIMENT_COLORS: Record<DiscoverySentiment, string> = {
@@ -51,9 +53,16 @@ function truncate(text: string, max: number): string {
 interface DiscoveryFeedProps {
   projectId: string
   initialEntries: DiscoveryEntryRow[]
+  studyId?: string
+  onEntriesChanged?: () => void
 }
 
-export function DiscoveryFeed({ projectId, initialEntries }: DiscoveryFeedProps) {
+export function DiscoveryFeed({
+  projectId,
+  initialEntries,
+  studyId,
+  onEntriesChanged,
+}: DiscoveryFeedProps) {
   const router = useRouter()
   const [entries, setEntries] = useState<DiscoveryEntryRow[]>(initialEntries)
   const [typeFilter, setTypeFilter] = useState<DiscoveryEntryType | ''>('')
@@ -69,7 +78,8 @@ export function DiscoveryFeed({ projectId, initialEntries }: DiscoveryFeedProps)
 
   const refresh = useCallback(() => {
     router.refresh()
-  }, [router])
+    onEntriesChanged?.()
+  }, [router, onEntriesChanged])
 
   const filtered = entries.filter((e) => {
     if (typeFilter && e.entry_type !== typeFilter) return false
@@ -167,9 +177,11 @@ export function DiscoveryFeed({ projectId, initialEntries }: DiscoveryFeedProps)
         {/* Empty state */}
         {entries.length === 0 && (
           <div className="rounded-lg border border-dashed border-border py-12 text-center">
-            <p className="text-sm font-medium text-foreground mb-1">No discovery entries yet</p>
+            <p className="text-sm font-medium text-foreground mb-1">No entries yet</p>
             <p className="text-xs text-muted-foreground mb-4">
-              Capture interviews, reviews, surveys, and observations here.
+              {studyId
+                ? 'Log interviews, surveys, reviews, or email feedback for this study.'
+                : 'Capture interviews, reviews, surveys, and observations here.'}
             </p>
             <button
               type="button"
@@ -311,6 +323,7 @@ export function DiscoveryFeed({ projectId, initialEntries }: DiscoveryFeedProps)
         onSaved={refresh}
         editing={editing}
         projectId={projectId}
+        studyId={studyId}
         availableTags={DISCOVERY_TAGS}
       />
     </>

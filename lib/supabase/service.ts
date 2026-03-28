@@ -9,3 +9,13 @@ export function createServiceClient() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
 }
+
+// Untyped service client for tables not yet present in generated Database types
+// (i.e. a migration has been written but types haven't been regenerated yet).
+// Switch callers to createServiceClient once types are regenerated.
+export function createUntypedServiceClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  )
+}

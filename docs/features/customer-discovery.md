@@ -2,6 +2,67 @@
 
 Feature: Customer Discovery
 
+  # ---- Studies ----
+
+  Scenario: Admin creates a new research study
+    Given I am an admin on the Customer Discovery project
+    When I open the Discovery tab and click "New study"
+    And I enter a study name, research goal, and method
+    And I click "Create study"
+    Then the study appears in the Studies list
+    And I am taken into the study detail view
+
+  Scenario: Admin writes an interview script for a study
+    Given I have an open study
+    When I click the "Script" tab
+    And I write my interview guide in the text area
+    And I click "Save script"
+    Then the script is saved and shown next time I open the study
+
+  Scenario: Admin adds entries to a study
+    Given I am inside a study's "Entries" tab
+    When I click "Add entry" and fill in the entry form
+    And I click "Create entry"
+    Then the entry appears in the study's entry list
+    And the entry count on the study card updates
+
+  Scenario: Admin writes up analysis after completing a study
+    Given I have a study with entries
+    When I click the "Analysis" tab
+    And I write a synthesis of key findings
+    And I click "Save analysis"
+    Then the analysis is saved and visible next time I open the study
+
+  Scenario: Admin marks a study as complete
+    Given I am viewing a study
+    When I change the status dropdown to "Complete"
+    Then the study shows a "Complete" badge in the studies list
+
+  Scenario: Admin edits a study's name and goal
+    Given I am viewing a study
+    When I click the edit icon and update the name and goal
+    And I click "Save changes"
+    Then the updated name and goal are shown in the study header
+
+  Scenario: Admin deletes a study
+    Given I am viewing the studies list
+    When I click the delete icon on a study and confirm
+    Then the study is removed from the list
+
+  Scenario: Team member sees all entries across studies
+    Given there are entries in multiple studies
+    When I click the "All Entries" sub-tab
+    Then all entries for the project are shown regardless of which study they belong to
+
+  Scenario: Admin adds an email feedback entry
+    Given I am inside a study
+    When I click "Add entry" and select type "Email feedback"
+    And I fill in the source email address and paste the email content
+    And I click "Create entry"
+    Then the email feedback entry appears in the study's entry list
+
+  # ---- Entries (existing) ----
+
   Scenario: Admin adds an interview entry to a research project
     Given I am an admin on a project
     When I open the Discovery tab

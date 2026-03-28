@@ -5,7 +5,7 @@ import { createDiscoveryEntry } from '@/lib/queries/discovery-entries'
 
 const createSchema = z.object({
   project_id: z.string().uuid(),
-  entry_type: z.enum(['interview', 'review', 'survey', 'observation']),
+  entry_type: z.enum(['interview', 'review', 'survey', 'observation', 'email']),
   source: z.string().max(500).nullable().optional(),
   entry_date: z.string().nullable().optional(),
   raw_content: z.string().min(1, 'Content is required').max(100000),
@@ -20,6 +20,7 @@ const createSchema = z.object({
   star_rating: z.number().int().min(1).max(5).nullable().optional(),
   platform: z.enum(['app_store', 'product_hunt', 'g2', 'reddit', 'twitter', 'other']).nullable().optional(),
   source_material_id: z.string().uuid().nullable().optional(),
+  study_id: z.string().uuid().nullable().optional(),
 })
 
 export async function POST(request: Request) {
@@ -57,6 +58,7 @@ export async function POST(request: Request) {
       star_rating: d.star_rating ?? null,
       platform: d.platform ?? null,
       source_material_id: d.source_material_id ?? null,
+      study_id: d.study_id ?? null,
     })
 
     if (error || !entry) return Response.json({ error: 'Failed to create entry' }, { status: 500 })

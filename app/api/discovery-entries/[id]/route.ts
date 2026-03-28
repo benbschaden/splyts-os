@@ -4,7 +4,7 @@ import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { updateDiscoveryEntry, deleteDiscoveryEntry } from '@/lib/queries/discovery-entries'
 
 const patchSchema = z.object({
-  entry_type: z.enum(['interview', 'review', 'survey', 'observation']).optional(),
+  entry_type: z.enum(['interview', 'review', 'survey', 'observation', 'email']).optional(),
   source: z.string().max(500).nullable().optional(),
   entry_date: z.string().nullable().optional(),
   raw_content: z.string().min(1).max(100000).optional(),
@@ -19,6 +19,7 @@ const patchSchema = z.object({
   star_rating: z.number().int().min(1).max(5).nullable().optional(),
   platform: z.enum(['app_store', 'product_hunt', 'g2', 'reddit', 'twitter', 'other']).nullable().optional(),
   source_material_id: z.string().uuid().nullable().optional(),
+  study_id: z.string().uuid().nullable().optional(),
 })
 
 export async function PATCH(

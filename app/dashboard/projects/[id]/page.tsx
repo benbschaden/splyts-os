@@ -10,6 +10,7 @@ import { getActiveContentTypes } from '@/lib/queries/content-types'
 import { getAuthorProfiles } from '@/lib/queries/author-profiles'
 import { getBrandContext } from '@/lib/queries/brand-context'
 import { getProjectMaterials } from '@/lib/queries/project-materials'
+import { getDiscoveryEntries } from '@/lib/queries/discovery-entries'
 import { ProjectDetail } from '@/components/projects/project-detail'
 
 interface PageProps {
@@ -27,13 +28,14 @@ export default async function ProjectPage({ params }: PageProps) {
   const org = await getOrganizationForUser(user.id)
   if (!org) redirect('/setup')
 
-  const [project, outputs, contentTypes, authors, brandContext, materials] = await Promise.all([
+  const [project, outputs, contentTypes, authors, brandContext, materials, discoveryEntries] = await Promise.all([
     getProjectById(id, org.id),
     getOutputsForProject(id, org.id),
     getActiveContentTypes(org.id),
     getAuthorProfiles(org.id),
     getBrandContext(org.id),
     getProjectMaterials(id, org.id),
+    getDiscoveryEntries(id, org.id),
   ])
 
   if (!project) notFound()
@@ -64,6 +66,7 @@ export default async function ProjectPage({ params }: PageProps) {
       authors={authors.map((a) => ({ id: a.id, name: a.name }))}
       hasBrandContext={!!(brandContext?.mission && brandContext?.company_name)}
       materials={materials}
+      discoveryEntries={discoveryEntries}
     />
   )
 }

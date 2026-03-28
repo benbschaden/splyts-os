@@ -1704,6 +1704,128 @@ export type Database = {
         }
         Relationships: []
       }
+      discovery_entries: {
+        Row: {
+          id: string
+          organization_id: string
+          project_id: string
+          created_by: string
+          entry_type: string
+          source: string | null
+          entry_date: string | null
+          raw_content: string
+          sentiment: string | null
+          tags: string[]
+          include_in_ai: boolean
+          user_segment: string | null
+          key_quote_1: string | null
+          key_quote_2: string | null
+          key_quote_3: string | null
+          jtbd: string | null
+          star_rating: number | null
+          platform: string | null
+          source_material_id: string | null
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          project_id: string
+          created_by: string
+          entry_type: string
+          source?: string | null
+          entry_date?: string | null
+          raw_content: string
+          sentiment?: string | null
+          tags?: string[]
+          include_in_ai?: boolean
+          user_segment?: string | null
+          key_quote_1?: string | null
+          key_quote_2?: string | null
+          key_quote_3?: string | null
+          jtbd?: string | null
+          star_rating?: number | null
+          platform?: string | null
+          source_material_id?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          project_id?: string
+          created_by?: string
+          entry_type?: string
+          source?: string | null
+          entry_date?: string | null
+          raw_content?: string
+          sentiment?: string | null
+          tags?: string[]
+          include_in_ai?: boolean
+          user_segment?: string | null
+          key_quote_1?: string | null
+          key_quote_2?: string | null
+          key_quote_3?: string | null
+          jtbd?: string | null
+          star_rating?: number | null
+          platform?: string | null
+          source_material_id?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discovery_entries_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discovery_entries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      discovery_entry_embeddings: {
+        Row: {
+          id: string
+          entry_id: string
+          content: string
+          embedding: number[] | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          entry_id: string
+          content: string
+          embedding?: number[] | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          entry_id?: string
+          content?: string
+          embedding?: number[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discovery_entry_embeddings_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "discovery_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

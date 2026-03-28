@@ -12,10 +12,13 @@ import {
   MessageCircle,
   Archive,
   Lock,
+  Search,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { OutputsList } from '@/components/projects/outputs-list'
 import { ProjectMaterials } from '@/components/projects/project-materials'
+import { DiscoveryFeed } from '@/components/projects/discovery-feed'
+import type { DiscoveryEntryRow } from '@/lib/queries/discovery-entries'
 
 interface Project {
   id: string
@@ -80,7 +83,7 @@ interface Material {
   updated_at: string
 }
 
-type Tab = 'content' | 'materials' | 'chat'
+type Tab = 'content' | 'discovery' | 'materials' | 'chat'
 
 interface ProjectDetailProps {
   project: Project
@@ -91,10 +94,12 @@ interface ProjectDetailProps {
   contentTypes: ContentType[]
   hasBrandContext: boolean
   materials: Material[]
+  discoveryEntries: DiscoveryEntryRow[]
 }
 
 const TABS: { id: Tab; label: string; icon: typeof FileText }[] = [
   { id: 'content', label: 'Content', icon: FileText },
+  { id: 'discovery', label: 'Discovery', icon: Search },
   { id: 'materials', label: 'Materials', icon: Paperclip },
   { id: 'chat', label: 'Chat', icon: MessageCircle },
 ]
@@ -108,6 +113,7 @@ export function ProjectDetail({
   contentTypes,
   hasBrandContext,
   materials,
+  discoveryEntries,
 }: ProjectDetailProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<Tab>('content')
@@ -414,6 +420,13 @@ export function ProjectDetail({
                   authors={authors}
                   contentTypes={contentTypes}
                   hasBrandContext={hasBrandContext}
+                />
+              )}
+
+              {activeTab === 'discovery' && (
+                <DiscoveryFeed
+                  projectId={project.id}
+                  initialEntries={discoveryEntries}
                 />
               )}
 

@@ -157,7 +157,7 @@ export function ChatSessionsList({ sessions: initialSessions }: ChatSessionsList
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-6 py-4">
         <div>
-          <h1 className="text-lg font-semibold text-foreground">Chat</h1>
+          <h1 className="text-lg font-semibold text-foreground">Assistant</h1>
           <p className="text-sm text-muted-foreground">
             Think through ideas with AI using your company context
           </p>
@@ -167,11 +167,11 @@ export function ChatSessionsList({ sessions: initialSessions }: ChatSessionsList
           className="flex items-center gap-2 rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-80"
         >
           <Plus className="h-4 w-4" />
-          New Chat
+          New conversation
         </button>
       </div>
 
-      {/* New chat setup panel */}
+      {/* New conversation setup panel */}
       {showNewChat && (
         <div className="border-b border-border bg-muted/30 px-6 py-5 space-y-5">
           {/* Model selector */}
@@ -311,7 +311,7 @@ export function ChatSessionsList({ sessions: initialSessions }: ChatSessionsList
             </button>
             {contextConfig.browser && (
               <p className="mt-1.5 text-xs text-muted-foreground">
-                AI can search the web for up-to-date information during this chat.
+                AI can search the web for up-to-date information during this conversation.
               </p>
             )}
           </div>
@@ -322,7 +322,7 @@ export function ChatSessionsList({ sessions: initialSessions }: ChatSessionsList
               disabled={isCreating}
               className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-80 disabled:opacity-50"
             >
-              {isCreating ? 'Starting…' : 'Start Chat'}
+              {isCreating ? 'Starting…' : 'Start'}
             </button>
             <button
               onClick={() => setShowNewChat(false)}
@@ -339,9 +339,9 @@ export function ChatSessionsList({ sessions: initialSessions }: ChatSessionsList
         {sessions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <MessageSquare className="mb-4 h-10 w-10 text-muted-foreground/40" />
-            <p className="text-sm font-medium text-muted-foreground">No chats yet</p>
+            <p className="text-sm font-medium text-muted-foreground">No conversations yet</p>
             <p className="mt-1 text-xs text-muted-foreground/60">
-              Start a chat to think through ideas with your company context
+              Start a conversation to think through ideas with your company context
             </p>
           </div>
         ) : (
@@ -369,7 +369,7 @@ export function ChatSessionsList({ sessions: initialSessions }: ChatSessionsList
                   <button
                     onClick={(e) => handleDelete(session.id, e)}
                     disabled={deletingId === session.id}
-                    aria-label="Delete chat"
+                    aria-label="Delete conversation"
                     className="ml-2 shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive disabled:opacity-50"
                   >
                     <Trash2 className="h-3.5 w-3.5" />

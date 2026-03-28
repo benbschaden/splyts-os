@@ -22,13 +22,13 @@ export function ProjectChat({ projectId, organizationId, materialCount }: Projec
     try {
       const res = await fetch(`/api/chat/sessions?project_id=${projectId}`)
       if (!res.ok) {
-        setError('Failed to load chat sessions')
+        setError('Failed to load assistant conversations')
         return
       }
       const data = await res.json()
       setSessions(data.sessions ?? [])
     } catch {
-      setError('Failed to load chat sessions')
+      setError('Failed to load assistant conversations')
     } finally {
       setLoading(false)
     }
@@ -67,7 +67,7 @@ export function ProjectChat({ projectId, organizationId, materialCount }: Projec
       })
 
       if (!res.ok) {
-        setError('Failed to create chat session')
+        setError('Failed to start conversation')
         return
       }
 
@@ -76,7 +76,7 @@ export function ProjectChat({ projectId, organizationId, materialCount }: Projec
         router.push(`/dashboard/chat/${data.session.id}`)
       }
     } catch {
-      setError('Failed to create chat session')
+      setError('Failed to start conversation')
     } finally {
       setCreating(false)
     }
@@ -106,7 +106,7 @@ export function ProjectChat({ projectId, organizationId, materialCount }: Projec
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">Chat</h3>
+        <h3 className="text-sm font-semibold text-foreground">Assistant</h3>
         <button
           onClick={handleNewChat}
           disabled={creating}
@@ -117,13 +117,13 @@ export function ProjectChat({ projectId, organizationId, materialCount }: Projec
           ) : (
             <Plus className="h-3 w-3" />
           )}
-          New Chat
+          New conversation
         </button>
       </div>
 
       {materialCount > 0 && (
         <p className="text-xs text-muted-foreground">
-          Chats have access to {materialCount} project material{materialCount !== 1 ? 's' : ''}
+          The assistant can use {materialCount} project material{materialCount !== 1 ? 's' : ''}
         </p>
       )}
 
@@ -137,7 +137,7 @@ export function ProjectChat({ projectId, organizationId, materialCount }: Projec
         </div>
       ) : sessions.length === 0 ? (
         <p className="py-4 text-center text-xs text-muted-foreground">
-          No chats yet. Start one to discuss this project with AI.
+          No conversations yet. Start one to discuss this project with the assistant.
         </p>
       ) : (
         <ul className="space-y-1">
@@ -150,7 +150,7 @@ export function ProjectChat({ projectId, organizationId, materialCount }: Projec
                 <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm text-foreground">
-                    {session.title || 'New chat'}
+                    {session.title || 'New conversation'}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {formatDate(session.updated_at)}

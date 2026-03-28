@@ -12,6 +12,8 @@ import { getBrandContext } from '@/lib/queries/brand-context'
 import { getProjectMaterials } from '@/lib/queries/project-materials'
 import { getDiscoveryEntries } from '@/lib/queries/discovery-entries'
 import { getTeamsForOrg, getOrgMembersWithProfiles } from '@/lib/queries/teams'
+import { getContentIdeasForProject } from '@/lib/queries/content-ideas'
+import { getPublishedOutputsForOrg } from '@/lib/queries/outputs'
 import { ProjectDetail } from '@/components/projects/project-detail'
 
 interface PageProps {
@@ -39,6 +41,8 @@ export default async function ProjectPage({ params }: PageProps) {
     discoveryEntries,
     orgTeams,
     orgMembers,
+    contentIdeas,
+    publishedOutputs,
   ] = await Promise.all([
     getProjectById(id, org.id, user.id),
     getOutputsForProject(id, org.id),
@@ -49,6 +53,8 @@ export default async function ProjectPage({ params }: PageProps) {
     getDiscoveryEntries(id, org.id),
     getTeamsForOrg(org.id),
     getOrgMembersWithProfiles(org.id),
+    getContentIdeasForProject(id, org.id),
+    getPublishedOutputsForOrg(org.id),
   ])
 
   if (!project) notFound()
@@ -92,6 +98,8 @@ export default async function ProjectPage({ params }: PageProps) {
       orgMembers={orgMembers.map((m) => ({ user_id: m.user_id, full_name: m.full_name }))}
       projectTeams={projectTeams}
       projectMembers={projectMembers.map((m) => ({ user_id: m.user_id, full_name: m.full_name }))}
+      contentIdeas={contentIdeas}
+      publishedOutputs={publishedOutputs}
     />
   )
 }

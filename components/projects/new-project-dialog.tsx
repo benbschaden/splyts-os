@@ -139,6 +139,10 @@ export function NewProjectDialog({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
+    if (!category.trim()) {
+      setError('Category is required.')
+      return
+    }
     if (visibility === 'team' && selectedTeamIds.length === 0) {
       setError('Select at least one team.')
       return
@@ -158,7 +162,7 @@ export function NewProjectDialog({
         body: JSON.stringify({
           name,
           description: description || null,
-          category: category || null,
+          category: category.trim(),
           visibility,
           tags: tagsInput
             .split(',')
@@ -250,7 +254,6 @@ export function NewProjectDialog({
           <div className="space-y-1.5">
             <label htmlFor="project-category" className="text-sm font-medium text-foreground">
               Category
-              <span className="ml-1 text-muted-foreground font-normal">(optional)</span>
             </label>
             <input
               id="project-category"
@@ -502,7 +505,7 @@ export function NewProjectDialog({
             </button>
             <button
               type="submit"
-              disabled={loading || !name.trim() || !estimatedEndDate}
+              disabled={loading || !name.trim() || !category.trim() || !estimatedEndDate}
               className={cn(
                 'rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground',
                 'hover:bg-primary/90 transition-colors',

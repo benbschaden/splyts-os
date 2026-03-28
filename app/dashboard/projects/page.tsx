@@ -27,16 +27,12 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
     getUserProfile(user.id),
   ])
 
-  const projects = category
-    ? allProjects.filter((p) => p.category === category)
-    : allProjects
-
   const fullName = profile?.full_name?.trim() || user.email?.split('@')[0] || ''
   const userName = fullName.split(' ')[0]
 
   return (
     <ProjectsList
-      projects={projects}
+      projects={allProjects}
       userName={userName}
       activeCategory={category ?? null}
       currentUserId={user.id}

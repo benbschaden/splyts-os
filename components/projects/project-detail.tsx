@@ -19,9 +19,12 @@ import { ProjectMaterials } from '@/components/projects/project-materials'
 import { DiscoveryFeed } from '@/components/projects/discovery-feed'
 import { SharingSettings } from '@/components/projects/sharing-settings'
 import { DiscussionsPanel } from '@/components/discussions/discussions-panel'
+import { ContentStudioDetail } from '@/components/content-studio/content-studio-detail'
 import { Globe, Users, Lock, UserCheck } from 'lucide-react'
 import type { DiscoveryEntryRow } from '@/lib/queries/discovery-entries'
 import type { ProjectVisibility } from '@/lib/queries/projects'
+import type { ContentIdeaRow } from '@/lib/queries/content-ideas'
+import type { PublishedOutput } from '@/lib/queries/outputs'
 
 function VisibilityBadge({ visibility }: { visibility: ProjectVisibility }) {
   const map: Record<ProjectVisibility, { label: string; Icon: typeof Globe }> = {
@@ -43,10 +46,13 @@ interface Project {
   id: string
   name: string
   description: string | null
+  category?: string | null
+  tool_key?: string | null
   created_by: string
   status?: string | null
   visibility?: string | null
   tags?: string[] | null
+  project_type?: string | null
 }
 
 interface Output {
@@ -121,14 +127,9 @@ interface ProjectDetailProps {
   orgMembers: Array<{ user_id: string; full_name: string | null }>
   projectTeams: Array<{ id: string; name: string }>
   projectMembers: Array<{ user_id: string; full_name: string | null }>
+  contentIdeas: ContentIdeaRow[]
+  publishedOutputs: PublishedOutput[]
 }
-
-const TABS: { id: Tab; label: string; icon: typeof FileText }[] = [
-  { id: 'content', label: 'Content', icon: FileText },
-  { id: 'discovery', label: 'Discovery', icon: Search },
-  { id: 'materials', label: 'Materials', icon: Paperclip },
-  { id: 'discussions', label: 'Discussions', icon: MessageCircle },
-]
 
 export function ProjectDetail({
   project,
@@ -147,7 +148,26 @@ export function ProjectDetail({
   orgMembers,
   projectTeams,
   projectMembers,
+  contentIdeas,
+  publishedOutputs,
 }: ProjectDetailProps) {
+  if (project.tool_key === 'content_studio') {
+    return (
+      <ContentStudioDetail
+        project={project}
+        organizationId={organizationId}
+        currentUserId={currentUserId}
+        isAdmin={isAdmin}
+        contentIdeas={contentIdeas}
+        publishedOutputs={publishedOutputs}
+        outputs={outputs}
+        outputAttachmentsByOutputId={outputAttachmentsByOutputId}
+        contentTypes={contentTypes}
+        authors={authors}
+        hasBrandContext={hasBrandContext}
+      />
+    )
+  }
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<Tab>('content')
   const [editing, setEditing] = useState(false)
@@ -170,6 +190,15 @@ export function ProjectDetail({
 
   const isArchived = projectStatus === 'archived'
   const canEditSharing = isCreator || isAdmin
+
+  const tabs: { id: Tab; label: string; icon: typeof FileText }[] = [
+    { id: 'content', label: 'Content', icon: FileText },
+    ...(project.project_type === 'tool'
+      ? [{ id: 'discovery' as Tab, label: 'Discovery', icon: Search }]
+      : []),
+    { id: 'materials', label: 'Materials', icon: Paperclip },
+    { id: 'discussions', label: 'Discussions', icon: MessageCircle },
+  ]
 
   useEffect(() => {
     const s = project.status === 'archived' ? 'archived' : 'active'
@@ -436,7 +465,7 @@ export function ProjectDetail({
 
             {/* Tab bar */}
             <nav className="flex gap-0 border-b border-border px-6 mt-2" aria-label="Project tabs">
-              {TABS.map((tab) => {
+              {tabs.map((tab) => {
                 const Icon = tab.icon
                 const isActive = activeTab === tab.id
                 return (
@@ -469,6 +498,7 @@ export function ProjectDetail({
                   authors={authors}
                   contentTypes={contentTypes}
                   hasBrandContext={hasBrandContext}
+                  showPublish={project.category === 'Marketing'}
                 />
               )}
 

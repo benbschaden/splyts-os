@@ -5,7 +5,7 @@ import { NorthStarTrigger } from '@/components/company/north-star-trigger'
 import { ProjectsNav } from '@/components/projects/projects-nav'
 
 const otherNavItems = [
-  { name: 'Chat', href: '/dashboard/chat', icon: MessageSquare },
+  { name: 'Assistant', href: '/dashboard/chat', icon: MessageSquare },
   { name: 'Documents', href: '/dashboard/documents', icon: FileText },
   { name: 'Company', href: '/dashboard/company', icon: Building2 },
 ]

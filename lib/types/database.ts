@@ -421,6 +421,7 @@ export type Database = {
           sort_order: number
           category: string | null
           project_type: string
+          tool_key: string | null
         }
         Insert: {
           created_at?: string
@@ -431,6 +432,7 @@ export type Database = {
           sort_order?: number
           category?: string | null
           project_type?: string
+          tool_key?: string | null
         }
         Update: {
           created_at?: string
@@ -441,6 +443,7 @@ export type Database = {
           sort_order?: number
           category?: string | null
           project_type?: string
+          tool_key?: string | null
         }
         Relationships: []
       }
@@ -689,6 +692,12 @@ export type Database = {
           reach_metric: string | null
           engagement: number | null
           performance_notes: string | null
+          views_1d: number | null
+          views_7d: number | null
+          views_30d: number | null
+          website_visits: number | null
+          email_signups: number | null
+          performance_recorded_at: string | null
           metadata: Json | null
         }
         Insert: {
@@ -708,6 +717,12 @@ export type Database = {
           reach_metric?: string | null
           engagement?: number | null
           performance_notes?: string | null
+          views_1d?: number | null
+          views_7d?: number | null
+          views_30d?: number | null
+          website_visits?: number | null
+          email_signups?: number | null
+          performance_recorded_at?: string | null
           metadata?: Json | null
         }
         Update: {
@@ -727,6 +742,12 @@ export type Database = {
           reach_metric?: string | null
           engagement?: number | null
           performance_notes?: string | null
+          views_1d?: number | null
+          views_7d?: number | null
+          views_30d?: number | null
+          website_visits?: number | null
+          email_signups?: number | null
+          performance_recorded_at?: string | null
           metadata?: Json | null
         }
         Relationships: [
@@ -903,6 +924,7 @@ export type Database = {
           organization_id: string
           updated_at: string
           category: string | null
+          tool_key: string | null
           visibility: string
           status: string
           tags: string[] | null
@@ -920,6 +942,7 @@ export type Database = {
           organization_id: string
           updated_at?: string
           category?: string | null
+          tool_key?: string | null
           visibility?: string
           status?: string
           tags?: string[] | null
@@ -937,6 +960,7 @@ export type Database = {
           organization_id?: string
           updated_at?: string
           category?: string | null
+          tool_key?: string | null
           visibility?: string
           status?: string
           tags?: string[] | null
@@ -1962,6 +1986,51 @@ export type Database = {
           carried_from_goal_id?: string | null
           created_at?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      content_ideas: {
+        Row: {
+          id: string
+          organization_id: string
+          project_id: string
+          title: string
+          description: string | null
+          platform: string
+          platform_owner: string
+          status: string
+          created_by: string
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          project_id: string
+          title: string
+          description?: string | null
+          platform: string
+          platform_owner: string
+          status?: string
+          created_by: string
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          project_id?: string
+          title?: string
+          description?: string | null
+          platform?: string
+          platform_owner?: string
+          status?: string
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
         }
         Relationships: []
       }

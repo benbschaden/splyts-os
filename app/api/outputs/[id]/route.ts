@@ -11,6 +11,11 @@ const patchSchema = z.object({
   reach_metric: z.enum(['impressions', 'views', 'opens', 'plays', 'other']).nullable().optional(),
   engagement: z.number().int().min(0).nullable().optional(),
   performance_notes: z.string().max(2000).nullable().optional(),
+  views_1d: z.number().int().min(0).nullable().optional(),
+  views_7d: z.number().int().min(0).nullable().optional(),
+  views_30d: z.number().int().min(0).nullable().optional(),
+  website_visits: z.number().int().min(0).nullable().optional(),
+  email_signups: z.number().int().min(0).nullable().optional(),
 })
 
 async function isCreatorOrAdmin(outputId: string, orgId: string, userId: string, userRole: string): Promise<boolean> {
@@ -48,7 +53,11 @@ export async function PATCH(
     return Response.json({ error: parsed.error.errors[0].message }, { status: 400 })
   }
 
-  const { content, publish, reach, reach_metric, engagement, performance_notes } = parsed.data
+  const {
+    content, publish,
+    reach, reach_metric, engagement, performance_notes,
+    views_1d, views_7d, views_30d, website_visits, email_signups,
+  } = parsed.data
 
   // Handle publish
   if (publish === true) {
@@ -57,13 +66,23 @@ export async function PATCH(
     return Response.json({ output })
   }
 
-  // Handle performance stats update
-  if (reach !== undefined || reach_metric !== undefined || engagement !== undefined || performance_notes !== undefined) {
+  // Handle performance stats update (includes new time-windowed fields)
+  if (
+    reach !== undefined || reach_metric !== undefined ||
+    engagement !== undefined || performance_notes !== undefined ||
+    views_1d !== undefined || views_7d !== undefined || views_30d !== undefined ||
+    website_visits !== undefined || email_signups !== undefined
+  ) {
     const { output, error } = await updateOutputPerformance(id, org.id, {
       reach: reach ?? null,
       reach_metric: reach_metric ?? null,
       engagement: engagement ?? null,
       performance_notes: performance_notes ?? null,
+      views_1d,
+      views_7d,
+      views_30d,
+      website_visits,
+      email_signups,
     })
     if (error || !output) return Response.json({ error }, { status: 500 })
     return Response.json({ output })

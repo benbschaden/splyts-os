@@ -92,12 +92,28 @@ function buildCurrentGoalsBlock(period: GoalPeriodWithGoals): string {
 }
 
 function buildTopPerformersBlock(
-  outputs: { brief: string; content: string; reach: number; reach_metric: string }[],
+  outputs: {
+    brief: string
+    content: string
+    reach: number | null
+    reach_metric: string | null
+    views_30d?: number | null
+    website_visits?: number | null
+    email_signups?: number | null
+  }[],
 ): string {
   if (outputs.length === 0) return ''
-  return outputs.map((o, i) =>
-    `Example ${i + 1} (${o.reach.toLocaleString()} ${o.reach_metric}):\nBrief: ${o.brief.slice(0, 120)}\nContent: ${o.content.slice(0, 300)}${o.content.length > 300 ? '…' : ''}`
-  ).join('\n\n')
+  return outputs
+    .map((o, i) => {
+      const stats: string[] = []
+      if (o.views_30d != null) stats.push(`${o.views_30d.toLocaleString()} views (30d)`)
+      else if (o.reach != null) stats.push(`${o.reach.toLocaleString()} ${o.reach_metric ?? 'reach'}`)
+      if (o.website_visits != null) stats.push(`${o.website_visits.toLocaleString()} site visits`)
+      if (o.email_signups != null) stats.push(`${o.email_signups.toLocaleString()} email signups`)
+      const statsStr = stats.length > 0 ? ` (${stats.join(', ')})` : ''
+      return `Example ${i + 1}${statsStr}:\nBrief: ${o.brief.slice(0, 120)}\nContent: ${o.content.slice(0, 300)}${o.content.length > 300 ? '…' : ''}`
+    })
+    .join('\n\n')
 }
 
 function buildCompetitorsBlock(competitors: CompetitorRow[]): string {
@@ -433,7 +449,15 @@ export function buildGenerationSystemPrompt(params: {
   terminology: TerminologyRow[]
   kpiDefinitions: KpiDefinitionRow[]
   kpiSnapshot: KpiSnapshotRow | null
-  topPerformers: { brief: string; content: string; reach: number; reach_metric: string }[]
+  topPerformers: {
+    brief: string
+    content: string
+    reach: number | null
+    reach_metric: string | null
+    views_30d?: number | null
+    website_visits?: number | null
+    email_signups?: number | null
+  }[]
   contentTypeName: string
   basePrompt: string
   customRules: string

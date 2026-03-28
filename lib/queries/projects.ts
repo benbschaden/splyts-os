@@ -20,6 +20,7 @@ export async function getProjectCategories(organizationId: string): Promise<stri
     .from('projects')
     .select('category')
     .eq('organization_id', organizationId)
+    .eq('project_type', 'project')
     .is('deleted_at', null)
     .not('category', 'is', null)
 
@@ -146,7 +147,7 @@ export async function getProjectById(
   const { data, error } = await supabase
     .from('projects')
     .select(
-      'id, name, description, created_at, updated_at, created_by, visibility, status, tags, project_type, start_date, estimated_end_date',
+      'id, name, description, category, tool_key, created_at, updated_at, created_by, visibility, status, tags, project_type, start_date, estimated_end_date',
     )
     .eq('id', projectId)
     .eq('organization_id', organizationId)

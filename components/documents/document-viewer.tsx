@@ -382,7 +382,7 @@ export function DocumentViewer({ document: initialDocument, isOwner, isAdmin, ca
                   href={`/dashboard/chat/${document.source_session_id}`}
                   className="underline underline-offset-2 hover:text-foreground"
                 >
-                  View chat
+                  View conversation
                 </Link>
               </>
             )}

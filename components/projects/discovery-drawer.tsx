@@ -495,7 +495,7 @@ export function DiscoveryDrawer({
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   {form.include_in_ai
-                    ? 'This entry is available in project chat and generation context.'
+                    ? 'This entry is available in the project assistant and generation context.'
                     : 'Kept for reference only; not sent to AI.'}
                 </p>
               </div>

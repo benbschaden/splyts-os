@@ -42,6 +42,7 @@ interface GenerationSessionDialogProps {
   authors: Author[]
   contentTypes: ContentType[]
   hasBrandContext: boolean
+  initialUserMessage?: string
 }
 
 export function GenerationSessionDialog({
@@ -52,6 +53,7 @@ export function GenerationSessionDialog({
   authors,
   contentTypes,
   hasBrandContext,
+  initialUserMessage,
 }: GenerationSessionDialogProps) {
   const [phase, setPhase] = useState<Phase>('setup')
 
@@ -65,6 +67,7 @@ export function GenerationSessionDialog({
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [chatError, setChatError] = useState<string | null>(null)
+  const [pendingInitialMessage, setPendingInitialMessage] = useState('')
 
   // Save state
   const [brief, setBrief] = useState('')
@@ -88,8 +91,9 @@ export function GenerationSessionDialog({
       setBrief('')
       setSaveContent('')
       setSaveError(null)
+      setPendingInitialMessage(initialUserMessage ?? '')
     }
-  }, [open, contentTypes])
+  }, [open, contentTypes, initialUserMessage])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -115,6 +119,10 @@ export function GenerationSessionDialog({
   function handleStart() {
     if (!contentTypeId) return
     setPhase('chat')
+    if (pendingInitialMessage) {
+      setInput(pendingInitialMessage)
+      setPendingInitialMessage('')
+    }
     setTimeout(() => inputRef.current?.focus(), 50)
   }
 

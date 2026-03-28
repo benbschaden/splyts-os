@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Sparkles, Copy, Pencil, Trash2, Check, X, FileText, BarChart2, Send, File } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -55,6 +55,8 @@ interface OutputsListProps {
   authors: Author[]
   contentTypes: ContentType[]
   hasBrandContext: boolean
+  showPublish?: boolean
+  pendingOutput?: Output | null
 }
 
 function formatDateTime(iso: string) {
@@ -85,11 +87,13 @@ function OutputCard({
   attachments,
   onUpdated,
   onDeleted,
+  showPublish,
 }: {
   output: Output
   attachments?: OutputCardAttachment[]
   onUpdated: (updated: Output) => void
   onDeleted: (id: string) => void
+  showPublish: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -224,7 +228,7 @@ function OutputCard({
           </span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {!output.published_at && (
+          {showPublish && !output.published_at && (
             <button
               onClick={handlePublish}
               disabled={publishing}
@@ -530,9 +534,19 @@ export function OutputsList({
   authors,
   contentTypes,
   hasBrandContext,
+  showPublish = false,
+  pendingOutput,
 }: OutputsListProps) {
   const [outputs, setOutputs] = useState<Output[]>(initialOutputs)
   const [dialogOpen, setDialogOpen] = useState(false)
+
+  useEffect(() => {
+    if (!pendingOutput) return
+    setOutputs((prev) => {
+      if (prev.some((o) => o.id === pendingOutput.id)) return prev
+      return [pendingOutput, ...prev]
+    })
+  }, [pendingOutput])
 
   function handleGenerated(newOutput: GeneratedOutputPayload) {
     const ct =
@@ -614,6 +628,7 @@ export function OutputsList({
               attachments={outputAttachmentsByOutputId[output.id]}
               onUpdated={handleUpdated}
               onDeleted={handleDeleted}
+              showPublish={showPublish}
             />
           ))}
         </div>

@@ -51,7 +51,6 @@ const navGroups = [
       { name: 'Content types', href: '/dashboard/company/content-types' },
       { name: 'Social proof', href: '/dashboard/company/social-proof' },
       { name: 'Content benchmarks', href: '/dashboard/company/benchmarks' },
-      { name: 'Calendar', href: '/dashboard/company/calendar' },
     ],
   },
 ]

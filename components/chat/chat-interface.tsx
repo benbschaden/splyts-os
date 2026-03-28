@@ -159,7 +159,7 @@ export function ChatInterface({ session, initialMessages }: ChatInterfaceProps) 
           <Link
             href="/dashboard/chat"
             className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            aria-label="Back to chats"
+            aria-label="Back to assistant"
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>

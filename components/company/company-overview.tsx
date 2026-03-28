@@ -15,7 +15,7 @@ const sections = [
   },
   {
     label: 'Product',
-    description: 'Product knowledge used in generation prompts and chat context.',
+    description: 'Product knowledge used in generation prompts and assistant context.',
     items: [
       { href: '/dashboard/company/product', name: 'Product context', desc: 'Overview, positioning, differentiators and pricing — always in AI context' },
       { href: '/dashboard/company/features', name: 'Features', desc: 'Feature catalogue with AI visibility toggle per feature' },
@@ -36,12 +36,11 @@ const sections = [
   },
   {
     label: 'Content',
-    description: 'Templates, proof, performance targets, and scheduling.',
+    description: 'Templates, proof, and performance targets for all content types.',
     items: [
       { href: '/dashboard/company/content-types', name: 'Content types', desc: 'Templates and rules per format — includes platform, cadence, and custom guidelines' },
       { href: '/dashboard/company/social-proof', name: 'Social proof', desc: 'Testimonials, case studies, and metrics to strengthen AI content' },
       { href: '/dashboard/company/benchmarks', name: 'Content benchmarks', desc: 'Industry-standard performance targets per platform, customisable' },
-      { href: '/dashboard/company/calendar', name: 'Calendar', desc: 'Plan and track content across all platforms' },
     ],
   },
 ]

@@ -253,6 +253,8 @@ export async function createProject(
   tags: string[] = [],
   teamIds: string[] = [],
   memberIds: string[] = [],
+  startDate?: string | null,
+  estimatedEndDate?: string | null,
 ) {
   const supabase = createServiceClient()
 
@@ -266,8 +268,10 @@ export async function createProject(
       category: category ?? null,
       visibility,
       tags: tags.length > 0 ? tags : [],
+      start_date: startDate ?? null,
+      estimated_end_date: estimatedEndDate ?? null,
     })
-    .select('id, name, description, category, visibility, status, tags, created_at, updated_at')
+    .select('id, name, description, category, visibility, status, tags, created_at, updated_at, project_type, start_date, estimated_end_date')
     .single()
 
   if (error || !data) return { project: null, error: 'Failed to create project' }
@@ -302,6 +306,8 @@ export async function updateProject(
     teamIds?: string[]
     memberIds?: string[]
     grantedBy?: string
+    start_date?: string | null
+    estimated_end_date?: string | null
   },
 ) {
   const supabase = createServiceClient()

@@ -67,7 +67,7 @@ export async function createOrganization(name: string, userId: string) {
   // Details live in the database — no project names hardcoded here.
   const { data: seeds } = await supabase
     .from('org_project_seeds')
-    .select('name, description, category')
+    .select('name, description, category, project_type')
     .eq('is_active', true)
     .order('sort_order', { ascending: true })
 
@@ -76,7 +76,8 @@ export async function createOrganization(name: string, userId: string) {
       seeds.map((seed) => ({
         name: seed.name,
         description: seed.description,
-        category: (seed as unknown as { category?: string | null }).category ?? null,
+        category: seed.category ?? null,
+        project_type: seed.project_type ?? 'project',
         organization_id: org.id,
         created_by: userId,
       })),

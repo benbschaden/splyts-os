@@ -1,6 +1,6 @@
 import Link from 'next/link'
-import { formatDistanceToNow } from 'date-fns'
-import { Globe, Lock, Users, UserCheck } from 'lucide-react'
+import { formatDistanceToNow, format, isPast, parseISO } from 'date-fns'
+import { Globe, Lock, Users, UserCheck, Calendar, CalendarClock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface ProjectCardProps {
@@ -11,6 +11,9 @@ interface ProjectCardProps {
   visibility?: string | null
   status?: string | null
   tags?: string[] | null
+  projectType?: string | null
+  startDate?: string | null
+  estimatedEndDate?: string | null
 }
 
 const VISIBILITY_ICONS: Record<string, { icon: typeof Globe; label: string }> = {
@@ -18,6 +21,10 @@ const VISIBILITY_ICONS: Record<string, { icon: typeof Globe; label: string }> = 
   team: { icon: Users, label: 'Team' },
   specific_users: { icon: UserCheck, label: 'Specific people' },
   private: { icon: Lock, label: 'Private' },
+}
+
+function formatDate(dateStr: string): string {
+  return format(parseISO(dateStr), 'd MMM yyyy')
 }
 
 export function ProjectCard({
@@ -28,6 +35,9 @@ export function ProjectCard({
   visibility,
   status,
   tags,
+  projectType,
+  startDate,
+  estimatedEndDate,
 }: ProjectCardProps) {
   const tagList = tags?.filter(Boolean) ?? []
   const isArchived = status === 'archived'
@@ -35,6 +45,13 @@ export function ProjectCard({
   const visInfo = VISIBILITY_ICONS[visibilityKey] ?? VISIBILITY_ICONS.organization
   const VisIcon = visInfo.icon
   const showVisIcon = visibilityKey !== 'organization'
+  const isTool = projectType === 'tool'
+
+  const endDateOverdue =
+    !isTool &&
+    estimatedEndDate &&
+    status !== 'archived' &&
+    isPast(parseISO(estimatedEndDate))
 
   return (
     <Link
@@ -80,6 +97,33 @@ export function ProjectCard({
               {tag}
             </span>
           ))}
+        </div>
+      )}
+
+      {!isTool && (startDate || estimatedEndDate) && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5">
+          {startDate && (
+            <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+              <Calendar className="h-3 w-3 shrink-0" aria-hidden />
+              {formatDate(startDate)}
+            </span>
+          )}
+          {estimatedEndDate && (
+            <span
+              className={cn(
+                'flex items-center gap-1 text-[11px]',
+                endDateOverdue ? 'text-destructive/70' : 'text-muted-foreground',
+              )}
+            >
+              <CalendarClock className="h-3 w-3 shrink-0" aria-hidden />
+              {formatDate(estimatedEndDate)}
+              {endDateOverdue && (
+                <span className="text-[10px] font-medium uppercase tracking-wide">
+                  overdue
+                </span>
+              )}
+            </span>
+          )}
         </div>
       )}
 

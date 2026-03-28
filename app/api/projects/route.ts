@@ -15,6 +15,11 @@ const createProjectSchema = z.object({
   tags: z.array(z.string().min(1).max(100)).max(50).optional().default([]),
   teamIds: z.array(z.string().uuid()).optional().default([]),
   memberIds: z.array(z.string().uuid()).optional().default([]),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD').nullable().optional(),
+  estimatedEndDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD')
+    .min(1, 'Estimated end date is required'),
 })
 
 export async function POST(request: Request) {
@@ -52,6 +57,8 @@ export async function POST(request: Request) {
     parsed.data.tags,
     parsed.data.teamIds,
     parsed.data.memberIds,
+    parsed.data.startDate ?? null,
+    parsed.data.estimatedEndDate,
   )
 
   if (error || !project) {

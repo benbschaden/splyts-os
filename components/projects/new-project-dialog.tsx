@@ -83,6 +83,8 @@ export function NewProjectDialog({
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([])
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([])
   const [tagsInput, setTagsInput] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [estimatedEndDate, setEstimatedEndDate] = useState('')
   const [teams, setTeams] = useState<Team[]>([])
   const [members, setMembers] = useState<OrgMember[]>([])
   const [loadingPicker, setLoadingPicker] = useState(false)
@@ -95,6 +97,8 @@ export function NewProjectDialog({
       setVisibility('organization')
       setSelectedTeamIds([])
       setSelectedMemberIds([])
+      setStartDate('')
+      setEstimatedEndDate('')
     }
   }, [open, defaultCategory])
 
@@ -162,6 +166,8 @@ export function NewProjectDialog({
             .filter(Boolean),
           teamIds: visibility === 'team' ? selectedTeamIds : [],
           memberIds: visibility === 'specific_users' ? selectedMemberIds : [],
+          startDate: startDate || null,
+          estimatedEndDate,
         }),
       })
 
@@ -195,6 +201,8 @@ export function NewProjectDialog({
     setVisibility('organization')
     setSelectedTeamIds([])
     setSelectedMemberIds([])
+    setStartDate('')
+    setEstimatedEndDate('')
     setError(null)
     onClose()
   }
@@ -263,6 +271,46 @@ export function NewProjectDialog({
                 <option key={c} value={c} />
               ))}
             </datalist>
+          </div>
+
+          {/* Dates */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label htmlFor="project-start-date" className="text-sm font-medium text-foreground">
+                Start date
+                <span className="ml-1 text-muted-foreground font-normal">(optional)</span>
+              </label>
+              <input
+                id="project-start-date"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className={cn(
+                  'w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground',
+                  'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1',
+                  'disabled:opacity-50',
+                )}
+                disabled={loading}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="project-end-date" className="text-sm font-medium text-foreground">
+                Estimated end
+              </label>
+              <input
+                id="project-end-date"
+                type="date"
+                value={estimatedEndDate}
+                onChange={(e) => setEstimatedEndDate(e.target.value)}
+                required
+                className={cn(
+                  'w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground',
+                  'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1',
+                  'disabled:opacity-50',
+                )}
+                disabled={loading}
+              />
+            </div>
           </div>
 
           {/* Visibility */}
@@ -454,7 +502,7 @@ export function NewProjectDialog({
             </button>
             <button
               type="submit"
-              disabled={loading || !name.trim()}
+              disabled={loading || !name.trim() || !estimatedEndDate}
               className={cn(
                 'rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground',
                 'hover:bg-primary/90 transition-colors',

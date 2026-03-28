@@ -39,20 +39,27 @@ export async function getTeamsForOrg(organizationId: string): Promise<TeamRow[]>
 export async function getOrgMembersWithProfiles(organizationId: string): Promise<OrgMember[]> {
   const supabase = createServiceClient()
 
-  const { data, error } = await supabase
+  const { data: members, error } = await supabase
     .from('organization_members')
-    .select('user_id, role, user_profiles(full_name, avatar_url)')
+    .select('user_id, role')
     .eq('organization_id', organizationId)
 
-  if (error || !data) return []
+  if (error || !members || members.length === 0) return []
 
-  return data.map((row) => {
-    const profile = Array.isArray(row.user_profiles)
-      ? row.user_profiles[0]
-      : row.user_profiles
+  const userIds = members.map((m) => m.user_id)
+
+  const { data: profiles } = await supabase
+    .from('user_profiles')
+    .select('id, full_name, avatar_url')
+    .in('id', userIds)
+
+  const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]))
+
+  return members.map((m) => {
+    const profile = profileMap.get(m.user_id)
     return {
-      user_id: row.user_id,
-      role: row.role,
+      user_id: m.user_id,
+      role: m.role,
       full_name: profile?.full_name ?? null,
       avatar_url: profile?.avatar_url ?? null,
     }

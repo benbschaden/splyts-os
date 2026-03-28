@@ -2,7 +2,7 @@ Feature: Projects
 
   Scenario: Admin or member creates a project
     Given I am logged in
-    When I click "New Project", enter a name and optional description, and click Create
+    When I click "New Project", enter a name, estimated end date, and optional fields, and click Create
     Then the project is created and I am taken to the project page
     And the project appears at the top of the project list
 
@@ -39,3 +39,27 @@ Feature: Projects
     Given I am logged in as a member
     When I view a project
     Then I do not see a Delete option
+
+  Scenario: Tools appear separately from projects
+    Given I am logged in
+    When I view the sidebar or the projects page
+    Then I see a "Tools" section with platform workspaces (e.g. Marketing Content, Customer Discovery)
+    And I see a "Projects" section with user-created time-bounded projects
+    And Tools do not show date fields
+    And the New Project button only creates a project, not a tool
+
+  Scenario: Creating a project requires an estimated end date
+    Given I am logged in
+    When I click "New Project" and fill in the name
+    Then I must provide an estimated end date before I can submit
+    And start date is optional
+
+  Scenario: Project card shows dates
+    Given a project has a start date and estimated end date set
+    When I view the project card in the projects list
+    Then I can see the start date and estimated end date on the card
+
+  Scenario: Estimated end date is stored for tracking
+    Given a project is created with an estimated end date
+    When the project passes its estimated end date and is still active
+    Then the date remains visible so estimation accuracy can be reviewed later

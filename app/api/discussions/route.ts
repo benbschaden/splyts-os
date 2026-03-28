@@ -14,7 +14,7 @@ const CreateSchema = z.object({
   section_key: z.string().min(1).optional(),
   mode: z.enum(['lightweight', 'structured']),
   title: z.string().min(1).max(300),
-  participant_ids: z.array(z.string().uuid()).min(1, 'At least one participant is required'),
+  participant_ids: z.array(z.string().uuid()).default([]),
 })
 
 const ListSchema = z.object({

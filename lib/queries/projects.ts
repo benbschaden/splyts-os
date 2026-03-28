@@ -51,12 +51,12 @@ export const getProjectsForOrg = cache(async function getProjectsForOrg(
   const { data: allProjects, error } = await supabase
     .from('projects')
     .select(
-      'id, name, description, category, visibility, status, tags, created_at, updated_at, created_by',
+      'id, name, description, category, visibility, status, tags, created_at, updated_at, created_by, project_type, start_date, estimated_end_date',
     )
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
     .order('updated_at', { ascending: false })
-    .limit(50)
+    .limit(200)
 
   if (error || !allProjects) return []
 
@@ -119,6 +119,23 @@ export const getProjectsForOrg = cache(async function getProjectsForOrg(
  * Pass userId to enforce visibility. When omitted, visibility is not checked
  * (use only in admin/service contexts that have already verified access).
  */
+export async function getToolsForOrg(
+  organizationId: string,
+): Promise<Array<{ id: string; name: string }>> {
+  const supabase = createServiceClient()
+
+  const { data, error } = await supabase
+    .from('projects')
+    .select('id, name')
+    .eq('organization_id', organizationId)
+    .eq('project_type', 'tool')
+    .is('deleted_at', null)
+    .order('name', { ascending: true })
+
+  if (error || !data) return []
+  return data
+}
+
 export async function getProjectById(
   projectId: string,
   organizationId: string,
@@ -129,7 +146,7 @@ export async function getProjectById(
   const { data, error } = await supabase
     .from('projects')
     .select(
-      'id, name, description, created_at, updated_at, created_by, visibility, status, tags',
+      'id, name, description, created_at, updated_at, created_by, visibility, status, tags, project_type, start_date, estimated_end_date',
     )
     .eq('id', projectId)
     .eq('organization_id', organizationId)

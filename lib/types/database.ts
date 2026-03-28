@@ -420,6 +420,7 @@ export type Database = {
           name: string
           sort_order: number
           category: string | null
+          project_type: string
         }
         Insert: {
           created_at?: string
@@ -429,6 +430,7 @@ export type Database = {
           name: string
           sort_order?: number
           category?: string | null
+          project_type?: string
         }
         Update: {
           created_at?: string
@@ -438,6 +440,7 @@ export type Database = {
           name?: string
           sort_order?: number
           category?: string | null
+          project_type?: string
         }
         Relationships: []
       }
@@ -903,6 +906,9 @@ export type Database = {
           visibility: string
           status: string
           tags: string[] | null
+          project_type: string
+          start_date: string | null
+          estimated_end_date: string | null
         }
         Insert: {
           created_at?: string
@@ -917,6 +923,9 @@ export type Database = {
           visibility?: string
           status?: string
           tags?: string[] | null
+          project_type?: string
+          start_date?: string | null
+          estimated_end_date?: string | null
         }
         Update: {
           created_at?: string
@@ -931,6 +940,9 @@ export type Database = {
           visibility?: string
           status?: string
           tags?: string[] | null
+          project_type?: string
+          start_date?: string | null
+          estimated_end_date?: string | null
         }
         Relationships: [
           {

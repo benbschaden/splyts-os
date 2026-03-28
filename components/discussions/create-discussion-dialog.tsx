@@ -35,10 +35,9 @@ export function CreateDiscussionDialog({
 
   async function loadMembers() {
     setIsLoadingMembers(true)
-    const res = await fetch('/api/org-members')
+    const res = await fetch('/api/org-members?excludeSelf=true')
     if (res.ok) {
       const data = (await res.json()) as { data: OrgMember[] }
-      // Exclude current user — they're added as creator automatically
       setMembers(data.data ?? [])
     }
     setIsLoadingMembers(false)
@@ -88,7 +87,11 @@ export function CreateDiscussionDialog({
     onCreated(data.discussion as DiscussionRow)
   }
 
-  const canSubmit = title.trim().length > 0 && selectedIds.size > 0 && !isSubmitting
+  const hasOtherMembers = !isLoadingMembers && members.length > 0
+  const canSubmit =
+    title.trim().length > 0 &&
+    (!hasOtherMembers || selectedIds.size > 0) &&
+    !isSubmitting
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -140,9 +143,13 @@ export function CreateDiscussionDialog({
 
             <div className="max-h-40 overflow-y-auto rounded-lg border border-border">
               {isLoadingMembers ? (
-                <div className="px-3 py-4 text-center text-xs text-muted-foreground">Loading…</div>
+                <div className="px-3 py-4 text-center text-xs text-muted-foreground">Loading team members…</div>
+              ) : members.length === 0 ? (
+                <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+                  No other team members yet
+                </div>
               ) : filtered.length === 0 ? (
-                <div className="px-3 py-4 text-center text-xs text-muted-foreground">No people found</div>
+                <div className="px-3 py-4 text-center text-xs text-muted-foreground">No match</div>
               ) : (
                 filtered.map((m) => {
                   const isSelected = selectedIds.has(m.user_id)
@@ -167,7 +174,7 @@ export function CreateDiscussionDialog({
               )}
             </div>
 
-            {selectedIds.size === 0 && (
+            {hasOtherMembers && selectedIds.size === 0 && (
               <p className="mt-1 text-xs text-muted-foreground">Select at least one person to start a discussion with.</p>
             )}
           </div>

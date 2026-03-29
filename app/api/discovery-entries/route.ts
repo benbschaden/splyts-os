@@ -21,6 +21,7 @@ const createSchema = z.object({
   platform: z.enum(['app_store', 'product_hunt', 'g2', 'reddit', 'twitter', 'other']).nullable().optional(),
   source_material_id: z.string().uuid().nullable().optional(),
   study_id: z.string().uuid().nullable().optional(),
+  participant: z.string().max(200).nullable().optional(),
 })
 
 export async function POST(request: Request) {
@@ -59,6 +60,7 @@ export async function POST(request: Request) {
       platform: d.platform ?? null,
       source_material_id: d.source_material_id ?? null,
       study_id: d.study_id ?? null,
+      participant: d.participant ?? null,
     })
 
     if (error || !entry) return Response.json({ error: 'Failed to create entry' }, { status: 500 })

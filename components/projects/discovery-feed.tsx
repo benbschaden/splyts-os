@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Pencil, Trash2, Sparkles, ShieldOff, Star } from 'lucide-react'
+import { Plus, Pencil, Trash2, Sparkles, MessageSquare, Star } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { DiscoveryEntryRow, DiscoveryEntryType, DiscoverySentiment } from '@/lib/queries/discovery-entries'
 import { DiscoveryDrawer } from './discovery-drawer'
@@ -55,6 +55,7 @@ interface DiscoveryFeedProps {
   initialEntries: DiscoveryEntryRow[]
   studyId?: string
   onEntriesChanged?: () => void
+  onChatWithParticipant?: (participant: string) => void
 }
 
 export function DiscoveryFeed({
@@ -62,12 +63,14 @@ export function DiscoveryFeed({
   initialEntries,
   studyId,
   onEntriesChanged,
+  onChatWithParticipant,
 }: DiscoveryFeedProps) {
   const router = useRouter()
   const [entries, setEntries] = useState<DiscoveryEntryRow[]>(initialEntries)
   const [typeFilter, setTypeFilter] = useState<DiscoveryEntryType | ''>('')
   const [sentimentFilter, setSentimentFilter] = useState<DiscoverySentiment | ''>('')
   const [tagFilter, setTagFilter] = useState<string>('')
+  const [participantFilter, setParticipantFilter] = useState<string>('')
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editing, setEditing] = useState<DiscoveryEntryRow | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
@@ -85,8 +88,13 @@ export function DiscoveryFeed({
     if (typeFilter && e.entry_type !== typeFilter) return false
     if (sentimentFilter && e.sentiment !== sentimentFilter) return false
     if (tagFilter && !e.tags.includes(tagFilter)) return false
+    if (participantFilter && e.participant !== participantFilter) return false
     return true
   })
+
+  const activeParticipants = Array.from(
+    new Set(entries.map((e) => e.participant).filter((p): p is string => !!p))
+  ).sort()
 
   function openNew() {
     setEditing(null)
@@ -155,7 +163,34 @@ export function DiscoveryFeed({
             </select>
           )}
 
+          {/* Participant filter */}
+          {activeParticipants.length > 0 && (
+            <select
+              value={participantFilter}
+              onChange={(e) => setParticipantFilter(e.target.value)}
+              className="rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              aria-label="Filter by participant"
+            >
+              <option value="">All people</option>
+              {activeParticipants.map((p) => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          )}
+
           <div className="flex-1" />
+
+          {/* Chat about participant button */}
+          {participantFilter && onChatWithParticipant && (
+            <button
+              type="button"
+              onClick={() => onChatWithParticipant(participantFilter)}
+              className="flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+              Chat about {participantFilter}
+            </button>
+          )}
 
           <button
             type="button"
@@ -237,6 +272,22 @@ export function DiscoveryFeed({
                           <Star key={i} className="h-3 w-3 fill-amber-400 text-amber-400" />
                         ))}
                       </span>
+                    )}
+
+                    {/* Participant */}
+                    {entry.participant && (
+                      <button
+                        type="button"
+                        onClick={() => setParticipantFilter(participantFilter === entry.participant ? '' : entry.participant!)}
+                        className={cn(
+                          'rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors',
+                          participantFilter === entry.participant
+                            ? 'bg-primary/10 text-primary'
+                            : 'bg-muted text-muted-foreground hover:bg-accent',
+                        )}
+                      >
+                        {entry.participant}
+                      </button>
                     )}
 
                     {/* Source */}

@@ -14,6 +14,8 @@ export interface ContextConfig {
   kpis: boolean
   browser: boolean
   project_materials: boolean
+  discovery_entries: boolean
+  discovery_participant: string | null
 }
 
 export interface ChatSessionRow {

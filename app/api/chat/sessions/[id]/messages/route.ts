@@ -19,6 +19,7 @@ import { getTerminologyForAi } from '@/lib/queries/terminology'
 import { getKpiDefinitions } from '@/lib/queries/kpi-definitions'
 import { getLatestSnapshot } from '@/lib/queries/kpi-snapshots'
 import { getProjectMaterials } from '@/lib/queries/project-materials'
+import { getAiVisibleDiscoveryEntries, getParticipantDiscoveryEntries } from '@/lib/queries/discovery-entries'
 import { buildChatSystemPrompt } from '@/lib/ai/prompts'
 import { DEFAULT_MODEL, getModelById } from '@/lib/ai/models'
 import { retrieveRelevantDocuments } from '@/lib/retrieval/search'
@@ -129,11 +130,14 @@ export async function POST(
       social_proof: includeSocialProof = false,
       kpis: includeKpis = false,
       project_materials: includeProjectMaterials = false,
+      discovery_entries: includeDiscoveryEntries = false,
+      discovery_participant: discoveryParticipant = null,
     } = config
     const model = getModelById(session.model_id) ?? DEFAULT_MODEL
 
     // Fetch all enabled context in parallel
     const shouldLoadMaterials = includeProjectMaterials && !!session.project_id
+    const shouldLoadDiscovery = includeDiscoveryEntries && !!session.project_id
 
     const [
       brand,
@@ -152,6 +156,7 @@ export async function POST(
       kpiDefinitions,
       kpiSnapshot,
       projectMaterials,
+      discoveryEntries,
       existingMessages,
       retrievedContext,
     ] = await Promise.all([
@@ -171,6 +176,11 @@ export async function POST(
       includeKpis ? getKpiDefinitions(org.id) : Promise.resolve([]),
       includeKpis ? getLatestSnapshot(org.id) : Promise.resolve(null),
       shouldLoadMaterials ? getProjectMaterials(session.project_id!, org.id) : Promise.resolve([]),
+      shouldLoadDiscovery
+        ? discoveryParticipant
+          ? getParticipantDiscoveryEntries(session.project_id!, org.id, discoveryParticipant)
+          : getAiVisibleDiscoveryEntries(session.project_id!, org.id)
+        : Promise.resolve([]),
       getChatMessages(id),
       retrieveRelevantDocuments({
         query: content,
@@ -237,6 +247,9 @@ export async function POST(
       includeKpis,
       projectMaterials: shouldLoadMaterials ? projectMaterials : undefined,
       includeProjectMaterials: shouldLoadMaterials,
+      discoveryEntries: shouldLoadDiscovery ? discoveryEntries : undefined,
+      includeDiscoveryEntries: shouldLoadDiscovery,
+      discoveryParticipant: discoveryParticipant ?? undefined,
       retrievedContext: retrievedContext.length > 0 ? retrievedContext : undefined,
     })
 

@@ -23,6 +23,7 @@ interface DiscoveryDrawerProps {
 
 interface FormData {
   entry_type: DiscoveryEntryType
+  participant: string
   source: string
   entry_date: string
   raw_content: string
@@ -42,6 +43,7 @@ interface FormData {
 
 const EMPTY: FormData = {
   entry_type: 'interview',
+  participant: '',
   source: '',
   entry_date: '',
   raw_content: '',
@@ -117,6 +119,7 @@ export function DiscoveryDrawer({
       if (editing) {
         setForm({
           entry_type: editing.entry_type,
+          participant: editing.participant ?? '',
           source: editing.source ?? '',
           entry_date: editing.entry_date ?? '',
           raw_content: editing.raw_content,
@@ -170,6 +173,7 @@ export function DiscoveryDrawer({
     const body = {
       project_id: projectId,
       entry_type: form.entry_type,
+      participant: form.participant.trim() || null,
       source: form.source.trim() || null,
       entry_date: form.entry_date || null,
       raw_content: form.raw_content.trim(),
@@ -257,6 +261,24 @@ export function DiscoveryDrawer({
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Participant */}
+          <div className="space-y-1.5">
+            <label htmlFor="entry-participant" className="text-xs font-medium text-foreground">
+              Participant <span className="text-muted-foreground font-normal">(optional)</span>
+            </label>
+            <input
+              id="entry-participant"
+              type="text"
+              value={form.participant}
+              onChange={(e) => set('participant', e.target.value)}
+              placeholder="e.g. James H., user@email.com"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Tag a person to group all their entries and chat with AI about them.
+            </p>
           </div>
 
           {/* Source + Date row */}

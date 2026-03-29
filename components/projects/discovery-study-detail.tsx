@@ -34,6 +34,7 @@ interface DiscoveryStudyDetailProps {
   onBack: () => void
   onStudyUpdated: (study: DiscoveryStudyRow) => void
   onEntriesChanged: () => void
+  onChatWithParticipant?: (participant: string) => void
 }
 
 export function DiscoveryStudyDetail({
@@ -42,6 +43,7 @@ export function DiscoveryStudyDetail({
   onBack,
   onStudyUpdated,
   onEntriesChanged,
+  onChatWithParticipant,
 }: DiscoveryStudyDetailProps) {
   const [activeTab, setActiveTab] = useState<StudyTab>('entries')
   const [script, setScript] = useState(study.script_markdown ?? '')
@@ -219,6 +221,7 @@ export function DiscoveryStudyDetail({
             initialEntries={entries}
             studyId={study.id}
             onEntriesChanged={onEntriesChanged}
+            onChatWithParticipant={onChatWithParticipant}
           />
         )}
 

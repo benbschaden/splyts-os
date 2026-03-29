@@ -1,4 +1,4 @@
-import { createServiceClient } from '@/lib/supabase/service'
+import { createServiceClient, createUntypedServiceClient } from '@/lib/supabase/service'
 
 export type DiscoveryEntryType = 'interview' | 'review' | 'survey' | 'observation' | 'email'
 export type DiscoverySentiment = 'positive' | 'neutral' | 'negative' | 'mixed'
@@ -26,12 +26,13 @@ export type DiscoveryEntryRow = {
   platform: DiscoveryPlatform | null
   source_material_id: string | null
   study_id: string | null
+  participant: string | null
   created_at: string
   updated_at: string
 }
 
 const SELECT_COLUMNS =
-  'id, organization_id, project_id, created_by, entry_type, source, entry_date, raw_content, sentiment, tags, include_in_ai, user_segment, key_quote_1, key_quote_2, key_quote_3, jtbd, star_rating, platform, source_material_id, study_id, created_at, updated_at'
+  'id, organization_id, project_id, created_by, entry_type, source, entry_date, raw_content, sentiment, tags, include_in_ai, user_segment, key_quote_1, key_quote_2, key_quote_3, jtbd, star_rating, platform, source_material_id, study_id, participant, created_at, updated_at'
 
 export async function getDiscoveryEntries(
   projectId: string,
@@ -70,6 +71,26 @@ export async function getAiVisibleDiscoveryEntries(
   return (data ?? []) as unknown as DiscoveryEntryRow[]
 }
 
+export async function getParticipantDiscoveryEntries(
+  projectId: string,
+  organizationId: string,
+  participant: string,
+): Promise<DiscoveryEntryRow[]> {
+  const supabase = createUntypedServiceClient()
+  const { data, error } = await supabase
+    .from('discovery_entries')
+    .select(SELECT_COLUMNS)
+    .eq('project_id', projectId)
+    .eq('organization_id', organizationId)
+    .eq('participant', participant)
+    .is('deleted_at', null)
+    .order('entry_date', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false })
+
+  if (error) return []
+  return (data ?? []) as unknown as DiscoveryEntryRow[]
+}
+
 export type CreateDiscoveryEntryParams = {
   organizationId: string
   projectId: string
@@ -90,6 +111,7 @@ export type CreateDiscoveryEntryParams = {
   platform: DiscoveryPlatform | null
   source_material_id: string | null
   study_id: string | null
+  participant: string | null
 }
 
 export async function createDiscoveryEntry(
@@ -118,6 +140,7 @@ export async function createDiscoveryEntry(
       platform: params.platform,
       source_material_id: params.source_material_id,
       study_id: params.study_id,
+      participant: params.participant,
     })
     .select(SELECT_COLUMNS)
     .single()
@@ -143,6 +166,7 @@ export type UpdateDiscoveryEntryParams = {
   platform?: DiscoveryPlatform | null
   source_material_id?: string | null
   study_id?: string | null
+  participant?: string | null
 }
 
 export async function updateDiscoveryEntry(

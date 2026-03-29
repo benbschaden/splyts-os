@@ -26,6 +26,8 @@ const DEFAULT_CONTEXT: ContextConfig = {
   kpis: false,
   browser: false,
   project_materials: false,
+  discovery_entries: false,
+  discovery_participant: null,
 }
 
 // Category definitions — each category owns a set of context keys
@@ -69,9 +71,17 @@ const CONTEXT_CATEGORIES = [
       { key: 'filed_documents' as const, label: 'Filed documents' },
     ],
   },
+  {
+    label: 'Research',
+    description: 'Customer discovery entries (interviews, emails, surveys)',
+    keys: ['discovery_entries'] as const,
+    items: [
+      { key: 'discovery_entries' as const, label: 'Customer discovery' },
+    ],
+  },
 ]
 
-type ContextKey = keyof Omit<ContextConfig, 'browser'>
+type ContextKey = keyof Omit<ContextConfig, 'browser' | 'discovery_participant'>
 
 export function ChatSessionsList({ sessions: initialSessions }: ChatSessionsListProps) {
   const router = useRouter()

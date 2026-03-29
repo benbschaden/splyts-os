@@ -20,6 +20,7 @@ const patchSchema = z.object({
   platform: z.enum(['app_store', 'product_hunt', 'g2', 'reddit', 'twitter', 'other']).nullable().optional(),
   source_material_id: z.string().uuid().nullable().optional(),
   study_id: z.string().uuid().nullable().optional(),
+  participant: z.string().max(200).nullable().optional(),
 })
 
 export async function PATCH(

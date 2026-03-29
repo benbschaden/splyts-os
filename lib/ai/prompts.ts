@@ -10,6 +10,7 @@ import type { TerminologyRow } from '@/lib/queries/terminology'
 import type { KpiDefinitionRow } from '@/lib/queries/kpi-definitions'
 import type { KpiSnapshotRow } from '@/lib/queries/kpi-snapshots'
 import type { RetrievedContext } from '@/lib/retrieval/search'
+import type { DiscoveryEntryRow } from '@/lib/queries/discovery-entries'
 
 export type { BusinessPlanSections }
 
@@ -263,6 +264,9 @@ export function buildChatSystemPrompt(params: {
   includeKpis: boolean
   projectMaterials?: ProjectMaterialForPrompt[]
   includeProjectMaterials?: boolean
+  discoveryEntries?: DiscoveryEntryRow[]
+  includeDiscoveryEntries?: boolean
+  discoveryParticipant?: string | null
   retrievedContext?: RetrievedContext[]
 }): string {
   const {
@@ -271,7 +275,9 @@ export function buildChatSystemPrompt(params: {
     kpiDefinitions, kpiSnapshot,
     includeBrand, includeBusinessPlan, includePersonas, includeProduct,
     includeCurrentGoals, includeFiledDocs, includeCompetitors, includeSocialProof,
-    includeKpis, projectMaterials, includeProjectMaterials, retrievedContext,
+    includeKpis, projectMaterials, includeProjectMaterials,
+    discoveryEntries, includeDiscoveryEntries, discoveryParticipant,
+    retrievedContext,
   } = params
 
   const lines: string[] = []
@@ -415,6 +421,29 @@ export function buildChatSystemPrompt(params: {
       lines.push(kpiBlock)
       lines.push('')
     }
+  }
+
+  if (includeDiscoveryEntries && discoveryEntries && discoveryEntries.length > 0) {
+    const heading = discoveryParticipant
+      ? `[CUSTOMER FILE — ${discoveryParticipant}]`
+      : '[CUSTOMER DISCOVERY ENTRIES]'
+    lines.push(heading)
+    if (discoveryParticipant) {
+      lines.push(`All of the following are recorded interactions and feedback from ${discoveryParticipant}.`)
+      lines.push('Use this context to answer questions about their experience, needs, and feedback patterns.')
+    } else {
+      lines.push('The following are customer discovery entries (interviews, emails, surveys, observations).')
+      lines.push('Use these to ground answers in real customer feedback.')
+    }
+    discoveryEntries.slice(0, 30).forEach((entry) => {
+      const date = entry.entry_date ? ` (${entry.entry_date})` : ''
+      const src = entry.source ? ` · ${entry.source}` : ''
+      const who = !discoveryParticipant && entry.participant ? ` — ${entry.participant}` : ''
+      lines.push(`- [${entry.entry_type}${src}${who}${date}] ${entry.raw_content.slice(0, 800)}`)
+      if (entry.key_quote_1) lines.push(`  Key quote: "${entry.key_quote_1}"`)
+      if (entry.jtbd) lines.push(`  JTBD: ${entry.jtbd}`)
+    })
+    lines.push('')
   }
 
   lines.push('Use the company context above to give grounded, relevant answers.')

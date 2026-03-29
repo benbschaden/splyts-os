@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import type { DiscoveryStudyRow } from '@/lib/queries/discovery-studies'
 import type { DiscoveryEntryRow } from '@/lib/queries/discovery-entries'
+import type { ContextConfig } from '@/lib/queries/chat'
 import { DiscoveryStudiesList } from './discovery-studies-list'
 import { DiscoveryStudyDetail } from './discovery-study-detail'
 import { DiscoveryFeed } from './discovery-feed'
@@ -53,6 +54,42 @@ export function DiscoveryHub({ projectId, initialStudies, initialEntries }: Disc
     refresh()
   }
 
+  async function handleChatWithParticipant(participant: string) {
+    const contextConfig: ContextConfig = {
+      brand: true,
+      business_plan: false,
+      personas: false,
+      product: false,
+      product_roadmap: false,
+      company_milestones: false,
+      current_goals: false,
+      filed_documents: false,
+      competitors: false,
+      social_proof: false,
+      kpis: false,
+      browser: false,
+      project_materials: false,
+      discovery_entries: true,
+      discovery_participant: participant,
+    }
+    try {
+      const res = await fetch('/api/chat/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: projectId,
+          context_config: contextConfig,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok && data.session) {
+        router.push(`/dashboard/chat/${data.session.id}`)
+      }
+    } catch {
+      // navigation failure is non-critical
+    }
+  }
+
   if (selectedStudy) {
     return (
       <DiscoveryStudyDetail
@@ -61,6 +98,7 @@ export function DiscoveryHub({ projectId, initialStudies, initialEntries }: Disc
         onBack={() => setSelectedStudy(null)}
         onStudyUpdated={handleStudyUpdated}
         onEntriesChanged={refresh}
+        onChatWithParticipant={handleChatWithParticipant}
       />
     )
   }
@@ -100,7 +138,11 @@ export function DiscoveryHub({ projectId, initialStudies, initialEntries }: Disc
       )}
 
       {activeTab === 'all' && (
-        <DiscoveryFeed projectId={projectId} initialEntries={entries} />
+        <DiscoveryFeed
+          projectId={projectId}
+          initialEntries={entries}
+          onChatWithParticipant={handleChatWithParticipant}
+        />
       )}
     </div>
   )

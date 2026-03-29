@@ -141,7 +141,7 @@ export async function getOutputsForProject(
 export async function createOutput(params: {
   organizationId: string
   projectId: string
-  contentTypeId: string
+  contentTypeId: string | null
   brief: string
   content: string
   userId: string
@@ -154,7 +154,7 @@ export async function createOutput(params: {
     .insert({
       organization_id: params.organizationId,
       project_id: params.projectId,
-      content_type_id: params.contentTypeId,
+      content_type_id: params.contentTypeId ?? null,
       brief: params.brief,
       content: params.content,
       created_by: params.userId,

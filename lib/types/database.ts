@@ -678,7 +678,7 @@ export type Database = {
         Row: {
           brief: string
           content: string
-          content_type_id: string
+          content_type_id: string | null
           created_at: string
           created_by: string
           deleted_at: string | null
@@ -703,7 +703,7 @@ export type Database = {
         Insert: {
           brief: string
           content: string
-          content_type_id: string
+          content_type_id?: string | null
           created_at?: string
           created_by: string
           deleted_at?: string | null
@@ -728,7 +728,7 @@ export type Database = {
         Update: {
           brief?: string
           content?: string
-          content_type_id?: string
+          content_type_id?: string | null
           created_at?: string
           created_by?: string
           deleted_at?: string | null

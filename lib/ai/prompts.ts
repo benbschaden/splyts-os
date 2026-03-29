@@ -985,3 +985,58 @@ Write a well-structured ${params.documentType} document that captures the key co
 
 Write the document now:`
 }
+
+export function buildProjectOutputPrompt(params: {
+  projectName: string
+  projectDescription: string | null
+  outputType: string
+  brief: string
+  materials: Array<{
+    material_type: string
+    title: string | null
+    content: string | null
+    file_name: string | null
+    link_url: string | null
+  }>
+  businessPlanSections: BusinessPlanSections | null
+}): string {
+  const { projectName, projectDescription, outputType, brief, materials, businessPlanSections } = params
+
+  const materialsBlock = materials.length > 0
+    ? materials
+        .map((m) => {
+          if (m.content) return `[${m.material_type.toUpperCase()}] ${m.title ?? 'Note'}:\n${m.content.slice(0, 3000)}`
+          if (m.link_url) return `[LINK] ${m.title ?? m.link_url}: ${m.link_url}`
+          if (m.file_name) return `[FILE] ${m.file_name} (uploaded reference)`
+          return null
+        })
+        .filter(Boolean)
+        .join('\n\n')
+    : null
+
+  const planBlock = businessPlanSections
+    ? BUSINESS_PLAN_SECTIONS
+        .filter((s) => (businessPlanSections[s.key] ?? '').trim())
+        .map((s) => `${s.label}: ${businessPlanSections[s.key].trim()}`)
+        .join('\n')
+    : null
+
+  return `You are a sharp, experienced professional creating project deliverables. Your output is clear, specific, well-structured, and immediately actionable.
+
+PROJECT: ${projectName}${projectDescription ? `\nCONTEXT: ${projectDescription}` : ''}
+
+DELIVERABLE: ${outputType}
+BRIEF: ${brief}
+${materialsBlock ? `\nPROJECT MATERIALS (use as source and reference):\n${materialsBlock}` : ''}
+${planBlock ? `\nBUSINESS CONTEXT (background reference):\n${planBlock}` : ''}
+---
+
+Write a complete, professional ${outputType}. Requirements:
+- Use markdown: ## for section headings, - for bullets, **bold** for key terms or actions
+- Be specific and concrete — no generic filler, no obvious advice
+- Write for a professional team who will act on this immediately
+- Cover all sections relevant to a ${outputType}
+- Length appropriate to the type: briefs are tight (1–2 pages), reports are thorough
+
+Respond with ONLY the ${outputType} content. No preamble, no "here is your ${outputType}".`
+}

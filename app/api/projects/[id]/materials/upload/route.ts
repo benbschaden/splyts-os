@@ -19,6 +19,7 @@ const ALLOWED_MIME_TYPES = new Set([
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/json',
+  'text/markdown',
 ])
 
 const MIME_TO_EXT: Record<string, string> = {
@@ -33,6 +34,7 @@ const MIME_TO_EXT: Record<string, string> = {
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
   'application/json': 'json',
+  'text/markdown': 'md',
 }
 
 function extensionForFile(file: File): string {

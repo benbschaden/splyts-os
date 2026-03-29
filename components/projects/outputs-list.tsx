@@ -9,13 +9,14 @@ import {
   GenerationSessionDialog,
   type GeneratedOutputPayload,
 } from '@/components/marketing/generation-session-dialog'
+import { ProjectOutputDialog } from '@/components/projects/project-output-dialog'
 import { getModelById } from '@/lib/ai/models'
 
 interface Output {
   id: string
   brief: string
   content: string
-  content_type_id: string
+  content_type_id: string | null
   model_id: string
   project_id: string
   created_by: string
@@ -215,7 +216,7 @@ function OutputCard({
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-border px-4 py-3">
         <div className="flex flex-wrap items-center gap-2 min-w-0">
           <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground shrink-0">
-            {output.content_types?.name ?? 'Unknown type'}
+            {output.content_types?.name ?? (output.brief.includes(': ') ? output.brief.split(': ')[0] : 'Output')}
           </span>
           <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground shrink-0 hidden sm:inline-flex">
             {modelLabel}
@@ -240,16 +241,18 @@ function OutputCard({
               <Send className="h-3.5 w-3.5" />
             </button>
           )}
-          <button
-            onClick={() => setShowPerf(!showPerf)}
-            title="Performance stats"
-            className={cn(
-              'rounded-md p-1.5 transition-colors',
-              hasPerf ? 'text-violet-600 hover:bg-violet-500/10' : 'text-muted-foreground hover:bg-accent',
-            )}
-          >
-            <BarChart2 className="h-3.5 w-3.5" />
-          </button>
+          {showPublish && (
+            <button
+              onClick={() => setShowPerf(!showPerf)}
+              title="Performance stats"
+              className={cn(
+                'rounded-md p-1.5 transition-colors',
+                hasPerf ? 'text-violet-600 hover:bg-violet-500/10' : 'text-muted-foreground hover:bg-accent',
+              )}
+            >
+              <BarChart2 className="h-3.5 w-3.5" />
+            </button>
+          )}
           <button
             onClick={handleCopy}
             title="Copy to clipboard"
@@ -274,8 +277,8 @@ function OutputCard({
         </div>
       </div>
 
-      {/* Performance stats panel */}
-      {showPerf && (
+      {/* Performance stats panel — marketing projects only */}
+      {showPublish && showPerf && (
         <div className="border-b border-border bg-muted/10 px-4 py-4 space-y-4">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-violet-600">Performance</p>
           <div className="grid grid-cols-2 gap-4">
@@ -338,8 +341,8 @@ function OutputCard({
         </div>
       )}
 
-      {/* Performance summary (when stats exist and panel is closed) */}
-      {!showPerf && hasPerf && (
+      {/* Performance summary — marketing projects only */}
+      {showPublish && !showPerf && hasPerf && (
         <div className="flex flex-wrap items-center gap-4 border-b border-border px-4 py-2 bg-violet-500/5">
           {output.reach !== null && (
             <p className="text-xs text-muted-foreground">
@@ -580,6 +583,32 @@ export function OutputsList({
     setOutputs((prev) => [full, ...prev])
   }
 
+  function handleProjectOutputGenerated(newOutput: {
+    id: string
+    brief: string
+    content: string
+    content_type_id: string | null
+    model_id: string
+    created_by: string
+    created_at: string
+    updated_at: string
+    published_at: string | null
+    reach: number | null
+    reach_metric: string | null
+    engagement: number | null
+    performance_notes: string | null
+    creator_full_name: string | null
+  }) {
+    const full: Output = {
+      ...newOutput,
+      project_id: projectId,
+      content_types: null,
+      projects: null,
+      metadata: null,
+    }
+    setOutputs((prev) => [full, ...prev])
+  }
+
   function handleUpdated(updated: Output) {
     setOutputs((prev) => prev.map((o) => (o.id === updated.id ? updated : o)))
   }
@@ -592,9 +621,11 @@ export function OutputsList({
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div className="space-y-0.5">
-          <h2 className="text-sm font-semibold text-foreground">Content</h2>
+          <h2 className="text-sm font-semibold text-foreground">{showPublish ? 'Content' : 'Outputs'}</h2>
           <p className="text-sm text-muted-foreground">
-            {outputs.length === 0 ? 'No content yet.' : `${outputs.length} piece${outputs.length === 1 ? '' : 's'} generated.`}
+            {outputs.length === 0
+              ? showPublish ? 'No content yet.' : 'No outputs yet.'
+              : `${outputs.length} ${showPublish ? `piece${outputs.length === 1 ? '' : 's'}` : `output${outputs.length === 1 ? '' : 's'}`} generated.`}
           </p>
         </div>
         <button
@@ -612,15 +643,19 @@ export function OutputsList({
             <FileText className="h-5 w-5 text-muted-foreground" />
           </div>
           <div className="space-y-1">
-            <p className="text-sm font-medium text-foreground">No content yet. Generate your first piece.</p>
-            <p className="text-sm text-muted-foreground">Use a brief to tell the AI what to write.</p>
+            <p className="text-sm font-medium text-foreground">
+              {showPublish ? 'No content yet. Generate your first piece.' : 'No outputs yet. Generate your first deliverable.'}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {showPublish ? 'Use a brief to tell the AI what to write.' : 'Briefs, reports, analyses, plans — all generated from your project materials.'}
+            </p>
           </div>
           <button
             onClick={() => setDialogOpen(true)}
             className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
             <Sparkles className="h-3.5 w-3.5" />
-            Generate content
+            {showPublish ? 'Generate content' : 'Generate output'}
           </button>
         </div>
       ) : (
@@ -638,15 +673,24 @@ export function OutputsList({
         </div>
       )}
 
-      <GenerationSessionDialog
-        open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
-        onGenerated={handleGenerated}
-        projectId={projectId}
-        authors={authors}
-        contentTypes={contentTypes}
-        hasBrandContext={hasBrandContext}
-      />
+      {showPublish ? (
+        <GenerationSessionDialog
+          open={dialogOpen}
+          onClose={() => setDialogOpen(false)}
+          onGenerated={handleGenerated}
+          projectId={projectId}
+          authors={authors}
+          contentTypes={contentTypes}
+          hasBrandContext={hasBrandContext}
+        />
+      ) : (
+        <ProjectOutputDialog
+          open={dialogOpen}
+          projectId={projectId}
+          onClose={() => setDialogOpen(false)}
+          onGenerated={handleProjectOutputGenerated}
+        />
+      )}
     </div>
   )
 }

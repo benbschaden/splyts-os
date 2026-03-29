@@ -512,7 +512,7 @@ export function ProjectDetail({
                   authors={authors}
                   contentTypes={contentTypes}
                   hasBrandContext={hasBrandContext}
-                  showPublish={project.category === 'Marketing'}
+                  showPublish={false}
                 />
               )}
 

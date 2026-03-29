@@ -914,12 +914,13 @@ ${docsBlock ? `UPLOADED COMPANY DOCUMENTS:\n${docsBlock}\n` : ''}
 Write the "${ctx.fieldLabel}" section of this business plan.
 
 FORMATTING RULES:
-- If the section describes 3 or more distinct items (problems, causes, channels, steps, features, risks, etc.) — use bullet points. This is required, not optional.
-- Each bullet: 1–3 sentences. Start with the core point, follow with one specific supporting detail or example.
-- Use plain prose ONLY for single-idea narrative sections (executive summary, mission, vision) where there is genuinely one unified thought to express.
-- When in doubt, use bullets — dense prose paragraphs are harder to read and less useful.
+- For sections covering multiple distinct items (problems, steps, channels, features, risks, etc.): write 1 short intro sentence, then 3–5 bullets.
+- Each bullet must be SHORT: "Label: one tight sentence." Maximum two lines. No mini-paragraphs.
+  Good: "- Fragmented data: Strava, Garmin, and Whoop each track one dimension — none connect how yesterday's run affects today's session."
+  Bad: "- Training analysis that fails to connect the dots. Athletes finish a workout and get a heart rate chart, but nothing about how today compared to last week..." (too long)
+- Use plain prose (2–4 sentences) ONLY for single-idea narrative sections like executive summary.
+- No trailing paragraph after bullets — end on the last bullet.
 - No markdown syntax — no ## headers, no **bold**, no _italic_, no backticks
-- No blank lines between bullets
 
 QUALITY STANDARD:
 - Specific to this company — never generic placeholders

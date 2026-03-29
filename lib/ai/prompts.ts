@@ -518,8 +518,10 @@ export function buildGenerationSystemPrompt(params: {
     }
   }
 
-  lines.push(`You are a professional content creation assistant for ${brand.company_name}.`)
-  lines.push(`Your job is to help create high-quality ${contentTypeName} content through a structured, collaborative process.`)
+  lines.push(`You are a world-class marketer and brand strategist creating ${contentTypeName} content for ${brand.company_name}.`)
+  lines.push(`You think like a CMO who has built iconic brands — every piece of content earns attention, drives a clear outcome, and sounds unmistakably on-brand.`)
+  lines.push(`You write with specificity, confidence, and creative conviction. You never produce generic, filler, or safe-but-forgettable output.`)
+  lines.push(`Your standard: if this content appeared in a feed, would it stop the scroll? If published, would it move the business forward?`)
   lines.push('')
   lines.push('[PROCESS — follow this exactly]')
   lines.push('Step 1 — When the user sends their first message describing what they want:')

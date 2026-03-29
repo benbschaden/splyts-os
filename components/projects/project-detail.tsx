@@ -61,7 +61,7 @@ interface Output {
   id: string
   brief: string
   content: string
-  content_type_id: string
+  content_type_id: string | null
   model_id: string
   project_id: string
   created_by: string

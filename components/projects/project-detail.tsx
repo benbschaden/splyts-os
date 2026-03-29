@@ -20,6 +20,7 @@ import { DiscoveryHub } from '@/components/projects/discovery-hub'
 import { SharingSettings } from '@/components/projects/sharing-settings'
 import { DiscussionsPanel } from '@/components/discussions/discussions-panel'
 import { ContentStudioDetail } from '@/components/content-studio/content-studio-detail'
+import { CustomerDiscoveryDetail } from '@/components/customer-discovery/customer-discovery-detail'
 import { Globe, Users, Lock, UserCheck } from 'lucide-react'
 import type { DiscoveryEntryRow } from '@/lib/queries/discovery-entries'
 import type { DiscoveryStudyRow } from '@/lib/queries/discovery-studies'
@@ -168,6 +169,16 @@ export function ProjectDetail({
         contentTypes={contentTypes}
         authors={authors}
         hasBrandContext={hasBrandContext}
+      />
+    )
+  }
+
+  if (project.tool_key === 'customer_discovery') {
+    return (
+      <CustomerDiscoveryDetail
+        project={project}
+        initialStudies={discoveryStudies}
+        initialEntries={discoveryEntries}
       />
     )
   }

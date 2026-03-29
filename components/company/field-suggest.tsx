@@ -2,6 +2,8 @@
 
 import { Sparkles, Check, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 export type SuggestState = {
   loading: boolean
@@ -63,9 +65,11 @@ export function SuggestBox({ state, onAccept, onDismiss }: SuggestBoxProps) {
               Conflicting documents detected — review the conflicts panel before accepting.
             </p>
           )}
-          <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-            {state.suggestion}
-          </p>
+          <div className="text-sm text-foreground leading-relaxed prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 prose-headings:text-sm prose-headings:font-semibold prose-headings:mt-2 prose-headings:mb-1">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {state.suggestion}
+            </ReactMarkdown>
+          </div>
           {state.sources.length > 0 && (
             <p className="text-xs text-muted-foreground">
               Sources: {state.sources.join(', ')}

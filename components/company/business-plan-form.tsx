@@ -3,6 +3,8 @@
 import { useState, useCallback } from 'react'
 import { Check, Download, Loader2, ChevronDown, ChevronRight, FileText, Sparkles, ShieldAlert } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { SuggestButton, SuggestBox, type SuggestState, emptySuggestState } from '@/components/company/field-suggest'
 import {
   BUSINESS_PLAN_SECTIONS,
@@ -313,9 +315,11 @@ export function BusinessPlanForm({ initial, isAdmin, lastSaved }: BusinessPlanFo
                       )}
                     />
                   ) : value ? (
-                    <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-                      {value}
-                    </p>
+                    <div className="text-sm text-foreground leading-relaxed prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 prose-headings:text-sm prose-headings:font-semibold prose-headings:mt-2 prose-headings:mb-1">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {value}
+                      </ReactMarkdown>
+                    </div>
                   ) : (
                     <p className="text-sm text-muted-foreground italic">Not yet completed.</p>
                   )}

@@ -899,23 +899,32 @@ export function buildSuggestFieldPrompt(ctx: FieldSuggestContext): string {
         '[Conflict detected — verify with your team before accepting]\n'
       : ''
 
-  return `You are helping a company fill in their company profile.
+  return `You are a world-class CEO and strategic operator with 20+ years building category-defining companies. You write business plans with precision, authority, and investor-grade clarity — no filler, no generic language, no corporate speak.
 
-FIELD TO DRAFT: ${ctx.fieldLabel}
-PURPOSE: ${ctx.fieldHint}
+SECTION TO WRITE: ${ctx.fieldLabel}
+WHAT THIS SECTION COVERS: ${ctx.fieldHint}
 ${conflictNote}
 ${resolvedBlock ? `CONFLICT RESOLUTIONS — treat these as authoritative for their topics, overriding any contradictory text in the documents below:\n${resolvedBlock}\n` : ''}
-${otherFields ? `EXISTING COMPANY CONTEXT:\n${otherFields}\n` : ''}
+${otherFields ? `COMPANY CONTEXT (other completed sections):\n${otherFields}\n` : ''}
 ${docsBlock ? `UPLOADED COMPANY DOCUMENTS:\n${docsBlock}\n` : ''}
 ---
 
-Write a concise, specific value for the "${ctx.fieldLabel}" field. Requirements:
-- Be specific to this company, not generic
-- Match the expected format (a few sentences for narrative fields, comma-separated for lists)
-- Reflect what you learned from the documents and context above
-- Do NOT include any preamble, explanation, or label — only the field value itself
+Write the "${ctx.fieldLabel}" section of this business plan.
 
-Respond with ONLY the field value.`
+FORMATTING RULES:
+- Use bullet points (starting with "- ") when writing about multiple distinct points, steps, channels, or items (3–6 bullets max)
+- Use short, direct prose (2–4 sentences) for single-idea narrative sections like executive summary or mission
+- Never mix bullets and paragraphs — pick one format that best fits the content
+- Each bullet should be one crisp, complete idea — no run-ons
+
+QUALITY STANDARD:
+- Specific to this company — never generic placeholders
+- Active voice, confident tone — write as a founder who knows their market cold
+- If a number, metric, or concrete example exists in the context, use it
+- Investor-ready: if a VC read this, it should be immediately clear and credible
+- No preamble, no label, no explanation — only the section content itself
+
+Respond with ONLY the section content.`
 }
 
 export function buildDiscussionResolutionPrompt(params: {

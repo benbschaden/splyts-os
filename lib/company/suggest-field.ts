@@ -37,7 +37,7 @@ export async function suggestField(input: SuggestFieldInput): Promise<SuggestFie
 
   const message = await anthropic.messages.create({
     model: DEFAULT_MODEL.id,
-    max_tokens: 512,
+    max_tokens: 1024,
     messages: [{ role: 'user', content: prompt }],
   })
 

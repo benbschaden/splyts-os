@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { Check, Download, Loader2, ChevronDown, ChevronRight, FileText, Sparkles, ShieldAlert } from 'lucide-react'
+import { Check, Download, Loader2, ChevronDown, ChevronRight, FileText, Sparkles, ShieldAlert, Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -29,6 +29,7 @@ export function BusinessPlanForm({ initial, isAdmin, lastSaved }: BusinessPlanFo
   const [expandedKey, setExpandedKey] = useState<string | null>(
     BUSINESS_PLAN_SECTIONS[0]?.key ?? null,
   )
+  const [editingKey, setEditingKey] = useState<string | null>(null)
   const [suggests, setSuggests] = useState<Record<string, SuggestState>>(
     () => Object.fromEntries(BUSINESS_PLAN_SECTIONS.map((s) => [s.key, emptySuggestState()])),
   )
@@ -266,6 +267,7 @@ export function BusinessPlanForm({ initial, isAdmin, lastSaved }: BusinessPlanFo
                     onAccept={(s) => {
                       handleChange(section.key, s)
                       setSuggest(section.key, emptySuggestState())
+                      setEditingKey(null)
                     }}
                     onDismiss={() => setSuggest(section.key, emptySuggestState())}
                   />
@@ -304,18 +306,48 @@ export function BusinessPlanForm({ initial, isAdmin, lastSaved }: BusinessPlanFo
                   )}
 
                   {isAdmin ? (
-                    <textarea
-                      value={value}
-                      onChange={(e) => handleChange(section.key, e.target.value)}
-                      placeholder={section.placeholder}
-                      rows={6}
-                      className={cn(
-                        'w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 resize-none leading-relaxed',
-                        'focus:outline-none focus:ring-2 focus:ring-ring',
-                      )}
-                    />
+                    value && editingKey !== section.key ? (
+                      <div className="group relative">
+                        <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 prose-headings:text-sm prose-headings:font-semibold prose-headings:mt-2 prose-headings:mb-1 text-foreground text-sm leading-relaxed rounded-md border border-transparent px-3 py-2">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {value}
+                          </ReactMarkdown>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setEditingKey(section.key)}
+                          className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent border border-border bg-background"
+                        >
+                          <Pencil className="h-3 w-3" />
+                          Edit
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <textarea
+                          value={value}
+                          onChange={(e) => handleChange(section.key, e.target.value)}
+                          placeholder={section.placeholder}
+                          rows={6}
+                          autoFocus={editingKey === section.key}
+                          className={cn(
+                            'w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 resize-none leading-relaxed font-mono',
+                            'focus:outline-none focus:ring-2 focus:ring-ring',
+                          )}
+                        />
+                        {value && (
+                          <button
+                            type="button"
+                            onClick={() => setEditingKey(null)}
+                            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            ← Back to preview
+                          </button>
+                        )}
+                      </div>
+                    )
                   ) : value ? (
-                    <div className="text-sm text-foreground leading-relaxed prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 prose-headings:text-sm prose-headings:font-semibold prose-headings:mt-2 prose-headings:mb-1">
+                    <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 prose-headings:text-sm prose-headings:font-semibold prose-headings:mt-2 prose-headings:mb-1 text-foreground text-sm leading-relaxed">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {value}
                       </ReactMarkdown>

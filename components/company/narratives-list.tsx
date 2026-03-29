@@ -104,7 +104,9 @@ export function NarrativesList({
 
                 <div className="min-w-0 flex-1 space-y-1.5">
                   <p className="text-sm font-semibold text-foreground">{n.title}</p>
-                  <p className="text-xs text-muted-foreground line-clamp-3 whitespace-pre-wrap">{n.narrative}</p>
+                  <p className="text-xs text-muted-foreground line-clamp-3">
+                    {n.narrative.replace(/^#+\s/gm, '').replace(/\*\*(.*?)\*\*/g, '$1').replace(/_(.*?)_/g, '$1')}
+                  </p>
                   {n.usage_context && (
                     <p className="text-[11px] text-muted-foreground/80 italic border-l-2 border-border pl-2">
                       {n.usage_context}

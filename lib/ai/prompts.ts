@@ -917,7 +917,7 @@ FORMATTING RULES:
 - Use markdown formatting — it will be rendered properly.
 - For sections covering multiple distinct items (problems, steps, channels, features, risks, etc.): write a short intro sentence, then 3–5 bullets using "- **Label:** description" format.
 - Each bullet: "- **Short label:** One tight sentence with a specific detail or example." Max 2 lines per bullet.
-- Use `##` for a section sub-heading only if the section genuinely has 2+ named sub-groups.
+- Use "## Sub-heading" for a section sub-heading only if the section genuinely has 2+ named sub-groups.
 - Use plain prose (2–4 sentences, no bullets) ONLY for single-idea narrative sections like executive summary.
 - No trailing paragraph after bullets — end on the last bullet.
 

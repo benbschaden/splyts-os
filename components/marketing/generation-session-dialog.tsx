@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { X, Sparkles, Loader2, Send, Save, ChevronLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { AI_MODELS, DEFAULT_MODEL } from '@/lib/ai/models'
 
 export interface GeneratedOutputPayload {
@@ -420,13 +422,20 @@ export function GenerationSessionDialog({
                 >
                   <div
                     className={cn(
-                      'rounded-lg px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap max-w-[85%]',
+                      'rounded-lg px-4 py-3 text-sm leading-relaxed max-w-[85%]',
                       msg.role === 'user'
                         ? 'bg-foreground text-background'
                         : 'bg-muted text-foreground',
+                      msg.role === 'assistant' && 'prose prose-sm dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 prose-headings:text-sm prose-headings:font-semibold prose-headings:mt-2 prose-headings:mb-1',
                     )}
                   >
-                    {msg.content}
+                    {msg.role === 'assistant' ? (
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {msg.content}
+                      </ReactMarkdown>
+                    ) : (
+                      msg.content
+                    )}
                   </div>
                 </div>
               ))}

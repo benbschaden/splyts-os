@@ -7,6 +7,8 @@ import {
   ArrowLeft, Download, Share2, Building2, Lock, Trash2, Pencil, Check, X,
   History, AlertTriangle, Loader2, Users,
 } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import type { DocumentRow, DocumentVisibility } from '@/lib/queries/documents'
 import { DocumentVersionsDrawer } from './document-versions-drawer'
 import { DiscussionsPanel } from '@/components/discussions/discussions-panel'
@@ -456,10 +458,10 @@ export function DocumentViewer({ document: initialDocument, isOwner, isAdmin, ca
             </div>
           ) : (
             <div className="group relative">
-              <div className="prose prose-sm max-w-none text-foreground">
-                <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground">
+              <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1.5 prose-ul:my-1 prose-li:my-0.5 prose-headings:font-semibold prose-headings:mt-4 prose-headings:mb-2 text-foreground">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {document.content}
-                </pre>
+                </ReactMarkdown>
               </div>
               {isOwner && (
                 <button

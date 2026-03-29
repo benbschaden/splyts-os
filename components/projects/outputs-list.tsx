@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { Sparkles, Copy, Pencil, Trash2, Check, X, FileText, BarChart2, Send, File } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -404,9 +406,11 @@ function OutputCard({
                 {abstractText}
               </blockquote>
             )}
-            <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-              {expanded || output.content.length <= 180 ? output.content : preview}
-            </p>
+            <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 prose-headings:text-sm prose-headings:font-semibold prose-headings:mt-2 prose-headings:mb-1 text-foreground">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {expanded || output.content.length <= 180 ? output.content : preview}
+              </ReactMarkdown>
+            </div>
             {showExpandedContent && keyFindings.length > 0 && (
               <div className="space-y-1.5">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Key findings</p>

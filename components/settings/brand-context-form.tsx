@@ -1,8 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import { Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SuggestButton, SuggestBox, type SuggestState, emptySuggestState } from '@/components/company/field-suggest'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 interface BrandContextValues {
   company_name: string
@@ -105,6 +108,7 @@ export function BrandContextForm({ initial, isAdmin }: BrandContextFormProps) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
+  const [editingKey, setEditingKey] = useState<string | null>(null)
   const [suggests, setSuggests] = useState<Record<string, SuggestState>>(
     () => Object.fromEntries(allFields.map((f) => [f.key, emptySuggestState()])),
   )
@@ -209,20 +213,52 @@ export function BrandContextForm({ initial, isAdmin }: BrandContextFormProps) {
               <p className="text-xs text-muted-foreground">{field.hint}</p>
 
               {field.multiline ? (
-                <textarea
-                  id={field.key}
-                  value={value}
-                  onChange={(e) => set(field.key, e.target.value)}
-                  rows={3}
-                  disabled={!isAdmin || saving}
-                  readOnly={!isAdmin}
-                  className={cn(
-                    'w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground resize-none',
-                    'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1',
-                    'disabled:opacity-60 disabled:cursor-not-allowed',
-                    error ? 'border-destructive' : 'border-input',
-                  )}
-                />
+                isAdmin && value && editingKey !== field.key ? (
+                  <div className="group relative">
+                    <div className={cn(
+                      'prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 prose-headings:text-sm prose-headings:font-semibold prose-headings:mt-2 prose-headings:mb-1',
+                      'text-foreground text-sm leading-relaxed rounded-md border px-3 py-2',
+                      error ? 'border-destructive' : 'border-input',
+                    )}>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{value}</ReactMarkdown>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditingKey(field.key)}
+                      className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent border border-border bg-background"
+                    >
+                      <Pencil className="h-3 w-3" />
+                      Edit
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <textarea
+                      id={field.key}
+                      value={value}
+                      onChange={(e) => set(field.key, e.target.value)}
+                      rows={5}
+                      disabled={!isAdmin || saving}
+                      readOnly={!isAdmin}
+                      autoFocus={editingKey === field.key}
+                      className={cn(
+                        'w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground resize-y font-mono',
+                        'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1',
+                        'disabled:opacity-60 disabled:cursor-not-allowed',
+                        error ? 'border-destructive' : 'border-input',
+                      )}
+                    />
+                    {isAdmin && value && (
+                      <button
+                        type="button"
+                        onClick={() => setEditingKey(null)}
+                        className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        ← Back to preview
+                      </button>
+                    )}
+                  </div>
+                )
               ) : (
                 <input
                   id={field.key}
@@ -242,7 +278,7 @@ export function BrandContextForm({ initial, isAdmin }: BrandContextFormProps) {
 
               <SuggestBox
                 state={suggests[field.key]}
-                onAccept={(s) => { set(field.key, s); setSuggest(field.key, emptySuggestState()) }}
+                onAccept={(s) => { set(field.key, s); setSuggest(field.key, emptySuggestState()); setEditingKey(null) }}
                 onDismiss={() => setSuggest(field.key, emptySuggestState())}
               />
               {error && (

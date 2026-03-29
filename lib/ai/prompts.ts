@@ -918,6 +918,7 @@ FORMATTING RULES:
 - Use short, direct prose (2–4 sentences) for single-idea narrative sections like executive summary or mission
 - Never mix bullets and paragraphs — pick one format that best fits the content
 - Each bullet should be one crisp, complete idea — no run-ons
+- No markdown syntax — no ## headers, no **bold**, no _italic_, no backticks
 
 QUALITY STANDARD:
 - Specific to this company — never generic placeholders

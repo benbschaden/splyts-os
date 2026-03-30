@@ -1040,3 +1040,80 @@ Write a complete, professional ${outputType}. Requirements:
 
 Respond with ONLY the ${outputType} content. No preamble, no "here is your ${outputType}".`
 }
+
+export function buildSectionChatSystemPrompt(params: {
+  sectionKey: string
+  sectionLabel: string
+  sectionDescription: string
+  sectionText: string
+  otherSections: Array<{ label: string; text: string }>
+  knowledgeDocs: KnowledgeDoc[]
+  brand: { company_name: string; mission?: string | null; voice?: string | null } | null
+}): string {
+  const {
+    sectionLabel,
+    sectionDescription,
+    sectionText,
+    otherSections,
+    knowledgeDocs,
+    brand,
+  } = params
+
+  const lines: string[] = []
+
+  lines.push(`You are helping review and improve the "${sectionLabel}" section of a company's business plan.`)
+  lines.push('Be direct, specific, and grounded in the company context provided below.')
+  lines.push('')
+
+  lines.push('[SECTION BEING DISCUSSED]')
+  lines.push(`Title: ${sectionLabel}`)
+  lines.push(`Description: ${sectionDescription}`)
+  lines.push('')
+  if (sectionText.trim()) {
+    lines.push('Current content:')
+    lines.push(sectionText.trim())
+  } else {
+    lines.push('Current content: (not yet written)')
+  }
+  lines.push('')
+
+  if (brand?.company_name) {
+    lines.push('[COMPANY]')
+    lines.push(`Name: ${brand.company_name}`)
+    if (brand.mission?.trim()) lines.push(`Mission: ${brand.mission.trim()}`)
+    if (brand.voice?.trim()) lines.push(`Brand voice: ${brand.voice.trim()}`)
+    lines.push('')
+  }
+
+  const filledOtherSections = otherSections.filter((s) => s.text.trim().length > 0)
+  if (filledOtherSections.length > 0) {
+    lines.push('[OTHER BUSINESS PLAN SECTIONS]')
+    lines.push('Use these for context and consistency checks only — do not rewrite them.')
+    for (const s of filledOtherSections) {
+      const truncated = s.text.trim().slice(0, 500)
+      lines.push(`${s.label}: ${truncated}${s.text.length > 500 ? '…' : ''}`)
+    }
+    lines.push('')
+  }
+
+  if (knowledgeDocs.length > 0) {
+    lines.push('[COMPANY KNOWLEDGE DOCUMENTS]')
+    lines.push('Uploaded documents — use these as ground truth for company facts.')
+    for (const doc of knowledgeDocs) {
+      lines.push(`--- ${doc.fileName} ---`)
+      lines.push(doc.text.slice(0, 3000))
+      if (doc.text.length > 3000) lines.push('(truncated)')
+    }
+    lines.push('')
+  }
+
+  lines.push('[INSTRUCTIONS]')
+  lines.push(`- You can analyse whether the section is accurate, complete, and consistent with the rest of the plan.`)
+  lines.push(`- You can suggest improvements or write a full replacement when asked.`)
+  lines.push(`- When you provide a replacement version of the section, wrap the new text in <replacement> and </replacement> tags.`)
+  lines.push(`- Only the section body goes inside those tags — no headings, no labels, no preamble.`)
+  lines.push(`- Only use <replacement> tags when providing a full replacement body. Never use them for analysis, partial suggestions, or discussion.`)
+  lines.push(`- The user can click "Apply to section" to replace the current content with your replacement.`)
+
+  return lines.join('\n')
+}

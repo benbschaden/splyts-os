@@ -25,4 +25,28 @@ Feature: Business plan template under Company
     Given the user is a member (not admin)
     When they open the business plan page
     Then they can read completed sections but cannot edit
+
+  Scenario: Admin opens section chat
+    Given the admin has expanded a business plan section
+    When they click "Discuss with AI"
+    Then a chat panel opens inline beneath the section content
+    And the AI is pre-loaded with the current section text, all other filled sections, and company knowledge documents
+
+  Scenario: Admin asks AI to review the section
+    Given the section chat is open
+    When the admin types a question and sends it
+    Then the AI responds with analysis or suggestions grounded in the company context
+
+  Scenario: Admin asks AI for a replacement version
+    Given the section chat is open
+    When the admin asks the AI to rewrite or update the section
+    Then the AI responds with a replacement version wrapped in replacement tags
+    And an "Apply to section" button appears below that message
+
+  Scenario: Admin applies the AI replacement to the section
+    Given an "Apply to section" button is visible
+    When the admin clicks it
+    Then the section text field is updated with the replacement text
+    And the section chat closes
+    And the form shows unsaved changes (same as manual editing)
 ```

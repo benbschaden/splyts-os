@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { Check, Download, Loader2, ChevronDown, ChevronRight, FileText, Sparkles, ShieldAlert, Pencil } from 'lucide-react'
+import { Check, Download, Loader2, ChevronDown, ChevronRight, FileText, Sparkles, ShieldAlert, Pencil, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { SuggestButton, SuggestBox, type SuggestState, emptySuggestState } from '@/components/company/field-suggest'
+import { SectionChatPanel } from '@/components/company/section-chat-panel'
 import {
   BUSINESS_PLAN_SECTIONS,
   AI_CONTEXT_KEYS_FIELD,
@@ -33,6 +34,7 @@ export function BusinessPlanForm({ initial, isAdmin, lastSaved }: BusinessPlanFo
   const [suggests, setSuggests] = useState<Record<string, SuggestState>>(
     () => Object.fromEntries(BUSINESS_PLAN_SECTIONS.map((s) => [s.key, emptySuggestState()])),
   )
+  const [chatKey, setChatKey] = useState<string | null>(null)
 
   function setSuggest(key: string, update: Partial<SuggestState>) {
     setSuggests((prev) => ({ ...prev, [key]: { ...prev[key], ...update } }))
@@ -138,6 +140,7 @@ export function BusinessPlanForm({ initial, isAdmin, lastSaved }: BusinessPlanFo
   }
 
   function toggleSection(key: string) {
+    if (expandedKey === key) setChatKey(null)
     setExpandedKey((prev) => (prev === key ? null : key))
   }
 
@@ -254,12 +257,28 @@ export function BusinessPlanForm({ initial, isAdmin, lastSaved }: BusinessPlanFo
                       {section.description}
                     </p>
                     {isAdmin && (
-                      <SuggestButton
-                        loading={suggests[section.key].loading}
-                        onTrigger={() => handleSuggest(section)}
-                        disabled={saving}
-                        label={section.label}
-                      />
+                      <div className="flex items-center gap-1 shrink-0">
+                        <SuggestButton
+                          loading={suggests[section.key].loading}
+                          onTrigger={() => handleSuggest(section)}
+                          disabled={saving}
+                          label={section.label}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setChatKey((prev) => (prev === section.key ? null : section.key))}
+                          aria-label={`Discuss ${section.label} with AI`}
+                          className={cn(
+                            'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium transition-colors',
+                            chatKey === section.key
+                              ? 'bg-accent text-foreground'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-accent',
+                          )}
+                        >
+                          <MessageSquare className="h-3 w-3" />
+                          Discuss
+                        </button>
+                      </div>
                     )}
                   </div>
                   <SuggestBox
@@ -354,6 +373,21 @@ export function BusinessPlanForm({ initial, isAdmin, lastSaved }: BusinessPlanFo
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground italic">Not yet completed.</p>
+                  )}
+
+                  {chatKey === section.key && (
+                    <SectionChatPanel
+                      sectionKey={section.key}
+                      sectionLabel={section.label}
+                      sectionText={sections[section.key] ?? ''}
+                      allSections={sections}
+                      onApply={(text) => {
+                        handleChange(section.key, text)
+                        setChatKey(null)
+                        setEditingKey(null)
+                      }}
+                      onClose={() => setChatKey(null)}
+                    />
                   )}
                 </div>
               )}

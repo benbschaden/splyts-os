@@ -144,6 +144,7 @@ export async function createOutput(params: {
   contentTypeId: string | null
   brief: string
   content: string
+  summary?: string | null
   userId: string
   modelId: string
 }) {
@@ -157,10 +158,11 @@ export async function createOutput(params: {
       content_type_id: params.contentTypeId ?? null,
       brief: params.brief,
       content: params.content,
+      summary: params.summary ?? null,
       created_by: params.userId,
       model_id: params.modelId,
     })
-    .select('id, brief, content, content_type_id, model_id, created_by, created_at, updated_at, published_at, reach, reach_metric, engagement, performance_notes')
+    .select('id, brief, content, summary, content_type_id, model_id, created_by, created_at, updated_at, published_at, reach, reach_metric, engagement, performance_notes')
     .single()
 
   if (error) return { output: null, error: 'Failed to save output' }

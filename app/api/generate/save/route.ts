@@ -10,8 +10,24 @@ const schema = z.object({
   contentTypeId: z.string().uuid(),
   brief: z.string().min(1, 'Brief is required').max(5000),
   content: z.string().min(1, 'Content is required'),
+  contentTypeName: z.string().optional(),
   modelId: z.string().optional(),
 })
+
+/**
+ * Derives a concise summary from brief + content body.
+ * Format: "<brief truncated>. <content opening truncated>"
+ * This is the embedding anchor — purposefully describes what the content IS,
+ * not just its first N characters.
+ */
+function deriveOutputSummary(brief: string, content: string, contentTypeName?: string): string {
+  const type = contentTypeName?.trim() || 'content'
+  const briefPart = brief.trim().slice(0, 200)
+  // Strip markdown syntax for cleaner embedding signal
+  const cleanContent = content.replace(/[#*_`>\[\]]/g, '').replace(/\s+/g, ' ').trim()
+  const contentPart = cleanContent.slice(0, 300)
+  return `${type}: ${briefPart}. ${contentPart}`.slice(0, 500)
+}
 
 export async function POST(request: Request): Promise<Response> {
   try {
@@ -28,7 +44,7 @@ export async function POST(request: Request): Promise<Response> {
       return Response.json({ error: parsed.error.errors[0].message }, { status: 400 })
     }
 
-    const { projectId, contentTypeId, brief, content, modelId } = parsed.data
+    const { projectId, contentTypeId, brief, content, contentTypeName, modelId } = parsed.data
     const model = (modelId ? getModelById(modelId) : null) ?? DEFAULT_MODEL
 
     const db = createServiceClient()
@@ -47,7 +63,7 @@ export async function POST(request: Request): Promise<Response> {
     // Verify content type belongs to this org
     const { data: contentType } = await db
       .from('content_types')
-      .select('id')
+      .select('id, name')
       .eq('id', contentTypeId)
       .eq('organization_id', org.id)
       .eq('is_active', true)
@@ -56,12 +72,19 @@ export async function POST(request: Request): Promise<Response> {
 
     if (!contentType) return Response.json({ error: 'Content type not found' }, { status: 404 })
 
+    const summary = deriveOutputSummary(
+      brief,
+      content,
+      contentTypeName ?? (contentType as { id: string; name: string }).name,
+    )
+
     const { output, error: saveError } = await createOutput({
       organizationId: org.id,
       projectId,
       contentTypeId,
       brief,
       content,
+      summary,
       userId: user.id,
       modelId: model.id,
     })

@@ -699,6 +699,7 @@ export type Database = {
           email_signups: number | null
           performance_recorded_at: string | null
           metadata: Json | null
+          summary: string | null
         }
         Insert: {
           brief: string
@@ -724,6 +725,7 @@ export type Database = {
           email_signups?: number | null
           performance_recorded_at?: string | null
           metadata?: Json | null
+          summary?: string | null
         }
         Update: {
           brief?: string
@@ -749,6 +751,7 @@ export type Database = {
           email_signups?: number | null
           performance_recorded_at?: string | null
           metadata?: Json | null
+          summary?: string | null
         }
         Relationships: [
           {

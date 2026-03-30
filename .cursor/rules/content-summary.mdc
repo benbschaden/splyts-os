@@ -1,0 +1,62 @@
+# Content Summary Rule
+
+## Every new content table must have a `summary TEXT` column
+
+Any table that stores a piece of content (outputs, documents, tasks, notes, discussions, research entries, etc.) must include:
+
+```sql
+summary TEXT  -- nullable; populated at write time
+```
+
+This column is the **embedding anchor** for future RAG / semantic search. Without it, content cannot be meaningfully linked to business plan sections, briefs, or other context later.
+
+## The summary must be populated when content is created or significantly edited
+
+Not at read time. Not lazily. At write time — in the API route that creates or updates the content row.
+
+```typescript
+// ✅ GOOD — summary derived from content at save time
+const summary = deriveOutputSummary(brief, content, contentTypeName)
+await createOutput({ ..., summary })
+
+// ❌ BAD — no summary, content becomes an island
+await createOutput({ brief, content })
+```
+
+## What a good summary looks like
+
+A summary is **not** the first N characters of the content body. It is a concise description of:
+- What kind of content this is
+- What topic, brief, or objective it addresses
+- What the content says or concludes
+
+```
+// ✅ GOOD — describes the content for retrieval
+"LinkedIn post: Positioning SPLYTS as the training intelligence leader for S&C coaches. Athletes train in cycles — why doesn't their programme intelligence?"
+
+// ❌ BAD — meaningless truncation
+"Here's your draft:\n\nAthletes train in cycles"
+```
+
+A good summary is 1–3 sentences, 100–500 characters, and reads naturally as a standalone description.
+
+## How to derive a summary
+
+**For AI-generated content** (outputs): derive synchronously at save time from `brief` + opening lines of `content`. No extra AI call needed — the brief already describes the intent.
+
+**For user-written content** (documents, notes): use the document's title + first 2 sentences on save.
+
+**For discussions**: use the `ai_summary` extracted at resolution time (already implemented).
+
+**For structured data** (KPI snapshots, goals): combine the period label + filled fields. A single sentence is sufficient.
+
+## When the RAG pipeline is extended
+
+When `retrieveRelevantDocuments` is extended to new content types, the `summary` column is what gets embedded — not the raw body. Do not embed raw body content directly; always prefer the summary.
+
+## Hard rules
+
+- No new content table without a `summary TEXT` column
+- No content creation route that does not populate `summary`
+- No `summary` that is simply `content.slice(0, N)` — it must describe the content meaningfully
+- Summary is nullable (AI may be unavailable) but must be attempted at write time — do not skip

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, ChevronDown, ChevronRight, Check, Circle, AlertTriangle, X, ArrowRight, Pencil, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useRegisterCompanyUnsaved } from '@/components/company/company-unsaved-context'
 
 interface PeriodGoal {
   id: string
@@ -195,18 +196,32 @@ function ActivePeriodCard({ period, isAdmin, onUpdate }: { period: GoalPeriod; i
   const [saved, setSaved] = useState(false)
   const [newGoalTitle, setNewGoalTitle] = useState('')
   const [addingGoal, setAddingGoal] = useState(false)
+  const [isDirty, setIsDirty] = useState(false)
+
+  useEffect(() => {
+    setFocusAreas(period.focus_areas ?? '')
+    setWhatToPush(period.what_to_push ?? '')
+    setWhatToDefer(period.what_to_defer ?? '')
+    setIsDirty(false)
+  }, [period.id, period.focus_areas, period.what_to_push, period.what_to_defer])
 
   async function saveFields() {
     setSaving(true)
-    await fetch(`/api/goal-periods/${period.id}`, {
+    const res = await fetch(`/api/goal-periods/${period.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ focus_areas: focusAreas || null, what_to_push: whatToPush || null, what_to_defer: whatToDefer || null }),
     })
     setSaving(false)
+    if (!res.ok) {
+      throw new Error('Save failed')
+    }
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
+    setIsDirty(false)
   }
+
+  useRegisterCompanyUnsaved(isAdmin && isDirty, saveFields)
 
   async function addGoal() {
     if (!newGoalTitle.trim()) return
@@ -287,14 +302,14 @@ function ActivePeriodCard({ period, isAdmin, onUpdate }: { period: GoalPeriod; i
 
       {/* Strategic fields */}
       <div className="space-y-4 pt-2 border-t border-border/50">
-        <TextField label="Focus areas" description="The 2–4 areas prioritised this period." value={focusAreas} onChange={setFocusAreas} disabled={!isAdmin} placeholder="What are you focusing on?" />
-        <TextField label="What to push" description="Themes to amplify in content and outreach." value={whatToPush} onChange={setWhatToPush} disabled={!isAdmin} placeholder="What narratives dominate this quarter?" />
-        <TextField label="What to defer" description="What you are deliberately saying no to." value={whatToDefer} onChange={setWhatToDefer} disabled={!isAdmin} placeholder="What are you parking until next quarter?" />
+        <TextField label="Focus areas" description="The 2–4 areas prioritised this period." value={focusAreas} onChange={(v) => { setFocusAreas(v); setIsDirty(true) }} disabled={!isAdmin} placeholder="What are you focusing on?" />
+        <TextField label="What to push" description="Themes to amplify in content and outreach." value={whatToPush} onChange={(v) => { setWhatToPush(v); setIsDirty(true) }} disabled={!isAdmin} placeholder="What narratives dominate this quarter?" />
+        <TextField label="What to defer" description="What you are deliberately saying no to." value={whatToDefer} onChange={(v) => { setWhatToDefer(v); setIsDirty(true) }} disabled={!isAdmin} placeholder="What are you parking until next quarter?" />
       </div>
 
       {isAdmin && (
         <div className="flex items-center gap-3 pt-1">
-          <button onClick={saveFields} disabled={saving} className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50">
+          <button type="button" onClick={() => void saveFields().catch(() => {})} disabled={saving} className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50">
             {saving ? 'Saving…' : 'Save'}
           </button>
           {saved && <p className="text-xs text-green-600 font-medium">Saved</p>}
@@ -432,10 +447,14 @@ function StartQuarterForm({ previousPeriod, onCreated, onCancel }: { previousPer
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [carryForward, setCarryForward] = useState<Set<string>>(new Set())
+  const [isDirty, setIsDirty] = useState(false)
 
   const carryableGoals = previousPeriod?.goals.filter((g) => g.outcome === 'partial' || g.outcome === 'missed') ?? []
 
+  useRegisterCompanyUnsaved(isDirty, async () => {}, { supportsSaveAndLeave: false })
+
   function toggleCarry(goalId: string) {
+    setIsDirty(true)
     setCarryForward((prev) => {
       const next = new Set(prev)
       if (next.has(goalId)) next.delete(goalId)
@@ -485,15 +504,15 @@ function StartQuarterForm({ previousPeriod, onCreated, onCancel }: { previousPer
       <div className="grid grid-cols-3 gap-3">
         <div>
           <label htmlFor="period-label" className="text-xs font-medium text-foreground">Label</label>
-          <input id="period-label" type="text" value={label} onChange={(e) => setLabel(e.target.value)} className="mt-1 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+          <input id="period-label" type="text" value={label} onChange={(e) => { setLabel(e.target.value); setIsDirty(true) }} className="mt-1 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
         </div>
         <div>
           <label htmlFor="period-start" className="text-xs font-medium text-foreground">Start</label>
-          <input id="period-start" type="date" value={start} onChange={(e) => setStart(e.target.value)} className="mt-1 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+          <input id="period-start" type="date" value={start} onChange={(e) => { setStart(e.target.value); setIsDirty(true) }} className="mt-1 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
         </div>
         <div>
           <label htmlFor="period-end" className="text-xs font-medium text-foreground">End</label>
-          <input id="period-end" type="date" value={end} onChange={(e) => setEnd(e.target.value)} className="mt-1 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+          <input id="period-end" type="date" value={end} onChange={(e) => { setEnd(e.target.value); setIsDirty(true) }} className="mt-1 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
         </div>
       </div>
 

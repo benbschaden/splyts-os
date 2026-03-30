@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { PRODUCT_SECTIONS, type ProductSections } from '@/lib/company/product-sections'
 import { SuggestButton, SuggestBox, type SuggestState, emptySuggestState } from '@/components/company/field-suggest'
+import { useRegisterCompanyUnsaved } from '@/components/company/company-unsaved-context'
 
 interface ProductContextFormProps {
   initial: ProductSections | null
@@ -21,6 +22,11 @@ export function ProductContextForm({ initial, isAdmin }: ProductContextFormProps
   const [suggests, setSuggests] = useState<Record<string, SuggestState>>(
     () => Object.fromEntries(allProductSections.map((s) => [s.key, emptySuggestState()])),
   )
+  const [isDirty, setIsDirty] = useState(false)
+
+  useEffect(() => {
+    setIsDirty(false)
+  }, [initial])
 
   function setSuggest(key: string, update: Partial<SuggestState>) {
     setSuggests((prev) => ({ ...prev, [key]: { ...prev[key], ...update } }))
@@ -58,10 +64,10 @@ export function ProductContextForm({ initial, isAdmin }: ProductContextFormProps
   function set(key: string, value: string) {
     setValues((prev) => ({ ...prev, [key]: value }))
     setSaved(false)
+    setIsDirty(true)
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  async function commitSave(): Promise<void> {
     setSaving(true)
     setError(null)
     setSaved(false)
@@ -76,11 +82,23 @@ export function ProductContextForm({ initial, isAdmin }: ProductContextFormProps
 
     if (!res.ok) {
       setError('Failed to save. Please try again.')
-      return
+      throw new Error('Save failed')
     }
 
     setSaved(true)
+    setIsDirty(false)
   }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    try {
+      await commitSave()
+    } catch {
+      /* error set */
+    }
+  }
+
+  useRegisterCompanyUnsaved(isAdmin && isDirty, commitSave)
 
   const aiVisible = PRODUCT_SECTIONS.filter((s) => s.aiVisibleByDefault)
   const notVisible = PRODUCT_SECTIONS.filter((s) => !s.aiVisibleByDefault)

@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { CURRENT_GOALS_SECTIONS, type CurrentGoalsSections } from '@/lib/company/current-goals-sections'
+import { useRegisterCompanyUnsaved } from '@/components/company/company-unsaved-context'
 
 interface CurrentGoalsFormProps {
   initial: CurrentGoalsSections | null
@@ -13,14 +14,20 @@ export function CurrentGoalsForm({ initial, isAdmin }: CurrentGoalsFormProps) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [isDirty, setIsDirty] = useState(false)
+
+  useEffect(() => {
+    setSections(initial ?? {})
+    setIsDirty(false)
+  }, [initial])
 
   function handleChange(key: string, value: string) {
     setSections((prev) => ({ ...prev, [key]: value }))
     setSaved(false)
+    setIsDirty(true)
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  async function commitSave(): Promise<void> {
     setSaving(true)
     setError(null)
     setSaved(false)
@@ -32,10 +39,25 @@ export function CurrentGoalsForm({ initial, isAdmin }: CurrentGoalsFormProps) {
     })
 
     setSaving(false)
-    if (!res.ok) { setError('Failed to save. Please try again.'); return }
+    if (!res.ok) {
+      setError('Failed to save. Please try again.')
+      throw new Error('Save failed')
+    }
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
+    setIsDirty(false)
   }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    try {
+      await commitSave()
+    } catch {
+      /* error set */
+    }
+  }
+
+  useRegisterCompanyUnsaved(isAdmin && isDirty, commitSave)
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8 max-w-2xl">

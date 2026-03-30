@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import type { KpiDefinitionRow } from '@/lib/queries/kpi-definitions'
 import type { KpiSnapshotRow } from '@/lib/queries/kpi-snapshots'
 import { KPI_UNITS, KPI_CATEGORIES } from '@/lib/company/default-kpis'
+import { useRegisterCompanyUnsaved } from '@/components/company/company-unsaved-context'
 
 function getMondayOfCurrentWeek(): string {
   const now = new Date()
@@ -62,6 +63,7 @@ export function KpiSnapshotForm({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [isDirty, setIsDirty] = useState(false)
 
   const grouped = useMemo(() => groupByCategory(definitions), [definitions])
   const categoryOrder = useMemo(() => {
@@ -71,9 +73,10 @@ export function KpiSnapshotForm({
 
   function setValue(defId: string, raw: string) {
     setValues((prev) => ({ ...prev, [defId]: raw }))
+    setIsDirty(true)
   }
 
-  async function handleSave() {
+  async function commitSave(): Promise<void> {
     if (!isAdmin) return
     setSaving(true)
     setError(null)
@@ -87,7 +90,7 @@ export function KpiSnapshotForm({
       if (isNaN(num)) {
         setError(`Invalid number for one of the KPIs. Please check your entries.`)
         setSaving(false)
-        return
+        throw new Error('Validation failed')
       }
       numericValues[id] = num
     }
@@ -106,12 +109,23 @@ export function KpiSnapshotForm({
 
     if (!res.ok) {
       setError('Failed to save snapshot. Please try again.')
-      return
+      throw new Error('Save failed')
     }
 
     setSuccess(true)
+    setIsDirty(false)
     router.refresh()
   }
+
+  async function handleSave() {
+    try {
+      await commitSave()
+    } catch {
+      /* error surfaced */
+    }
+  }
+
+  useRegisterCompanyUnsaved(isAdmin && isDirty, commitSave)
 
   if (definitions.length === 0) {
     return (
@@ -151,7 +165,10 @@ export function KpiSnapshotForm({
           id="snapshot-date"
           type="date"
           value={date}
-          onChange={(e) => setDate(e.target.value)}
+          onChange={(e) => {
+            setDate(e.target.value)
+            setIsDirty(true)
+          }}
           className="w-full max-w-[220px] rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
         />
       </div>
@@ -199,7 +216,10 @@ export function KpiSnapshotForm({
         <textarea
           id="snapshot-notes"
           value={notes}
-          onChange={(e) => setNotes(e.target.value)}
+          onChange={(e) => {
+            setNotes(e.target.value)
+            setIsDirty(true)
+          }}
           rows={3}
           disabled={!isAdmin}
           placeholder="Any context about this week's numbers…"

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Check, Download, Loader2, ChevronDown, ChevronRight, FileText, Sparkles, ShieldAlert, Pencil, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import ReactMarkdown from 'react-markdown'
@@ -13,6 +13,7 @@ import {
   getAiVisibleKeys,
   type BusinessPlanSections,
 } from '@/lib/company/business-plan-sections'
+import { useRegisterCompanyUnsaved } from '@/components/company/company-unsaved-context'
 
 interface BusinessPlanFormProps {
   initial: BusinessPlanSections
@@ -35,6 +36,11 @@ export function BusinessPlanForm({ initial, isAdmin, lastSaved }: BusinessPlanFo
     () => Object.fromEntries(BUSINESS_PLAN_SECTIONS.map((s) => [s.key, emptySuggestState()])),
   )
   const [chatKey, setChatKey] = useState<string | null>(null)
+  const [isDirty, setIsDirty] = useState(false)
+
+  useEffect(() => {
+    setIsDirty(false)
+  }, [initial])
 
   function setSuggest(key: string, update: Partial<SuggestState>) {
     setSuggests((prev) => ({ ...prev, [key]: { ...prev[key], ...update } }))
@@ -76,6 +82,7 @@ export function BusinessPlanForm({ initial, isAdmin, lastSaved }: BusinessPlanFo
   const handleChange = useCallback((key: string, value: string) => {
     setSections((prev) => ({ ...prev, [key]: value }))
     setSaved(false)
+    setIsDirty(true)
   }, [])
 
   function toggleAiVisibility(key: string) {
@@ -86,6 +93,7 @@ export function BusinessPlanForm({ initial, isAdmin, lastSaved }: BusinessPlanFo
       return next
     })
     setSaved(false)
+    setIsDirty(true)
   }
 
   function buildPayload(): BusinessPlanSections {
@@ -95,7 +103,7 @@ export function BusinessPlanForm({ initial, isAdmin, lastSaved }: BusinessPlanFo
     }
   }
 
-  async function handleSave() {
+  async function commitSave(): Promise<void> {
     setSaving(true)
     setError(null)
 
@@ -108,14 +116,25 @@ export function BusinessPlanForm({ initial, isAdmin, lastSaved }: BusinessPlanFo
     setSaving(false)
 
     if (!res.ok) {
-      const data = await res.json()
-      setError(data.error ?? 'Failed to save. Please try again.')
-      return
+      const data = await res.json().catch(() => ({}))
+      setError((data as { error?: string }).error ?? 'Failed to save. Please try again.')
+      throw new Error('Save failed')
     }
 
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
+    setIsDirty(false)
   }
+
+  async function handleSave() {
+    try {
+      await commitSave()
+    } catch {
+      /* error surfaced via setError */
+    }
+  }
+
+  useRegisterCompanyUnsaved(isDirty, commitSave)
 
   async function handleDownloadPdf() {
     setDownloading(true)

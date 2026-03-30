@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SuggestButton, SuggestBox, type SuggestState, emptySuggestState } from '@/components/company/field-suggest'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { useRegisterCompanyUnsaved } from '@/components/company/company-unsaved-context'
 
 interface BrandContextValues {
   company_name: string
@@ -112,6 +113,11 @@ export function BrandContextForm({ initial, isAdmin }: BrandContextFormProps) {
   const [suggests, setSuggests] = useState<Record<string, SuggestState>>(
     () => Object.fromEntries(allFields.map((f) => [f.key, emptySuggestState()])),
   )
+  const [isDirty, setIsDirty] = useState(false)
+
+  useEffect(() => {
+    setIsDirty(false)
+  }, [initial])
 
   function setSuggest(key: string, update: Partial<SuggestState>) {
     setSuggests((prev) => ({ ...prev, [key]: { ...prev[key], ...update } }))
@@ -146,6 +152,7 @@ export function BrandContextForm({ initial, isAdmin }: BrandContextFormProps) {
     setValues((prev) => ({ ...prev, [key]: value }))
     if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }))
     setSaved(false)
+    setIsDirty(true)
   }
 
   function validate(): boolean {
@@ -159,9 +166,8 @@ export function BrandContextForm({ initial, isAdmin }: BrandContextFormProps) {
     return Object.keys(next).length === 0
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!validate()) return
+  async function commitSave(): Promise<void> {
+    if (!validate()) throw new Error('Validation failed')
 
     setSaving(true)
     setServerError(null)
@@ -180,11 +186,23 @@ export function BrandContextForm({ initial, isAdmin }: BrandContextFormProps) {
 
     if (!res.ok) {
       setServerError('Failed to save. Please try again.')
-      return
+      throw new Error('Save failed')
     }
 
     setSaved(true)
+    setIsDirty(false)
   }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    try {
+      await commitSave()
+    } catch {
+      /* validation or save error already surfaced */
+    }
+  }
+
+  useRegisterCompanyUnsaved(isAdmin && isDirty, commitSave)
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { BrandAssets } from '@/lib/queries/brand-context'
+import { useRegisterCompanyUnsaved } from '@/components/company/company-unsaved-context'
 
 function emptyAssets(): BrandAssets {
   return {
@@ -54,18 +55,20 @@ export function BrandAssetsForm({ initial, isAdmin }: BrandAssetsFormProps) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
+  const [isDirty, setIsDirty] = useState(false)
 
   useEffect(() => {
     setValues(mergeInitial(initial))
+    setIsDirty(false)
   }, [initial])
 
   function set<K extends keyof BrandAssets>(key: K, value: string) {
     setValues((prev) => ({ ...prev, [key]: value }))
     setSaved(false)
+    setIsDirty(true)
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  async function commitSave(): Promise<void> {
     setSaving(true)
     setServerError(null)
     setSaved(false)
@@ -80,11 +83,23 @@ export function BrandAssetsForm({ initial, isAdmin }: BrandAssetsFormProps) {
 
     if (!res.ok) {
       setServerError('Failed to save. Please try again.')
-      return
+      throw new Error('Save failed')
     }
 
     setSaved(true)
+    setIsDirty(false)
   }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    try {
+      await commitSave()
+    } catch {
+      /* error set */
+    }
+  }
+
+  useRegisterCompanyUnsaved(isAdmin && isDirty, commitSave)
 
   const logoPreview = isLikelyHttpUrl(values.logo_url ?? '')
   const markPreview = isLikelyHttpUrl(values.logo_mark_url ?? '')

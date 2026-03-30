@@ -11,13 +11,19 @@ interface Milestone {
   description: string | null
   milestone_date: string
   category: string | null
-  status: 'upcoming' | 'achieved' | 'missed'
+  status: 'planned' | 'achieved' | 'missed' | 'pushed'
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  upcoming: 'bg-sky-500/10 text-sky-600',
+  planned: 'bg-sky-500/10 text-sky-600',
+  pushed: 'bg-sky-500/10 text-sky-600',
   achieved: 'bg-green-500/10 text-green-600',
   missed: 'bg-destructive/10 text-destructive',
+}
+
+function statusBadgeLabel(status: Milestone['status']): string {
+  if (status === 'planned' || status === 'pushed') return 'upcoming'
+  return status
 }
 
 function formatDate(dateStr: string) {
@@ -96,7 +102,7 @@ export function MilestonesList({ isAdmin }: { isAdmin: boolean }) {
                   {/* Timeline dot */}
                   <div className={cn(
                     'absolute -left-[18px] top-3 h-3 w-3 rounded-full border-2 border-background',
-                    m.status === 'achieved' ? 'bg-green-500' : m.status === 'missed' ? 'bg-destructive' : 'bg-sky-500',
+                    m.status === 'achieved' ? 'bg-green-500' : m.status === 'missed' ? 'bg-destructive' : 'bg-sky-500', // planned | pushed
                   )} />
 
                   <div className="rounded-lg border border-border bg-background px-4 py-3 hover:bg-muted/20 transition-colors">
@@ -105,7 +111,7 @@ export function MilestonesList({ isAdmin }: { isAdmin: boolean }) {
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="text-sm font-medium text-foreground">{m.title}</p>
                           <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize', STATUS_STYLES[m.status])}>
-                            {m.status}
+                            {statusBadgeLabel(m.status)}
                           </span>
                           {m.category && (
                             <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{m.category}</span>

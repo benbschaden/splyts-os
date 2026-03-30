@@ -5,7 +5,9 @@ Feature: Business plan template under Company
   Scenario: Admin fills in a business plan section
     Given the user is an admin
     When they open Company → Strategy → Business plan
-    Then they see an accordion with 12 sections, each with a label, description, and text field
+    Then they see an accordion with 8 sections, each with a label, description, and text field
+    And there is no "Key metrics" section (metrics come from the KPIs tool)
+    And there is no "Risks and mitigations" section (risks live in the Risk Register tool)
     When they type content into a section and click Save
     Then the content is persisted and the progress bar updates
 
@@ -15,6 +17,8 @@ Feature: Business plan template under Company
     Then a formatted PDF downloads with a cover page, section headings, and body text
     And the PDF includes a Competitive Landscape section sourced from the Competitors table
     And only competitors with include_in_ai set to true appear in the PDF
+    And the PDF includes a KPIs & Metrics section sourced live from the KPI definitions and latest snapshot
+    And the PDF includes a Risks & Mitigations section sourced from the Risk Register (open and monitoring risks only)
 
   Scenario: Business plan feeds into AI generation
     Given the admin has filled in sections of the business plan

@@ -5,6 +5,9 @@ import { getBrandContext } from '@/lib/queries/brand-context'
 import { getProductRoadmapItems } from '@/lib/queries/product-roadmap'
 import { getCompanyMilestones } from '@/lib/queries/company-milestones'
 import { getCompetitors } from '@/lib/queries/competitors'
+import { getKpiDefinitions } from '@/lib/queries/kpi-definitions'
+import { getLatestSnapshot } from '@/lib/queries/kpi-snapshots'
+import { getActiveRisks } from '@/lib/queries/risks'
 import { BUSINESS_PLAN_SECTIONS } from '@/lib/company/business-plan-sections'
 import { jsPDF } from 'jspdf'
 
@@ -16,12 +19,15 @@ export async function GET() {
   const org = await getOrganizationForUser(user.id)
   if (!org) return Response.json({ error: 'Not found' }, { status: 404 })
 
-  const [plan, brand, roadmapItems, milestones, competitors] = await Promise.all([
+  const [plan, brand, roadmapItems, milestones, competitors, kpiDefinitions, latestSnapshot, activeRisks] = await Promise.all([
     getBusinessPlan(org.id),
     getBrandContext(org.id),
     getProductRoadmapItems(org.id),
     getCompanyMilestones(org.id),
     getCompetitors(org.id),
+    getKpiDefinitions(org.id),
+    getLatestSnapshot(org.id),
+    getActiveRisks(org.id),
   ])
 
   const sections = plan?.sections ?? {}
@@ -168,6 +174,50 @@ export async function GET() {
     }
 
     addSection('Competitive Landscape', competitorLines.join('\n').trimEnd())
+  }
+
+  // --- KPIs & Metrics section (sourced from kpi_definitions + latest snapshot) ---
+  if (kpiDefinitions.length > 0) {
+    const snapshotValues = latestSnapshot?.values ?? {}
+    const kpiLines: string[] = []
+
+    if (latestSnapshot) {
+      const snapshotDate = new Date(latestSnapshot.snapshot_date).toLocaleDateString('en-GB', {
+        day: 'numeric', month: 'long', year: 'numeric',
+      })
+      kpiLines.push(`Snapshot as of ${snapshotDate}`)
+      kpiLines.push('')
+    }
+
+    for (const kpi of kpiDefinitions) {
+      const value = snapshotValues[kpi.id]
+      const valueStr = value !== undefined ? `${value} ${kpi.unit}`.trim() : '—'
+      const desc = kpi.description ? ` — ${kpi.description}` : ''
+      kpiLines.push(`${kpi.name}: ${valueStr}${desc}`)
+    }
+
+    if (latestSnapshot?.notes) {
+      kpiLines.push('')
+      kpiLines.push(`Notes: ${latestSnapshot.notes}`)
+    }
+
+    addSection('KPIs & Metrics', kpiLines.join('\n'))
+  }
+
+  // --- Risks & Mitigations section (sourced from risk register, open + monitoring only) ---
+  if (activeRisks.length > 0) {
+    const riskLines: string[] = []
+
+    for (const risk of activeRisks) {
+      const score = `${risk.priority_score}/25`
+      const owner = risk.owner ? ` | Owner: ${risk.owner}` : ''
+      riskLines.push(`${risk.title} [${risk.category} · Score ${score} · ${risk.status}${owner}]`)
+      if (risk.description) riskLines.push(`  ${risk.description}`)
+      if (risk.mitigation) riskLines.push(`  Mitigation: ${risk.mitigation}`)
+      riskLines.push('')
+    }
+
+    addSection('Risks & Mitigations', riskLines.join('\n').trimEnd())
   }
 
   // Footer on each page

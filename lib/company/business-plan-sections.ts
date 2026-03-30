@@ -63,20 +63,6 @@ export const BUSINESS_PLAN_SECTIONS: BusinessPlanSection[] = [
     placeholder: 'Outline revenue forecasts, burn rate, and funding needs…',
     aiVisibleByDefault: false,
   },
-  {
-    key: 'metrics',
-    label: 'Key metrics',
-    description: 'The numbers that matter most — KPIs the business tracks to measure progress.',
-    placeholder: 'What metrics do you track? (e.g. MRR, churn, CAC, LTV…)',
-    aiVisibleByDefault: false,
-  },
-  {
-    key: 'risks',
-    label: 'Risks and mitigations',
-    description: 'Honest assessment of the biggest risks and what you are doing to reduce them.',
-    placeholder: 'What could go wrong and how are you managing those risks?',
-    aiVisibleByDefault: false,
-  },
 ]
 
 export type BusinessPlanSections = Record<string, string>

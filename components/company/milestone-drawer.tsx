@@ -4,7 +4,55 @@ import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const KNOWN_CATEGORIES = ['growth', 'product', 'team', 'funding', 'partnerships', 'launch', 'operations']
+/** Values accepted by POST/PATCH `/api/company-milestones` */
+const API_CATEGORIES = [
+  'fundraising',
+  'hiring',
+  'launch',
+  'revenue',
+  'partnership',
+  'product',
+  'other',
+] as const
+
+type ApiCategory = (typeof API_CATEGORIES)[number]
+
+/** Map legacy/free-text labels to API enum (unknown → other) */
+const CATEGORY_ALIASES: Record<string, ApiCategory> = {
+  growth: 'other',
+  product: 'product',
+  team: 'hiring',
+  funding: 'fundraising',
+  partnerships: 'partnership',
+  launch: 'launch',
+  operations: 'other',
+  fundraising: 'fundraising',
+  hiring: 'hiring',
+  revenue: 'revenue',
+  partnership: 'partnership',
+  other: 'other',
+}
+
+function toApiCategory(raw: string): ApiCategory {
+  const k = raw.trim().toLowerCase()
+  if (!k) return 'other'
+  if (CATEGORY_ALIASES[k]) return CATEGORY_ALIASES[k]
+  if ((API_CATEGORIES as readonly string[]).includes(k)) return k as ApiCategory
+  return 'other'
+}
+
+type UiStatus = 'upcoming' | 'achieved' | 'missed'
+type ApiStatus = 'planned' | 'achieved' | 'missed' | 'pushed'
+
+function apiStatusToUi(s: ApiStatus): UiStatus {
+  if (s === 'planned' || s === 'pushed') return 'upcoming'
+  return s
+}
+
+function uiStatusToApi(s: UiStatus): Exclude<ApiStatus, 'pushed'> {
+  if (s === 'upcoming') return 'planned'
+  return s
+}
 
 interface Milestone {
   id: string
@@ -12,7 +60,7 @@ interface Milestone {
   description: string | null
   milestone_date: string
   category: string | null
-  status: 'upcoming' | 'achieved' | 'missed'
+  status: ApiStatus
 }
 
 interface MilestoneDrawerProps {
@@ -27,7 +75,7 @@ interface FormData {
   description: string
   milestone_date: string
   category: string
-  status: 'upcoming' | 'achieved' | 'missed'
+  status: UiStatus
 }
 
 export function MilestoneDrawer({ open, onClose, onSaved, editing }: MilestoneDrawerProps) {
@@ -48,7 +96,7 @@ export function MilestoneDrawer({ open, onClose, onSaved, editing }: MilestoneDr
         description: editing.description ?? '',
         milestone_date: editing.milestone_date,
         category: editing.category ?? '',
-        status: editing.status,
+        status: apiStatusToUi(editing.status),
       } : {
         title: '',
         description: '',
@@ -79,20 +127,36 @@ export function MilestoneDrawer({ open, onClose, onSaved, editing }: MilestoneDr
     const url = editing ? `/api/company-milestones/${editing.id}` : '/api/company-milestones'
     const method = editing ? 'PATCH' : 'POST'
 
+    const payload = {
+      title: form.title.trim(),
+      description: form.description.trim() || null,
+      milestone_date: form.milestone_date,
+      category: toApiCategory(form.category),
+      status: uiStatusToApi(form.status),
+    }
+
     const res = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: form.title.trim(),
-        description: form.description.trim() || null,
-        milestone_date: form.milestone_date,
-        category: form.category.trim() || null,
-        status: form.status,
-      }),
+      body: JSON.stringify(payload),
     })
 
     setSaving(false)
-    if (!res.ok) { setError('Failed to save. Please try again.'); return }
+    if (!res.ok) {
+      let message = 'Failed to save. Please try again.'
+      try {
+        const body = await res.json() as { error?: unknown }
+        const err = body.error
+        if (err && typeof err === 'object' && !Array.isArray(err)) {
+          const first = Object.values(err as Record<string, string[] | undefined>).find((v) => Array.isArray(v) && v.length)
+          if (first?.[0]) message = first[0]
+        }
+      } catch {
+        /* ignore */
+      }
+      setError(message)
+      return
+    }
     onSaved()
     onClose()
   }
@@ -155,11 +219,11 @@ export function MilestoneDrawer({ open, onClose, onSaved, editing }: MilestoneDr
                 list="milestone-categories"
                 value={form.category}
                 onChange={(e) => set('category', e.target.value)}
-                placeholder="e.g. growth, product"
+                placeholder="e.g. product, launch"
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               />
               <datalist id="milestone-categories">
-                {KNOWN_CATEGORIES.map((c) => <option key={c} value={c} />)}
+                {API_CATEGORIES.map((c) => <option key={c} value={c} />)}
               </datalist>
             </div>
           </div>

@@ -2492,6 +2492,64 @@ export type Database = {
           },
         ]
       }
+      risks: {
+        Row: {
+          id: string
+          organization_id: string
+          title: string
+          description: string | null
+          category: string
+          likelihood: number
+          impact: number
+          priority_score: number
+          owner: string | null
+          mitigation: string | null
+          status: string
+          last_reviewed_at: string | null
+          created_by: string
+          updated_by: string | null
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          title: string
+          description?: string | null
+          category?: string
+          likelihood?: number
+          impact?: number
+          owner?: string | null
+          mitigation?: string | null
+          status?: string
+          last_reviewed_at?: string | null
+          created_by: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          title?: string
+          description?: string | null
+          category?: string
+          likelihood?: number
+          impact?: number
+          owner?: string | null
+          mitigation?: string | null
+          status?: string
+          last_reviewed_at?: string | null
+          created_by?: string
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -5,11 +5,12 @@ const sections = [
     label: 'Strategy',
     description: 'Core business documents that inform AI context and long-term planning.',
     items: [
-      { href: '/dashboard/company/business-plan', name: 'Business plan', desc: '12-section plan with PDF export, roadmap and milestone injection' },
+      { href: '/dashboard/company/business-plan', name: 'Business plan', desc: '8-section plan with PDF export — KPIs and risks are pulled live from their dedicated tools' },
       { href: '/dashboard/company/goals', name: 'Goals', desc: 'Quarterly goals with review cycle, carry-forward, and AI injection' },
       { href: '/dashboard/company/milestones', name: 'Milestones', desc: 'Key moments in company history, included in business plan PDF' },
       { href: '/dashboard/company/competitors', name: 'Competitors', desc: 'Structured competitive intelligence — positioning, strengths, battle cards' },
       { href: '/dashboard/company/kpis', name: 'KPIs & Metrics', desc: 'Define metrics, enter weekly values — highlighted KPIs show on home dashboard' },
+      { href: '/dashboard/company/risks', name: 'Risk Register', desc: 'Live risk matrix — likelihood × impact scoring, status tracking, feeds into business plan PDF' },
       { href: '/dashboard/company/funnels', name: 'Funnels', desc: 'Custom conversion funnels from your KPIs — default funnel shown on dashboard' },
     ],
   },

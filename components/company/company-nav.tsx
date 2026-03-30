@@ -23,6 +23,7 @@ const navGroups = [
       { name: 'Milestones', href: '/dashboard/company/milestones' },
       { name: 'Competitors', href: '/dashboard/company/competitors' },
       { name: 'KPIs & Metrics', href: '/dashboard/company/kpis' },
+      { name: 'Risk Register', href: '/dashboard/company/risks' },
       { name: 'Funnels', href: '/dashboard/company/funnels' },
     ],
   },

@@ -3,8 +3,9 @@ import { Building2, Settings, LogOut, MessageSquare, FileText } from 'lucide-rea
 import { cn } from '@/lib/utils'
 import { NorthStarTrigger } from '@/components/company/north-star-trigger'
 import { ProjectsNav } from '@/components/projects/projects-nav'
+import { PerformanceNav } from '@/components/performance/performance-nav'
 
-const otherNavItems = [
+const staticNavItems = [
   { name: 'Assistant', href: '/dashboard/chat', icon: MessageSquare },
   { name: 'Documents', href: '/dashboard/documents', icon: FileText },
   { name: 'Company', href: '/dashboard/company', icon: Building2 },
@@ -75,8 +76,11 @@ export function Sidebar({ orgName, userName, avatarUrl, email, isAdmin, northSta
         {/* Projects with expandable categories */}
         <ProjectsNav categories={projectCategories} projectCount={projectCount} tools={tools} />
 
-        {/* Other nav items */}
-        {otherNavItems.map((item) => (
+        {/* Performance nav — expandable */}
+        <PerformanceNav />
+
+        {/* Static nav items */}
+        {staticNavItems.map((item) => (
           <Link
             key={item.name}
             href={item.href}

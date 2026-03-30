@@ -1,136 +1,82 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Building2, ChevronDown } from 'lucide-react'
+import { useState } from 'react'
 
-const overviewHref = '/dashboard/company'
-
-const navGroups = [
-  {
-    label: 'Setup',
-    items: [
-      { name: 'Knowledge', href: '/dashboard/company/knowledge' },
-    ],
-  },
-  {
-    label: 'Strategy',
-    items: [
-      { name: 'Business plan', href: '/dashboard/company/business-plan' },
-      { name: 'Goals', href: '/dashboard/company/goals' },
-      { name: 'Milestones', href: '/dashboard/company/milestones' },
-      { name: 'Competitors', href: '/dashboard/company/competitors' },
-      { name: 'KPIs & Metrics', href: '/dashboard/company/kpis' },
-      { name: 'Risk Register', href: '/dashboard/company/risks' },
-      { name: 'Funnels', href: '/dashboard/company/funnels' },
-    ],
-  },
-  {
-    label: 'Product',
-    items: [
-      { name: 'Product context', href: '/dashboard/company/product' },
-      { name: 'Features', href: '/dashboard/company/features' },
-      { name: 'Roadmap', href: '/dashboard/company/roadmap' },
-    ],
-  },
-  {
-    label: 'Branding',
-    items: [
-      { name: 'Brand context', href: '/dashboard/company/brand' },
-      { name: 'Brand narratives', href: '/dashboard/company/narratives' },
-      { name: 'Terminology', href: '/dashboard/company/terminology' },
-      { name: 'Personas', href: '/dashboard/company/personas' },
-      { name: 'Authors', href: '/dashboard/company/authors' },
-      { name: 'Brand assets', href: '/dashboard/company/assets' },
-    ],
-  },
-  {
-    label: 'Content',
-    items: [
-      { name: 'Content types', href: '/dashboard/company/content-types' },
-      { name: 'Social proof', href: '/dashboard/company/social-proof' },
-      { name: 'Content benchmarks', href: '/dashboard/company/benchmarks' },
-    ],
-  },
+const COMPANY_ITEMS = [
+  { name: 'Business plan', href: '/dashboard/company/business-plan' },
+  { name: 'Knowledge', href: '/dashboard/company/knowledge' },
+  { name: 'Product', href: '/dashboard/company/product' },
+  { name: 'Features', href: '/dashboard/company/features' },
+  { name: 'Roadmap', href: '/dashboard/company/roadmap' },
+  { name: 'Brand', href: '/dashboard/company/brand' },
+  { name: 'Narratives', href: '/dashboard/company/narratives' },
+  { name: 'Terminology', href: '/dashboard/company/terminology' },
+  { name: 'Personas', href: '/dashboard/company/personas' },
+  { name: 'Authors', href: '/dashboard/company/authors' },
+  { name: 'Assets', href: '/dashboard/company/assets' },
+  { name: 'Content types', href: '/dashboard/company/content-types' },
+  { name: 'Social proof', href: '/dashboard/company/social-proof' },
+  { name: 'Benchmarks', href: '/dashboard/company/benchmarks' },
+  { name: 'Calendar', href: '/dashboard/company/calendar' },
 ]
+
+const COMPANY_PATHS = COMPANY_ITEMS.map((i) => i.href)
 
 export function CompanyNav() {
   const pathname = usePathname()
 
-  const isOverview = pathname === overviewHref
+  const isCompany =
+    pathname === '/dashboard/company' ||
+    COMPANY_PATHS.some((p) => pathname === p)
 
-  const isActive = (href: string) =>
-    pathname === href || pathname.startsWith(`${href}/`)
-
-  // Default all groups open; collapse any group that has no active item
-  const initialCollapsed = Object.fromEntries(navGroups.map((g) => [g.label, false]))
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(initialCollapsed)
-
-  function toggle(label: string) {
-    setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }))
-  }
+  const [open, setOpen] = useState(isCompany)
 
   return (
-    <nav className="flex flex-col gap-0.5">
-      <Link
-        href={overviewHref}
-        className={cn(
-          'rounded-md px-3 py-2 text-sm font-medium transition-colors',
-          isOverview
-            ? 'bg-accent text-accent-foreground'
-            : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-        )}
-      >
-        Overview
-      </Link>
+    <div className="flex flex-col gap-0.5">
+      <div className="flex items-center gap-0.5">
+        <button
+          type="button"
+          onClick={() => setOpen((p) => !p)}
+          className={cn(
+            'flex min-w-0 flex-1 items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+            isCompany && !COMPANY_PATHS.some((p) => pathname === p) && pathname !== '/dashboard/company'
+              ? 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+              : isCompany
+                ? 'text-foreground hover:bg-accent'
+                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+          )}
+        >
+          <Building2 className="h-4 w-4 shrink-0" />
+          <span className="min-w-0 flex-1 truncate text-left">Company</span>
+          <ChevronDown className={cn('h-3 w-3 shrink-0 text-muted-foreground/50 transition-transform', open ? 'rotate-0' : '-rotate-90')} />
+        </button>
+      </div>
 
-      {navGroups.map((group) => {
-        const isOpen = !collapsed[group.label]
-        const hasActive = group.items.some((i) => isActive(i.href))
-
-        return (
-          <div key={group.label} className="mt-3">
-            {/* Section header — clickable to collapse */}
-            <button
-              onClick={() => toggle(group.label)}
-              className="flex w-full items-center justify-between px-3 pb-1 group"
-            >
-              <span className={cn(
-                'text-[11px] font-semibold uppercase tracking-wider transition-colors',
-                hasActive ? 'text-foreground' : 'text-muted-foreground/60 group-hover:text-muted-foreground',
-              )}>
-                {group.label}
-              </span>
-              <ChevronDown className={cn(
-                'h-3 w-3 text-muted-foreground/40 transition-transform group-hover:text-muted-foreground',
-                isOpen ? 'rotate-0' : '-rotate-90',
-              )} />
-            </button>
-
-            {/* Items — each on its own row */}
-            {isOpen && (
-              <div className="flex flex-col gap-0.5 mt-0.5">
-                {group.items.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      'rounded-md px-3 py-1.5 text-sm transition-colors',
-                      isActive(item.href)
-                        ? 'bg-accent text-accent-foreground font-medium'
-                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                    )}
-                  >
-                    {item.name}
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-        )
-      })}
-    </nav>
+      {open && (
+        <div className="flex flex-col gap-0.5 pl-4">
+          {COMPANY_ITEMS.map((item) => {
+            const isActive = pathname === item.href
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  'min-w-0 truncate rounded-md px-3 py-1.5 text-sm transition-colors',
+                  isActive
+                    ? 'bg-accent text-accent-foreground font-medium'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                )}
+              >
+                {item.name}
+              </Link>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }

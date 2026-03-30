@@ -1,14 +1,14 @@
 import Link from 'next/link'
-import { Building2, Settings, LogOut, MessageSquare, FileText } from 'lucide-react'
+import { Settings, LogOut, MessageSquare, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NorthStarTrigger } from '@/components/company/north-star-trigger'
 import { ProjectsNav } from '@/components/projects/projects-nav'
 import { PerformanceNav } from '@/components/performance/performance-nav'
+import { CompanyNav } from '@/components/company/company-nav'
 
 const staticNavItems = [
   { name: 'Assistant', href: '/dashboard/chat', icon: MessageSquare },
   { name: 'Documents', href: '/dashboard/documents', icon: FileText },
-  { name: 'Company', href: '/dashboard/company', icon: Building2 },
 ]
 
 const bottomNavigation = [
@@ -78,6 +78,9 @@ export function Sidebar({ orgName, userName, avatarUrl, email, isAdmin, northSta
 
         {/* Performance nav — expandable */}
         <PerformanceNav />
+
+        {/* Company nav — expandable */}
+        <CompanyNav />
 
         {/* Static nav items */}
         {staticNavItems.map((item) => (

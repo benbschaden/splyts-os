@@ -12,9 +12,7 @@ const PERFORMANCE_ITEMS = [
   { name: 'Milestones', href: '/dashboard/company/milestones' },
   { name: 'Risks', href: '/dashboard/company/risks' },
   { name: 'Competitors', href: '/dashboard/company/competitors' },
-  { name: 'Roadmap', href: '/dashboard/company/roadmap' },
   { name: 'Funnels', href: '/dashboard/company/funnels' },
-  { name: 'Calendar', href: '/dashboard/company/calendar' },
 ]
 
 const PERFORMANCE_PATHS = PERFORMANCE_ITEMS.map((i) => i.href)

@@ -61,6 +61,7 @@ interface Milestone {
   milestone_date: string
   category: string | null
   status: ApiStatus
+  completion_notes?: string | null
 }
 
 interface MilestoneDrawerProps {
@@ -76,6 +77,7 @@ interface FormData {
   milestone_date: string
   category: string
   status: UiStatus
+  completion_notes: string
 }
 
 export function MilestoneDrawer({ open, onClose, onSaved, editing }: MilestoneDrawerProps) {
@@ -85,6 +87,7 @@ export function MilestoneDrawer({ open, onClose, onSaved, editing }: MilestoneDr
     milestone_date: new Date().toISOString().split('T')[0],
     category: '',
     status: 'upcoming',
+    completion_notes: '',
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -97,12 +100,14 @@ export function MilestoneDrawer({ open, onClose, onSaved, editing }: MilestoneDr
         milestone_date: editing.milestone_date,
         category: editing.category ?? '',
         status: apiStatusToUi(editing.status),
+        completion_notes: editing.completion_notes ?? '',
       } : {
         title: '',
         description: '',
         milestone_date: new Date().toISOString().split('T')[0],
         category: '',
         status: 'upcoming',
+        completion_notes: '',
       })
       setError(null)
     }
@@ -127,12 +132,18 @@ export function MilestoneDrawer({ open, onClose, onSaved, editing }: MilestoneDr
     const url = editing ? `/api/company-milestones/${editing.id}` : '/api/company-milestones'
     const method = editing ? 'PATCH' : 'POST'
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       title: form.title.trim(),
       description: form.description.trim() || null,
       milestone_date: form.milestone_date,
       category: toApiCategory(form.category),
       status: uiStatusToApi(form.status),
+    }
+    if (editing) {
+      payload.completion_notes =
+        uiStatusToApi(form.status) === 'achieved'
+          ? (form.completion_notes.trim() || null)
+          : null
     }
 
     const res = await fetch(url, {
@@ -246,6 +257,22 @@ export function MilestoneDrawer({ open, onClose, onSaved, editing }: MilestoneDr
               ))}
             </div>
           </div>
+
+          {form.status === 'achieved' && (
+            <div className="space-y-1.5">
+              <label htmlFor="milestone-drawer-completion-notes" className="text-xs font-medium text-foreground">
+                Completion notes <span className="font-normal text-muted-foreground">(optional)</span>
+              </label>
+              <textarea
+                id="milestone-drawer-completion-notes"
+                value={form.completion_notes}
+                onChange={(e) => set('completion_notes', e.target.value)}
+                rows={2}
+                placeholder="What happened when this was marked done…"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+          )}
         </div>
 
         <div className="shrink-0 flex items-center justify-end gap-3 border-t border-border px-6 py-4">

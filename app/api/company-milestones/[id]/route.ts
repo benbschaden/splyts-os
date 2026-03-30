@@ -9,6 +9,7 @@ const patchSchema = z.object({
   milestone_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   category: z.enum(['fundraising', 'hiring', 'launch', 'revenue', 'partnership', 'product', 'other']).optional(),
   status: z.enum(['planned', 'achieved', 'missed', 'pushed']).optional(),
+  completion_notes: z.string().max(2000).nullable().optional(),
 })
 
 export async function PATCH(

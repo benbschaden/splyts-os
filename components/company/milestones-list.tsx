@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Plus, Pencil, Trash2, Flag } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MilestoneDrawer } from './milestone-drawer'
+import { MarkMilestoneDoneDialog } from './mark-milestone-done-dialog'
 
 interface Milestone {
   id: string
@@ -12,6 +13,7 @@ interface Milestone {
   milestone_date: string
   category: string | null
   status: 'planned' | 'achieved' | 'missed' | 'pushed'
+  completion_notes?: string | null
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -30,11 +32,24 @@ function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-GB', { month: 'short', year: 'numeric', day: 'numeric' })
 }
 
+function todayIsoDate(): string {
+  return new Date().toISOString().split('T')[0]
+}
+
+function isUpcomingStatus(status: Milestone['status']): boolean {
+  return status === 'planned' || status === 'pushed'
+}
+
+function isOverdue(m: Milestone): boolean {
+  return isUpcomingStatus(m.status) && m.milestone_date < todayIsoDate()
+}
+
 export function MilestonesList({ isAdmin }: { isAdmin: boolean }) {
   const [milestones, setMilestones] = useState<Milestone[]>([])
   const [loading, setLoading] = useState(true)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editing, setEditing] = useState<Milestone | null>(null)
+  const [markDoneTarget, setMarkDoneTarget] = useState<Milestone | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -120,19 +135,51 @@ export function MilestonesList({ isAdmin }: { isAdmin: boolean }) {
                         {m.description && (
                           <p className="mt-0.5 text-xs text-muted-foreground">{m.description}</p>
                         )}
-                        <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground/60">
-                          <Flag className="h-3 w-3" />
-                          {formatDate(m.milestone_date)}
-                        </p>
+                        {m.status === 'achieved' && m.completion_notes && (
+                          <p className="mt-1.5 border-l-2 border-green-500/35 pl-2 text-xs text-muted-foreground">
+                            <span className="font-medium text-foreground/90">Done: </span>
+                            {m.completion_notes}
+                          </p>
+                        )}
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground/60">
+                          <span className="flex items-center gap-1">
+                            <Flag className="h-3 w-3 shrink-0" />
+                            Target: {formatDate(m.milestone_date)}
+                          </span>
+                          {isOverdue(m) && (
+                            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-900 dark:text-amber-100">
+                              Overdue
+                            </span>
+                          )}
+                        </div>
                       </div>
                       {isAdmin && (
-                        <div className="shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => { setEditing(m); setDrawerOpen(true) }} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent transition-colors">
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button onClick={() => handleDelete(m.id)} className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                        <div className="shrink-0 flex items-center gap-1">
+                          {isUpcomingStatus(m.status) && (
+                            <button
+                              type="button"
+                              onClick={() => setMarkDoneTarget(m)}
+                              className="rounded-md px-2 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+                            >
+                              Mark done
+                            </button>
+                          )}
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              type="button"
+                              onClick={() => { setEditing(m); setDrawerOpen(true) }}
+                              className="rounded-md p-1.5 text-muted-foreground hover:bg-accent transition-colors"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(m.id)}
+                              className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -149,6 +196,13 @@ export function MilestonesList({ isAdmin }: { isAdmin: boolean }) {
         onClose={() => setDrawerOpen(false)}
         onSaved={load}
         editing={editing}
+      />
+
+      <MarkMilestoneDoneDialog
+        open={markDoneTarget !== null}
+        milestone={markDoneTarget ? { id: markDoneTarget.id, title: markDoneTarget.title } : null}
+        onClose={() => setMarkDoneTarget(null)}
+        onMarked={load}
       />
     </>
   )

@@ -151,7 +151,8 @@ export async function GET() {
         const date = new Date(m.milestone_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
         const statusLabel = m.status !== 'planned' ? ` [${m.status}]` : ''
         const desc = m.description ? `\n     ${m.description}` : ''
-        return `  ${date}${statusLabel}: ${m.title}${desc}`
+        const doneNote = m.completion_notes ? `\n     Completed: ${m.completion_notes}` : ''
+        return `  ${date}${statusLabel}: ${m.title}${desc}${doneNote}`
       })
       .join('\n\n')
 

@@ -9,6 +9,7 @@ export type CompanyMilestone = {
   category: 'fundraising' | 'hiring' | 'launch' | 'revenue' | 'partnership' | 'product' | 'other'
   status: 'planned' | 'achieved' | 'missed' | 'pushed'
   sort_order: number
+  completion_notes: string | null
   created_by: string
   updated_by: string | null
   created_at: string
@@ -19,7 +20,7 @@ export async function getCompanyMilestones(organizationId: string): Promise<Comp
   const supabase = createServiceClient()
   const { data, error } = await supabase
     .from('company_milestones')
-    .select('id, organization_id, title, description, milestone_date, category, status, sort_order, created_by, updated_by, created_at, updated_at')
+    .select('id, organization_id, title, description, milestone_date, category, status, sort_order, completion_notes, created_by, updated_by, created_at, updated_at')
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
     .order('milestone_date', { ascending: true })
@@ -49,7 +50,7 @@ export async function createCompanyMilestone(params: {
       status: params.status,
       created_by: params.userId,
     })
-    .select('id, organization_id, title, description, milestone_date, category, status, sort_order, created_by, updated_by, created_at, updated_at')
+    .select('id, organization_id, title, description, milestone_date, category, status, sort_order, completion_notes, created_by, updated_by, created_at, updated_at')
     .single()
 
   if (error) return { milestone: null, error: 'Failed to create milestone' }
@@ -65,6 +66,7 @@ export async function updateCompanyMilestone(
     milestone_date?: string
     category?: string
     status?: string
+    completion_notes?: string | null
   },
   userId: string,
 ): Promise<{ milestone: CompanyMilestone | null; error: string | null }> {
@@ -75,7 +77,7 @@ export async function updateCompanyMilestone(
     .eq('id', id)
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
-    .select('id, organization_id, title, description, milestone_date, category, status, sort_order, created_by, updated_by, created_at, updated_at')
+    .select('id, organization_id, title, description, milestone_date, category, status, sort_order, completion_notes, created_by, updated_by, created_at, updated_at')
     .single()
 
   if (error) return { milestone: null, error: 'Failed to update milestone' }

@@ -1603,6 +1603,7 @@ export type Database = {
           category: string | null
           status: string
           sort_order: number
+          completion_notes: string | null
           created_by: string
           updated_by: string | null
           created_at: string
@@ -1618,6 +1619,7 @@ export type Database = {
           category?: string | null
           status?: string
           sort_order?: number
+          completion_notes?: string | null
           created_by: string
           updated_by?: string | null
           created_at?: string
@@ -1633,6 +1635,7 @@ export type Database = {
           category?: string | null
           status?: string
           sort_order?: number
+          completion_notes?: string | null
           created_by?: string
           updated_by?: string | null
           created_at?: string

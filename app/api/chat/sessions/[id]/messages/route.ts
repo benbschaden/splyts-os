@@ -217,7 +217,11 @@ export async function POST(
     }
     if (augmentedSections && includeCompanyMilestones && milestones.length > 0) {
       const milestonesText = milestones
-        .map((m) => `${m.milestone_date}: ${m.title} (${m.status})`)
+        .map((m) => {
+          let line = `${m.milestone_date}: ${m.title} (${m.status})`
+          if (m.completion_notes) line += ` — ${m.completion_notes}`
+          return line
+        })
         .join('\n')
       augmentedSections['_milestones'] = milestonesText
     }

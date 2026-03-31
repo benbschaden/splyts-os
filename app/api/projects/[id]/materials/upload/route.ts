@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { createProjectMaterial } from '@/lib/queries/project-materials'
-import { extractTextFromFile } from '@/lib/files/extract-text'
+import { extractText } from '@/lib/company/extract-text'
 
 const BUCKET = 'project-files'
 const MAX_BYTES = 52_428_800 // 50 MiB — matches bucket policy
@@ -109,7 +109,30 @@ export async function POST(
 
     // Extract text content so AI prompts can read the document.
     // Runs after successful storage upload; failure is non-fatal (content stays null).
-    const extractedContent = await extractTextFromFile(file)
+    let extractedContent: string | null = null
+    const extractableMimes = new Set([
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
+      'text/markdown',
+      'text/csv',
+      'application/json',
+    ])
+    if (extractableMimes.has(file.type)) {
+      try {
+        if (file.type === 'text/csv' || file.type === 'application/json') {
+          // extractText only supports pdf/docx/txt/md; handle csv + json as plain text
+          const text = await file.text()
+          extractedContent = text.slice(0, 60_000) || null
+        } else {
+          const buffer = Buffer.from(await file.arrayBuffer())
+          const text = await extractText(buffer, file.type)
+          extractedContent = text.slice(0, 60_000) || null
+        }
+      } catch (err) {
+        console.error('[projects/[id]/materials/upload] text extraction failed:', err)
+      }
+    }
 
     const { material, error } = await createProjectMaterial(projectId, org.id, user.id, {
       material_type: 'file',

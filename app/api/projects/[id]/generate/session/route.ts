@@ -5,6 +5,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getBusinessPlan } from '@/lib/queries/business-plan'
 import { getProjectMaterials } from '@/lib/queries/project-materials'
+import { getOutputsForProject } from '@/lib/queries/outputs'
 import { DEFAULT_MODEL, getModelById } from '@/lib/ai/models'
 import { buildProjectOutputSessionSystemPrompt } from '@/lib/ai/prompts'
 
@@ -57,9 +58,10 @@ export async function POST(
 
     if (!project) return Response.json({ error: 'Project not found' }, { status: 404 })
 
-    const [materialsRaw, businessPlan] = await Promise.all([
+    const [materialsRaw, businessPlan, previousOutputs] = await Promise.all([
       getProjectMaterials(projectId, org.id),
       getBusinessPlan(org.id),
+      getOutputsForProject(projectId, org.id),
     ])
 
     const materials = materialsRaw.map((m) => ({
@@ -70,12 +72,20 @@ export async function POST(
       link_url: m.link_url,
     }))
 
+    // Pass up to the 5 most recent outputs as context (newest first from query)
+    const previousOutputsForPrompt = previousOutputs.slice(0, 5).map((o) => ({
+      brief: o.brief,
+      content: o.content,
+      createdAt: o.created_at,
+    }))
+
     const systemPrompt = buildProjectOutputSessionSystemPrompt({
       projectName: project.name,
       projectDescription: project.description ?? null,
       outputType,
       materials,
       businessPlanSections: businessPlan?.sections ?? null,
+      previousOutputs: previousOutputsForPrompt,
     })
 
     const apiKey = process.env.ANTHROPIC_API_KEY

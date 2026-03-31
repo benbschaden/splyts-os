@@ -1030,9 +1030,21 @@ export function buildProjectOutputSessionSystemPrompt(params: {
   outputType: string
   materials: ProjectMaterialForDeliverablePrompt[]
   businessPlanSections: BusinessPlanSections | null
+  previousOutputs?: Array<{ brief: string; content: string; createdAt: string }>
 }): string {
-  const { projectName, projectDescription, outputType, materials, businessPlanSections } = params
+  const { projectName, projectDescription, outputType, materials, businessPlanSections, previousOutputs } = params
   const { materialsBlock, planBlock } = buildProjectMaterialsAndPlanBlocks(materials, businessPlanSections)
+
+  const previousOutputsBlock = previousOutputs && previousOutputs.length > 0
+    ? previousOutputs
+        .map((o, i) => {
+          const label = o.brief.trim().slice(0, 150)
+          // Cap content at 2000 chars per output to stay within token budget
+          const body = o.content.trim().slice(0, 2000) + (o.content.length > 2000 ? '\n…(truncated)' : '')
+          return `[PREVIOUS OUTPUT ${i + 1}] ${label}\n${body}`
+        })
+        .join('\n\n')
+    : null
 
   const isEmailDraft = outputType.trim().toLowerCase() === 'email draft'
 
@@ -1059,6 +1071,7 @@ PROJECT: ${projectName}${projectDescription ? `\nCONTEXT: ${projectDescription}`
 DELIVERABLE TYPE: ${outputType}
 ${materialsBlock ? `\nPROJECT MATERIALS (use as source and reference):\n${materialsBlock}` : ''}
 ${planBlock ? `\nBUSINESS CONTEXT (background reference):\n${planBlock}` : ''}
+${previousOutputsBlock ? `\nPREVIOUSLY GENERATED OUTPUTS FOR THIS PROJECT (read for context, avoid repeating verbatim):\n${previousOutputsBlock}` : ''}
 ${emailBlock}
 ---
 

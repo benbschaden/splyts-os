@@ -5,13 +5,18 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getBusinessPlan } from '@/lib/queries/business-plan'
 import { getProjectMaterials } from '@/lib/queries/project-materials'
-import { createOutput } from '@/lib/queries/outputs'
-import { DEFAULT_MODEL } from '@/lib/ai/models'
-import { buildProjectOutputPrompt } from '@/lib/ai/prompts'
+import { DEFAULT_MODEL, getModelById } from '@/lib/ai/models'
+import { buildProjectOutputSessionSystemPrompt } from '@/lib/ai/prompts'
 
 const schema = z.object({
-  description: z.string().min(1, 'Brief is required').max(2000),
   outputType: z.string().min(1).max(100),
+  modelId: z.string().optional(),
+  messages: z.array(
+    z.object({
+      role: z.enum(['user', 'assistant']),
+      content: z.string(),
+    }),
+  ),
 })
 
 export async function POST(
@@ -34,10 +39,14 @@ export async function POST(
       return Response.json({ error: parsed.error.errors[0].message }, { status: 400 })
     }
 
-    const { description, outputType } = parsed.data
+    const { outputType, modelId, messages } = parsed.data
+    const model = (modelId ? getModelById(modelId) : null) ?? DEFAULT_MODEL
+    if (model.provider !== 'anthropic') {
+      return Response.json({ error: `Provider "${model.provider}" is not yet configured.` }, { status: 503 })
+    }
+
     const db = createServiceClient()
 
-    // Verify project belongs to this org
     const { data: project } = await db
       .from('projects')
       .select('id, name, description')
@@ -48,7 +57,6 @@ export async function POST(
 
     if (!project) return Response.json({ error: 'Project not found' }, { status: 404 })
 
-    // Fetch context in parallel
     const [materialsRaw, businessPlan] = await Promise.all([
       getProjectMaterials(projectId, org.id),
       getBusinessPlan(org.id),
@@ -62,11 +70,10 @@ export async function POST(
       link_url: m.link_url,
     }))
 
-    const systemPrompt = buildProjectOutputPrompt({
+    const systemPrompt = buildProjectOutputSessionSystemPrompt({
       projectName: project.name,
       projectDescription: project.description ?? null,
       outputType,
-      brief: description,
       materials,
       businessPlanSections: businessPlan?.sections ?? null,
     })
@@ -74,42 +81,30 @@ export async function POST(
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) return Response.json({ error: 'AI generation is not configured' }, { status: 503 })
 
+    if (messages.length === 0) {
+      return Response.json({ error: 'Messages cannot be empty' }, { status: 400 })
+    }
+
     const anthropic = new Anthropic({ apiKey })
 
-    let content: string
+    let assistantContent: string
     try {
       const response = await anthropic.messages.create({
-        model: DEFAULT_MODEL.id,
+        model: model.id,
         max_tokens: 4096,
-        messages: [{ role: 'user', content: `Create a ${outputType}.\n\nBrief: ${description}` }],
         system: systemPrompt,
+        messages,
       })
       const textBlock = response.content.find((b) => b.type === 'text')
       if (!textBlock || textBlock.type !== 'text') {
         return Response.json({ error: 'Generation failed. Please try again.' }, { status: 500 })
       }
-      content = textBlock.text.trim()
+      assistantContent = textBlock.text.trim()
     } catch {
       return Response.json({ error: 'Generation failed. Please try again.' }, { status: 500 })
     }
 
-    // Save as output with no content_type (project deliverable)
-    const brief = `${outputType}: ${description}`
-    const { output, error: saveError } = await createOutput({
-      organizationId: org.id,
-      projectId,
-      contentTypeId: null,
-      brief,
-      content,
-      userId: user.id,
-      modelId: DEFAULT_MODEL.id,
-    })
-
-    if (saveError || !output) {
-      return Response.json({ error: 'Failed to save output. Please try again.' }, { status: 500 })
-    }
-
-    return Response.json({ output }, { status: 201 })
+    return Response.json({ assistantMessage: assistantContent })
   } catch {
     return Response.json({ error: 'Internal error' }, { status: 500 })
   }

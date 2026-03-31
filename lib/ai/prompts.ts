@@ -986,22 +986,18 @@ Write a well-structured ${params.documentType} document that captures the key co
 Write the document now:`
 }
 
-export function buildProjectOutputPrompt(params: {
-  projectName: string
-  projectDescription: string | null
-  outputType: string
-  brief: string
-  materials: Array<{
-    material_type: string
-    title: string | null
-    content: string | null
-    file_name: string | null
-    link_url: string | null
-  }>
-  businessPlanSections: BusinessPlanSections | null
-}): string {
-  const { projectName, projectDescription, outputType, brief, materials, businessPlanSections } = params
+export type ProjectMaterialForDeliverablePrompt = {
+  material_type: string
+  title: string | null
+  content: string | null
+  file_name: string | null
+  link_url: string | null
+}
 
+function buildProjectMaterialsAndPlanBlocks(
+  materials: ProjectMaterialForDeliverablePrompt[],
+  businessPlanSections: BusinessPlanSections | null,
+): { materialsBlock: string | null; planBlock: string | null } {
   const materialsBlock = materials.length > 0
     ? materials
         .map((m) => {
@@ -1021,24 +1017,71 @@ export function buildProjectOutputPrompt(params: {
         .join('\n')
     : null
 
-  return `You are a sharp, experienced professional creating project deliverables. Your output is clear, specific, well-structured, and immediately actionable.
+  return { materialsBlock, planBlock }
+}
+
+/**
+ * System prompt for multi-turn project deliverable generation (chat until save).
+ * User messages carry the request and refinements; materials and project context stay here.
+ */
+export function buildProjectOutputSessionSystemPrompt(params: {
+  projectName: string
+  projectDescription: string | null
+  outputType: string
+  materials: ProjectMaterialForDeliverablePrompt[]
+  businessPlanSections: BusinessPlanSections | null
+}): string {
+  const { projectName, projectDescription, outputType, materials, businessPlanSections } = params
+  const { materialsBlock, planBlock } = buildProjectMaterialsAndPlanBlocks(materials, businessPlanSections)
+
+  const isEmailDraft = outputType.trim().toLowerCase() === 'email draft'
+
+  const emailBlock = isEmailDraft
+    ? `
+[EMAIL DRAFT — follow when producing the final draft]
+- Write a professional email the user can send or adapt. Not a subject line of marketing fluff unless the brief asks for it.
+- After "Here's your draft:" (or "Here's your updated draft:"), structure the body in markdown:
+  - First line: **Subject:** followed by a specific, compelling subject (not generic).
+  - Then the email body: greeting, short paragraphs, one clear ask or next step, sign-off appropriate to the relationship (adjust if the user specified tone or formality).
+- Match audience and intent from the conversation; infer from project context when not stated.
+- Keep mobile readability in mind: short paragraphs, scannable structure.
+`
+    : ''
+
+  const deliverableShape = isEmailDraft
+    ? 'the full email draft (subject + body in markdown as above)'
+    : `a complete ${outputType} using markdown: ## for section headings, - for bullets, **bold** for key terms or actions`
+
+  return `You are a sharp, experienced professional helping a team produce project deliverables. You are clear, specific, well-structured, and immediately actionable.
 
 PROJECT: ${projectName}${projectDescription ? `\nCONTEXT: ${projectDescription}` : ''}
 
-DELIVERABLE: ${outputType}
-BRIEF: ${brief}
+DELIVERABLE TYPE: ${outputType}
 ${materialsBlock ? `\nPROJECT MATERIALS (use as source and reference):\n${materialsBlock}` : ''}
 ${planBlock ? `\nBUSINESS CONTEXT (background reference):\n${planBlock}` : ''}
+${emailBlock}
 ---
 
-Write a complete, professional ${outputType}. Requirements:
-- Use markdown: ## for section headings, - for bullets, **bold** for key terms or actions
-- Be specific and concrete — no generic filler, no obvious advice
-- Write for a professional team who will act on this immediately
-- Cover all sections relevant to a ${outputType}
-- Length appropriate to the type: briefs are tight (1–2 pages), reports are thorough
+[PROCESS — follow this exactly]
 
-Respond with ONLY the ${outputType} content. No preamble, no "here is your ${outputType}".`
+Step 1 — When the user sends their first message (or continues the conversation):
+- Read what they want. Extract every detail they already provided.
+- Only ask about information that is genuinely missing and that you cannot reasonably infer from project materials or context.
+- Do NOT ask about anything they already told you.
+- If you need clarification, ask concise questions (you may use a short numbered list). If you have enough to proceed, skip questions.
+
+Step 2 — Producing a deliverable draft:
+- When you have enough information, produce ${deliverableShape}.
+- Begin that message with the line "Here's your draft:" on its own line, then the full content below it (not a summary or outline).
+
+Step 3 — Refinement:
+- Accept feedback and revise. Each revised full version begins with "Here's your updated draft:" on its own line.
+- Output the complete revised draft each time, not only the changed parts.
+
+[FORMATTING]
+- Questions and short replies: plain text is fine.
+- Deliverable drafts (after the marker line): use markdown appropriate to the deliverable type. Be specific and concrete — no generic filler.
+- Length: match the deliverable type (e.g. briefs stay tight; reports can be thorough).`
 }
 
 export function buildSectionChatSystemPrompt(params: {

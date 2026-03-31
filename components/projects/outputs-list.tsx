@@ -566,23 +566,13 @@ export function OutputsList({
 
   useEffect(() => {
     loadOutputs()
-  }, [loadOutputs])
-
-  useEffect(() => {
     function onPageShow(e: PageTransitionEvent) {
       if (e.persisted) loadOutputs()
     }
     window.addEventListener('pageshow', onPageShow)
     return () => window.removeEventListener('pageshow', onPageShow)
-  }, [loadOutputs])
-
-  useEffect(() => {
-    function onVisibilityChange() {
-      if (document.visibilityState === 'visible') loadOutputs()
-    }
-    document.addEventListener('visibilitychange', onVisibilityChange)
-    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
-  }, [loadOutputs])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (!pendingOutput) return

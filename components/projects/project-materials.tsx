@@ -437,11 +437,15 @@ function LinkCard({
 function mapMaterialsPayload(list: unknown[]): Material[] {
   return list.map((row) => {
     const m = row as Record<string, unknown>
+    const rawContent = (m.content as string | null) ?? null
     return {
       id: String(m.id),
       material_type: m.material_type as Material['material_type'],
       title: (m.title as string | null) ?? null,
-      content: (m.content as string | null) ?? null,
+      // Truncate to 500 chars for display — full content lives server-side for AI.
+      // Storing tens of thousands of chars in client state for uploaded docs causes
+      // memory spikes that freeze Safari when re-rendering the list.
+      content: rawContent ? rawContent.slice(0, 500) : null,
       file_url: (m.file_url as string | null) ?? null,
       file_name: (m.file_name as string | null) ?? null,
       file_mime: (m.file_mime as string | null) ?? null,
@@ -487,23 +491,16 @@ export function ProjectMaterials({ projectId, initialMaterials }: ProjectMateria
 
   useEffect(() => {
     loadMaterials()
-  }, [loadMaterials])
-
-  useEffect(() => {
+    // Refetch on bfcache restore (browser back/forward). visibilitychange is
+    // intentionally excluded — it fires when native dialogs (like the file picker)
+    // open/close and triggers redundant fetches that can freeze Safari.
     function onPageShow(e: PageTransitionEvent) {
       if (e.persisted) loadMaterials()
     }
     window.addEventListener('pageshow', onPageShow)
     return () => window.removeEventListener('pageshow', onPageShow)
-  }, [loadMaterials])
-
-  useEffect(() => {
-    function onVisibilityChange() {
-      if (document.visibilityState === 'visible') loadMaterials()
-    }
-    document.addEventListener('visibilitychange', onVisibilityChange)
-    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
-  }, [loadMaterials])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const notes = materials.filter((m) => m.material_type === 'note')
   const files = materials.filter((m) => m.material_type === 'file')
@@ -664,6 +661,7 @@ export function ProjectMaterials({ projectId, initialMaterials }: ProjectMateria
           ref={fileInputRef}
           type="file"
           className="hidden"
+          accept=".pdf,.doc,.docx,.txt,.md,.csv,.json,.xlsx,.png,.jpg,.jpeg,.webp,.gif,.svg"
           onChange={(e) => {
             const file = e.target.files?.[0]
             if (file) handleUploadFile(file)

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Sparkles, Copy, Pencil, Trash2, Check, X, FileText, BarChart2, Send, File } from 'lucide-react'
@@ -547,22 +547,42 @@ export function OutputsList({
   const [outputs, setOutputs] = useState<Output[]>(initialOutputs)
   const [dialogOpen, setDialogOpen] = useState(false)
 
-  // Tab panels unmount when switching away; server props stay stale. Refetch on mount.
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      const res = await fetch(`/api/projects/${projectId}/outputs`)
-      if (!res.ok || cancelled) return
+  // Server props and client cache can be stale after tab switch, bfcache, or router cache.
+  const loadOutputs = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}/outputs`, {
+        cache: 'no-store',
+      })
+      if (!res.ok) return
       const data: unknown = await res.json().catch(() => null)
-      if (cancelled || !data || typeof data !== 'object' || !('outputs' in data)) return
+      if (!data || typeof data !== 'object' || !('outputs' in data)) return
       const list = (data as { outputs: unknown }).outputs
       if (!Array.isArray(list)) return
       setOutputs(list as Output[])
-    })()
-    return () => {
-      cancelled = true
+    } catch {
+      // keep existing state
     }
   }, [projectId])
+
+  useEffect(() => {
+    loadOutputs()
+  }, [loadOutputs])
+
+  useEffect(() => {
+    function onPageShow(e: PageTransitionEvent) {
+      if (e.persisted) loadOutputs()
+    }
+    window.addEventListener('pageshow', onPageShow)
+    return () => window.removeEventListener('pageshow', onPageShow)
+  }, [loadOutputs])
+
+  useEffect(() => {
+    function onVisibilityChange() {
+      if (document.visibilityState === 'visible') loadOutputs()
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
+  }, [loadOutputs])
 
   useEffect(() => {
     if (!pendingOutput) return

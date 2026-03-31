@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import {
   FileText,
   Upload,
@@ -434,43 +434,27 @@ function LinkCard({
   )
 }
 
+function mapMaterialsPayload(list: unknown[]): Material[] {
+  return list.map((row) => {
+    const m = row as Record<string, unknown>
+    return {
+      id: String(m.id),
+      material_type: m.material_type as Material['material_type'],
+      title: (m.title as string | null) ?? null,
+      content: (m.content as string | null) ?? null,
+      file_url: (m.file_url as string | null) ?? null,
+      file_name: (m.file_name as string | null) ?? null,
+      file_mime: (m.file_mime as string | null) ?? null,
+      link_url: (m.link_url as string | null) ?? null,
+      sort_order: typeof m.sort_order === 'number' ? m.sort_order : 0,
+      created_at: String(m.created_at ?? ''),
+      updated_at: String(m.updated_at ?? ''),
+    }
+  })
+}
+
 export function ProjectMaterials({ projectId, initialMaterials }: ProjectMaterialsProps) {
   const [materials, setMaterials] = useState<Material[]>(initialMaterials)
-
-  // Tab panels unmount when switching away; server props are still the initial snapshot.
-  // Refetch on mount so notes/files/links match the database after returning to this tab.
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      const res = await fetch(`/api/projects/${projectId}/materials`)
-      if (!res.ok || cancelled) return
-      const data: unknown = await res.json().catch(() => null)
-      if (cancelled || !data || typeof data !== 'object' || !('materials' in data)) return
-      const list = (data as { materials: unknown }).materials
-      if (!Array.isArray(list)) return
-      setMaterials(
-        list.map((row) => {
-          const m = row as Record<string, unknown>
-          return {
-            id: String(m.id),
-            material_type: m.material_type as Material['material_type'],
-            title: (m.title as string | null) ?? null,
-            content: (m.content as string | null) ?? null,
-            file_url: (m.file_url as string | null) ?? null,
-            file_name: (m.file_name as string | null) ?? null,
-            file_mime: (m.file_mime as string | null) ?? null,
-            link_url: (m.link_url as string | null) ?? null,
-            sort_order: typeof m.sort_order === 'number' ? m.sort_order : 0,
-            created_at: String(m.created_at ?? ''),
-            updated_at: String(m.updated_at ?? ''),
-          }
-        }),
-      )
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [projectId])
   const [formMode, setFormMode] = useState<FormMode>(null)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -484,6 +468,42 @@ export function ProjectMaterials({ projectId, initialMaterials }: ProjectMateria
   const [linkTitle, setLinkTitle] = useState('')
   const [linkDescription, setLinkDescription] = useState('')
   const [linkSaving, setLinkSaving] = useState(false)
+
+  const loadMaterials = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}/materials`, {
+        cache: 'no-store',
+      })
+      if (!res.ok) return
+      const data: unknown = await res.json().catch(() => null)
+      if (!data || typeof data !== 'object' || !('materials' in data)) return
+      const list = (data as { materials: unknown }).materials
+      if (!Array.isArray(list)) return
+      setMaterials(mapMaterialsPayload(list))
+    } catch {
+      // keep existing state
+    }
+  }, [projectId])
+
+  useEffect(() => {
+    loadMaterials()
+  }, [loadMaterials])
+
+  useEffect(() => {
+    function onPageShow(e: PageTransitionEvent) {
+      if (e.persisted) loadMaterials()
+    }
+    window.addEventListener('pageshow', onPageShow)
+    return () => window.removeEventListener('pageshow', onPageShow)
+  }, [loadMaterials])
+
+  useEffect(() => {
+    function onVisibilityChange() {
+      if (document.visibilityState === 'visible') loadMaterials()
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
+  }, [loadMaterials])
 
   const notes = materials.filter((m) => m.material_type === 'note')
   const files = materials.filter((m) => m.material_type === 'file')

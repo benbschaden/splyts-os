@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { X, Sparkles, Loader2, Send, Save, ChevronLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import ReactMarkdown from 'react-markdown'
@@ -57,6 +58,7 @@ export function GenerationSessionDialog({
   hasBrandContext,
   initialUserMessage,
 }: GenerationSessionDialogProps) {
+  const router = useRouter()
   const [phase, setPhase] = useState<Phase>('setup')
 
   // Setup selections
@@ -203,6 +205,7 @@ export function GenerationSessionDialog({
     }
 
     onGenerated(data.output)
+    router.refresh()
     onClose()
   }
 

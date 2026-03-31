@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { X, Sparkles, Loader2, Send, Save, ChevronLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import ReactMarkdown from 'react-markdown'
@@ -59,6 +60,7 @@ export function ProjectOutputDialog({
   onClose,
   onGenerated,
 }: ProjectOutputDialogProps) {
+  const router = useRouter()
   const [phase, setPhase] = useState<Phase>('setup')
   const [outputType, setOutputType] = useState('Brief')
   const [modelId, setModelId] = useState(DEFAULT_MODEL.id)
@@ -190,6 +192,7 @@ export function ProjectOutputDialog({
     }
 
     onGenerated({ ...data.output, project_id: projectId } as GeneratedOutput)
+    router.refresh()
     onClose()
   }
 

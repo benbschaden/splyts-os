@@ -33,7 +33,14 @@ export async function GET(
     if (!project) return Response.json({ error: 'Not found' }, { status: 404 })
 
     const outputs = await getOutputsForProject(projectId, org.id)
-    return Response.json({ outputs })
+    return Response.json(
+      { outputs },
+      {
+        headers: {
+          'Cache-Control': 'private, no-store, must-revalidate',
+        },
+      },
+    )
   } catch (error) {
     console.error('[projects/[id]/outputs GET]', error)
     return Response.json({ error: 'Internal error' }, { status: 500 })

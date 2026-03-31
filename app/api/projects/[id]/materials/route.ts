@@ -40,7 +40,14 @@ export async function GET(
     if (!project) return Response.json({ error: 'Not found' }, { status: 404 })
 
     const materials = await getProjectMaterials(projectId, org.id)
-    return Response.json({ materials })
+    return Response.json(
+      { materials },
+      {
+        headers: {
+          'Cache-Control': 'private, no-store, must-revalidate',
+        },
+      },
+    )
   } catch (error) {
     console.error('[projects/[id]/materials GET]', error)
     return Response.json({ error: 'Internal error' }, { status: 500 })

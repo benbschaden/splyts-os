@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { createProjectMaterial } from '@/lib/queries/project-materials'
+import { extractTextFromFile } from '@/lib/files/extract-text'
 
 const BUCKET = 'project-files'
 const MAX_BYTES = 52_428_800 // 50 MiB — matches bucket policy
@@ -106,9 +107,14 @@ export async function POST(
       return Response.json({ error: 'Failed to prepare file' }, { status: 500 })
     }
 
+    // Extract text content so AI prompts can read the document.
+    // Runs after successful storage upload; failure is non-fatal (content stays null).
+    const extractedContent = await extractTextFromFile(file)
+
     const { material, error } = await createProjectMaterial(projectId, org.id, user.id, {
       material_type: 'file',
       title: file.name || null,
+      content: extractedContent,
       file_url: storagePath,
       file_name: file.name || 'upload',
       file_mime: file.type,

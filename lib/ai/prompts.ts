@@ -195,6 +195,7 @@ function buildProjectMaterialsBlock(materials: ProjectMaterialForPrompt[]): stri
     lines.push('Files:')
     for (const m of grouped['file']) {
       lines.push(`- ${m.file_name ?? 'Unnamed file'}`)
+      if (m.content) lines.push(`  ${m.content.slice(0, 500)}`)
     }
   }
 

@@ -547,6 +547,23 @@ export function OutputsList({
   const [outputs, setOutputs] = useState<Output[]>(initialOutputs)
   const [dialogOpen, setDialogOpen] = useState(false)
 
+  // Tab panels unmount when switching away; server props stay stale. Refetch on mount.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const res = await fetch(`/api/projects/${projectId}/outputs`)
+      if (!res.ok || cancelled) return
+      const data: unknown = await res.json().catch(() => null)
+      if (cancelled || !data || typeof data !== 'object' || !('outputs' in data)) return
+      const list = (data as { outputs: unknown }).outputs
+      if (!Array.isArray(list)) return
+      setOutputs(list as Output[])
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [projectId])
+
   useEffect(() => {
     if (!pendingOutput) return
     setOutputs((prev) => {

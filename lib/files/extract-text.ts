@@ -13,7 +13,6 @@
  */
 
 import mammoth from 'mammoth'
-import pdfParse from 'pdf-parse'
 
 /** Cap at 60 000 chars — well inside the DB column limit and safe for prompts. */
 const MAX_CHARS = 60_000
@@ -47,9 +46,10 @@ export async function extractTextFromFile(
     }
   }
 
-  // PDF
+  // PDF — imported dynamically to avoid pdf-parse reading test fixtures at build time
   if (type === 'application/pdf') {
     try {
+      const pdfParse = (await import('pdf-parse')).default
       const buffer = Buffer.from(await file.arrayBuffer())
       const result = await pdfParse(buffer)
       const text = result.text.trim()

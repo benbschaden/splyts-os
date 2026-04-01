@@ -1,0 +1,28 @@
+---
+description: Never commit or push to git without explicit user instruction
+alwaysApply: true
+---
+
+# No Git Commits or Pushes
+
+## Never run these without being explicitly told to:
+- `git commit`
+- `git push`
+- `git push --force`
+- `gh pr create`
+- Any command that writes to the remote repository
+
+## What to do instead
+Make the code changes, then stop. Tell the user what files were changed and let them handle git.
+
+```
+// ❌ NEVER — committing/pushing without being asked
+git add . && git commit -m "fix: ..." && git push
+
+// ✅ CORRECT — stop after code changes
+"Done. Changed app/api/projects/[id]/materials/upload/route.ts — push when ready."
+```
+
+## If the user asks you to commit AND push
+Only do what they literally asked for. "Commit this" means commit only — not push.
+"Commit and push" means both — but confirm before pushing to main/master.

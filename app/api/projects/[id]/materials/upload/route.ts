@@ -118,10 +118,15 @@ export async function POST(
     const ext = extensionForFile(file)
     const storagePath = `${org.id}/${projectId}/${randomUUID()}.${ext}`
 
+    // Read into a buffer once. Passing a File object to the Supabase SDK causes it to
+    // read file.type directly, which may still be "application/octet-stream" even when
+    // we pass contentType in the options. An ArrayBuffer forces it to use our mime value.
+    const fileBuffer = await file.arrayBuffer()
+
     const service = createServiceClient()
     const { error: uploadError } = await service.storage
       .from(BUCKET)
-      .upload(storagePath, file, { contentType: mime, upsert: false })
+      .upload(storagePath, fileBuffer, { contentType: mime, upsert: false })
 
     if (uploadError) {
       console.error('[projects/[id]/materials/upload] Storage upload:', uploadError)
@@ -153,12 +158,11 @@ export async function POST(
       try {
         if (mime === 'text/csv' || mime === 'application/json') {
           // extractText only supports pdf/docx/txt/md; handle csv + json as plain text
-          const text = await file.text()
+          const text = Buffer.from(fileBuffer).toString('utf-8')
           extractedContent = text.slice(0, 60_000) || null
         } else {
           const mimeForExtraction = mime === 'text/x-markdown' ? 'text/markdown' : mime
-          const buffer = Buffer.from(await file.arrayBuffer())
-          const text = await extractText(buffer, mimeForExtraction)
+          const text = await extractText(Buffer.from(fileBuffer), mimeForExtraction)
           extractedContent = text.slice(0, 60_000) || null
         }
       } catch (err) {

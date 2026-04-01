@@ -19,8 +19,10 @@ const ALLOWED_MIME_TYPES = new Set([
   'text/plain',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/msword',
   'application/json',
   'text/markdown',
+  'text/x-markdown',
 ])
 
 const MIME_TO_EXT: Record<string, string> = {
@@ -34,8 +36,10 @@ const MIME_TO_EXT: Record<string, string> = {
   'text/plain': 'txt',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/msword': 'doc',
   'application/json': 'json',
   'text/markdown': 'md',
+  'text/x-markdown': 'md',
 }
 
 function extensionForFile(file: File): string {
@@ -115,6 +119,7 @@ export async function POST(
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'text/plain',
       'text/markdown',
+      'text/x-markdown',
       'text/csv',
       'application/json',
     ])
@@ -125,8 +130,10 @@ export async function POST(
           const text = await file.text()
           extractedContent = text.slice(0, 60_000) || null
         } else {
+          const mimeForExtraction =
+            file.type === 'text/x-markdown' ? 'text/markdown' : file.type
           const buffer = Buffer.from(await file.arrayBuffer())
-          const text = await extractText(buffer, file.type)
+          const text = await extractText(buffer, mimeForExtraction)
           extractedContent = text.slice(0, 60_000) || null
         }
       } catch (err) {

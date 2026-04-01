@@ -42,6 +42,26 @@ const MIME_TO_EXT: Record<string, string> = {
   'text/x-markdown': 'md',
 }
 
+// Browsers sometimes report application/octet-stream for files they don't recognise
+// (common for .md on macOS). Fall back to extension-based MIME detection so known
+// safe types still pass the whitelist.
+const EXT_FALLBACK_MIME: Record<string, string> = {
+  md: 'text/markdown',
+  txt: 'text/plain',
+  csv: 'text/csv',
+  json: 'application/json',
+  pdf: 'application/pdf',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+}
+
+function resolvedMime(file: File): string {
+  if (file.type && file.type !== 'application/octet-stream') return file.type
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+  return EXT_FALLBACK_MIME[ext] ?? file.type
+}
+
 function extensionForFile(file: File): string {
   const fromName = file.name?.split('.').pop()
   if (fromName && /^[a-zA-Z0-9]{1,8}$/.test(fromName)) {
@@ -82,10 +102,11 @@ export async function POST(
       return Response.json({ error: 'file is required' }, { status: 400 })
     }
 
-    console.log(`[upload] received file="${file.name}" mime="${file.type}" size=${file.size}`)
+    const mime = resolvedMime(file)
+    console.log(`[upload] received file="${file.name}" mime="${mime}" raw="${file.type}" size=${file.size}`)
 
-    if (!ALLOWED_MIME_TYPES.has(file.type)) {
-      console.error(`[upload] rejected: mime type not allowed mime="${file.type}" file="${file.name}"`)
+    if (!ALLOWED_MIME_TYPES.has(mime)) {
+      console.error(`[upload] rejected: mime type not allowed mime="${mime}" raw="${file.type}" file="${file.name}"`)
       return Response.json({ error: 'File type not allowed' }, { status: 400 })
     }
 
@@ -100,7 +121,7 @@ export async function POST(
     const service = createServiceClient()
     const { error: uploadError } = await service.storage
       .from(BUCKET)
-      .upload(storagePath, file, { contentType: file.type, upsert: false })
+      .upload(storagePath, file, { contentType: mime, upsert: false })
 
     if (uploadError) {
       console.error('[projects/[id]/materials/upload] Storage upload:', uploadError)
@@ -128,15 +149,14 @@ export async function POST(
       'text/csv',
       'application/json',
     ])
-    if (extractableMimes.has(file.type)) {
+    if (extractableMimes.has(mime)) {
       try {
-        if (file.type === 'text/csv' || file.type === 'application/json') {
+        if (mime === 'text/csv' || mime === 'application/json') {
           // extractText only supports pdf/docx/txt/md; handle csv + json as plain text
           const text = await file.text()
           extractedContent = text.slice(0, 60_000) || null
         } else {
-          const mimeForExtraction =
-            file.type === 'text/x-markdown' ? 'text/markdown' : file.type
+          const mimeForExtraction = mime === 'text/x-markdown' ? 'text/markdown' : mime
           const buffer = Buffer.from(await file.arrayBuffer())
           const text = await extractText(buffer, mimeForExtraction)
           extractedContent = text.slice(0, 60_000) || null
@@ -152,7 +172,7 @@ export async function POST(
       content: extractedContent,
       file_url: storagePath,
       file_name: file.name || 'upload',
-      file_mime: file.type,
+      file_mime: mime,
     })
 
     if (error || !material) {

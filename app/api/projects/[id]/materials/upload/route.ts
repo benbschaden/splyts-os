@@ -78,14 +78,19 @@ export async function POST(
     const formData = await request.formData()
     const file = formData.get('file')
     if (!file || !(file instanceof File)) {
+      console.error('[upload] rejected: no file in form data')
       return Response.json({ error: 'file is required' }, { status: 400 })
     }
 
+    console.log(`[upload] received file="${file.name}" mime="${file.type}" size=${file.size}`)
+
     if (!ALLOWED_MIME_TYPES.has(file.type)) {
+      console.error(`[upload] rejected: mime type not allowed mime="${file.type}" file="${file.name}"`)
       return Response.json({ error: 'File type not allowed' }, { status: 400 })
     }
 
     if (file.size > MAX_BYTES) {
+      console.error(`[upload] rejected: file too large size=${file.size} file="${file.name}"`)
       return Response.json({ error: 'File must be 50MB or smaller' }, { status: 400 })
     }
 

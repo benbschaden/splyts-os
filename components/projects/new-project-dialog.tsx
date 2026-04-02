@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, Globe, Users, Lock, UserCheck, Check } from 'lucide-react'
+import { X, Globe, Users, Lock, UserCheck, Check, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type Visibility = 'private' | 'organization' | 'team' | 'specific_users'
@@ -87,6 +87,7 @@ export function NewProjectDialog({
   const [estimatedEndDate, setEstimatedEndDate] = useState('')
   const [teams, setTeams] = useState<Team[]>([])
   const [members, setMembers] = useState<OrgMember[]>([])
+  const [categoryOpen, setCategoryOpen] = useState(false)
   const [loadingPicker, setLoadingPicker] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -252,28 +253,55 @@ export function NewProjectDialog({
 
           {/* Category */}
           <div className="space-y-1.5">
-            <label htmlFor="project-category" className="text-sm font-medium text-foreground">
-              Category
-            </label>
-            <input
-              id="project-category"
-              type="text"
-              list="project-categories"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="e.g. Growth, Engineering"
-              className={cn(
-                'w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground',
-                'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1',
-                'disabled:opacity-50',
+            <span className="text-sm font-medium text-foreground">Category</span>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setCategoryOpen((prev) => !prev)}
+                disabled={loading}
+                className={cn(
+                  'w-full flex items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm',
+                  'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1',
+                  'disabled:opacity-50',
+                  category ? 'text-foreground' : 'text-muted-foreground',
+                )}
+              >
+                <span>{category || 'Select a category…'}</span>
+                <ChevronDown
+                  className={cn(
+                    'h-4 w-4 text-muted-foreground shrink-0 transition-transform',
+                    categoryOpen && 'rotate-180',
+                  )}
+                  aria-hidden
+                />
+              </button>
+              {categoryOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setCategoryOpen(false)}
+                  />
+                  <div className="absolute z-20 mt-1 w-full rounded-md border border-border bg-background shadow-md overflow-hidden">
+                    {KNOWN_CATEGORIES.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => {
+                          setCategory(c)
+                          setCategoryOpen(false)
+                        }}
+                        className={cn(
+                          'w-full px-3 py-2 text-left text-sm transition-colors hover:bg-accent/50',
+                          category === c && 'bg-primary/5 text-primary font-medium',
+                        )}
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                </>
               )}
-              disabled={loading}
-            />
-            <datalist id="project-categories">
-              {KNOWN_CATEGORIES.map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
+            </div>
           </div>
 
           {/* Dates */}

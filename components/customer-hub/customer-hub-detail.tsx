@@ -11,6 +11,8 @@ import { ContactsList } from './contacts-list'
 import { ContactDetail } from './contact-detail'
 import { InboxView } from './inbox-view'
 import { InsightsBoard } from './insights-board'
+import { CohortsView } from './cohorts-view'
+import type { CohortDocumentRow } from '@/lib/queries/cohort-documents'
 
 interface Project {
   id: string
@@ -23,26 +25,30 @@ interface CustomerHubDetailProps {
   initialContacts: ContactRow[]
   initialCommunications: ContactCommunicationRow[]
   initialInsights: CustomerInsightRow[]
+  initialCohortDocuments: CohortDocumentRow[]
 }
 
-type HubTab = 'contacts' | 'inbox' | 'insights'
+type HubTab = 'contacts' | 'inbox' | 'insights' | 'cohorts'
 
 export function CustomerHubDetail({
   project,
   initialContacts,
   initialCommunications,
   initialInsights,
+  initialCohortDocuments,
 }: CustomerHubDetailProps) {
   const router = useRouter()
   const [contacts, setContacts] = useState<ContactRow[]>(initialContacts)
   const [communications, setCommunications] = useState<ContactCommunicationRow[]>(initialCommunications)
   const [insights, setInsights] = useState<CustomerInsightRow[]>(initialInsights)
+  const [cohortDocuments, setCohortDocuments] = useState<CohortDocumentRow[]>(initialCohortDocuments)
   const [activeTab, setActiveTab] = useState<HubTab>('contacts')
   const [selectedContact, setSelectedContact] = useState<ContactRow | null>(null)
 
   useEffect(() => { setContacts(initialContacts) }, [initialContacts])
   useEffect(() => { setCommunications(initialCommunications) }, [initialCommunications])
   useEffect(() => { setInsights(initialInsights) }, [initialInsights])
+  useEffect(() => { setCohortDocuments(initialCohortDocuments) }, [initialCohortDocuments])
 
   const refresh = useCallback(() => router.refresh(), [router])
 
@@ -136,6 +142,10 @@ export function CustomerHubDetail({
       id: 'insights',
       label: `Insights${insights.length > 0 ? ` (${insights.length})` : ''}`,
     },
+    {
+      id: 'cohorts',
+      label: `Cohorts${cohortDocuments.length > 0 ? ` (${cohortDocuments.length})` : ''}`,
+    },
   ]
 
   return (
@@ -224,6 +234,26 @@ export function CustomerHubDetail({
               onInsightAdded={handleInsightAdded}
               onInsightUpdated={handleInsightUpdated}
               onInsightDeleted={handleInsightDeleted}
+            />
+          </div>
+        )}
+
+        {activeTab === 'cohorts' && (
+          <div className="flex-1 overflow-y-auto">
+            <CohortsView
+              projectId={project.id}
+              initialDocuments={cohortDocuments}
+              onInsightsAdded={(newInsights) => {
+                newInsights.forEach(handleInsightAdded)
+                setCohortDocuments((prev) =>
+                  prev.map((d) => {
+                    const matching = newInsights.filter((i) => i.source_segment === d.segment)
+                    return matching.length > 0
+                      ? { ...d, insights_extracted: d.insights_extracted + matching.length }
+                      : d
+                  }),
+                )
+              }}
             />
           </div>
         )}

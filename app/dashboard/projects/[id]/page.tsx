@@ -15,6 +15,7 @@ import { getDiscoveryStudies } from '@/lib/queries/discovery-studies'
 import { getContactsForOrg } from '@/lib/queries/contacts'
 import { getRecentCommunicationsForOrg } from '@/lib/queries/contact-communications'
 import { getCustomerInsightsForOrg } from '@/lib/queries/customer-insights'
+import { getCohortDocumentsForProject } from '@/lib/queries/cohort-documents'
 import { getTeamsForOrg, getOrgMembersWithProfiles } from '@/lib/queries/teams'
 import { getContentIdeasForProject } from '@/lib/queries/content-ideas'
 import { getPublishedOutputsForOrg } from '@/lib/queries/outputs'
@@ -68,12 +69,13 @@ export default async function ProjectPage({ params }: PageProps) {
 
   const isCustomerHub = project.tool_key === 'customer_hub'
 
-  const [projectTeams, projectMembers, hubContacts, hubCommunications, hubInsights] = await Promise.all([
+  const [projectTeams, projectMembers, hubContacts, hubCommunications, hubInsights, hubCohortDocuments] = await Promise.all([
     getProjectTeams(id),
     getProjectMembers(id),
     isCustomerHub ? getContactsForOrg(org.id) : Promise.resolve([]),
     isCustomerHub ? getRecentCommunicationsForOrg(org.id) : Promise.resolve([]),
     isCustomerHub ? getCustomerInsightsForOrg(org.id) : Promise.resolve([]),
+    isCustomerHub ? getCohortDocumentsForProject(id, org.id) : Promise.resolve([]),
   ])
 
   const outputAttachmentsByOutputId =
@@ -116,6 +118,7 @@ export default async function ProjectPage({ params }: PageProps) {
       hubContacts={hubContacts}
       hubCommunications={hubCommunications}
       hubInsights={hubInsights}
+      hubCohortDocuments={hubCohortDocuments}
     />
   )
 }

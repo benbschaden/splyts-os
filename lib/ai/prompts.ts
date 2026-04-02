@@ -1204,3 +1204,61 @@ export function buildSectionChatSystemPrompt(params: {
 
   return lines.join('\n')
 }
+
+// ----------------------------------------------------------------
+// Cohort document insight extraction
+// ----------------------------------------------------------------
+
+export interface ExtractedInsightDraft {
+  content: string
+  category: 'pain_point' | 'feature_request' | 'praise' | 'objection' | 'churn_signal' | 'usage_pattern' | 'market_insight'
+  impact: 'high' | 'medium' | 'low'
+}
+
+const SEGMENT_DISPLAY: Record<string, string> = {
+  beta_user: 'beta users',
+  free_user: 'free users',
+  customer: 'paying customers',
+  power_user: 'power users',
+  prospect: 'prospects',
+  churned: 'churned users',
+  other: 'users',
+}
+
+export function buildCohortExtractionPrompt(params: {
+  documentText: string
+  segment: string
+  fileName: string
+}): string {
+  const { documentText, segment, fileName } = params
+  const segmentLabel = SEGMENT_DISPLAY[segment] ?? 'users'
+
+  const lines: string[] = []
+
+  lines.push('You are a customer intelligence analyst. Extract actionable product insights from the following document.')
+  lines.push('')
+  lines.push(`The document was submitted by ${segmentLabel} (file: "${fileName}").`)
+  lines.push('')
+  lines.push('Return a JSON array of insight objects. Each object must have:')
+  lines.push('  - content: a clear, specific, actionable insight in plain English (1-3 sentences)')
+  lines.push('  - category: one of "pain_point", "feature_request", "praise", "objection", "churn_signal", "usage_pattern", "market_insight"')
+  lines.push('  - impact: one of "high", "medium", "low"')
+  lines.push('')
+  lines.push('Rules:')
+  lines.push('  - Extract distinct, non-redundant insights. Do not repeat the same idea.')
+  lines.push('  - Write content in first-person voice as if quoting the learning: e.g. "Users drop off during step 3 of onboarding because the form is confusing."')
+  lines.push('  - Be specific. Avoid vague insights like "users want a better experience."')
+  lines.push('  - If the document is a survey, treat each distinct theme as a separate insight.')
+  lines.push('  - Maximum 20 insights. Skip noise and filler responses.')
+  lines.push('  - Assign "high" impact if the issue blocks core usage or is mentioned repeatedly.')
+  lines.push('  - Assign "low" impact for minor or one-off mentions.')
+  lines.push('  - Output ONLY valid JSON — no preamble, no explanation, no markdown code fence.')
+  lines.push('')
+  lines.push('[DOCUMENT]')
+  lines.push(documentText.slice(0, 40000))
+  if (documentText.length > 40000) lines.push('(truncated — document was too long)')
+  lines.push('')
+  lines.push('JSON array:')
+
+  return lines.join('\n')
+}

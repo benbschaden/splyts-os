@@ -12,6 +12,7 @@ import {
   MessageCircle,
   Archive,
   Search,
+  ChevronDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { OutputsList } from '@/components/projects/outputs-list'
@@ -31,6 +32,19 @@ import type { CustomerInsightRow } from '@/lib/queries/customer-insights'
 import type { ProjectVisibility } from '@/lib/queries/projects'
 import type { ContentIdeaRow } from '@/lib/queries/content-ideas'
 import type { PublishedOutput } from '@/lib/queries/outputs'
+
+const KNOWN_CATEGORIES = [
+  'Growth',
+  'Product',
+  'Engineering',
+  'Design',
+  'Customer Success',
+  'Data & Analytics',
+  'Marketing',
+  'Operations',
+  'Finance',
+  'People',
+]
 
 function VisibilityBadge({ visibility }: { visibility: ProjectVisibility }) {
   const map: Record<ProjectVisibility, { label: string; Icon: typeof Globe }> = {
@@ -208,6 +222,8 @@ export function ProjectDetail({
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState(project.name)
   const [editDescription, setEditDescription] = useState(project.description ?? '')
+  const [editCategory, setEditCategory] = useState(project.category ?? '')
+  const [categoryOpen, setCategoryOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -279,6 +295,7 @@ export function ProjectDetail({
       body: JSON.stringify({
         name: editName,
         description: editDescription || null,
+        category: editCategory.trim() || null,
       }),
     })
 
@@ -312,9 +329,9 @@ export function ProjectDetail({
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex flex-col">
       {/* Header */}
-      <div className="flex h-14 items-center justify-between border-b border-border px-6">
+      <div className="sticky top-0 z-10 bg-background flex h-14 items-center justify-between border-b border-border px-6">
         {editing ? (
           <input
             type="text"
@@ -351,6 +368,7 @@ export function ProjectDetail({
                     setEditing(false)
                     setEditName(project.name)
                     setEditDescription(project.description ?? '')
+                    setEditCategory(project.category ?? '')
                   }}
                   className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
                   title="Cancel"
@@ -452,7 +470,7 @@ export function ProjectDetail({
       )}
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto">
+      <div>
         {editing ? (
           <div className="max-w-xl space-y-4 p-6">
             <div className="space-y-1.5">
@@ -468,6 +486,55 @@ export function ProjectDetail({
                 )}
               />
             </div>
+            <div className="space-y-1.5">
+              <span className="text-sm font-medium text-foreground">Category</span>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setCategoryOpen((prev) => !prev)}
+                  className={cn(
+                    'w-full flex items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm',
+                    'focus:outline-none focus:ring-2 focus:ring-ring',
+                    editCategory ? 'text-foreground' : 'text-muted-foreground',
+                  )}
+                >
+                  <span>{editCategory || 'Select a category…'}</span>
+                  <ChevronDown
+                    className={cn(
+                      'h-4 w-4 text-muted-foreground shrink-0 transition-transform',
+                      categoryOpen && 'rotate-180',
+                    )}
+                    aria-hidden
+                  />
+                </button>
+                {categoryOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setCategoryOpen(false)}
+                    />
+                    <div className="absolute z-20 mt-1 w-full rounded-md border border-border bg-background shadow-md overflow-hidden">
+                      {KNOWN_CATEGORIES.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => {
+                            setEditCategory(c)
+                            setCategoryOpen(false)
+                          }}
+                          className={cn(
+                            'w-full px-3 py-2 text-left text-sm transition-colors hover:bg-accent/50',
+                            editCategory === c && 'bg-primary/5 text-primary font-medium',
+                          )}
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <div className="flex gap-2">
               <button
@@ -482,6 +549,7 @@ export function ProjectDetail({
                   setEditing(false)
                   setEditName(project.name)
                   setEditDescription(project.description ?? '')
+                  setEditCategory(project.category ?? '')
                   setError(null)
                 }}
                 className="rounded-md px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
@@ -499,7 +567,7 @@ export function ProjectDetail({
             )}
 
             {/* Tab bar */}
-            <nav className="flex gap-0 border-b border-border px-6 mt-2" aria-label="Project tabs">
+            <nav className="sticky top-14 z-10 bg-background flex gap-0 border-b border-border px-6" aria-label="Project tabs">
               {tabs.map((tab) => {
                 const Icon = tab.icon
                 const isActive = activeTab === tab.id

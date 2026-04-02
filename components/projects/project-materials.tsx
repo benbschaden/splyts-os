@@ -238,7 +238,7 @@ function NoteCard({
         </div>
       </div>
       {expanded && material.content && (
-        <div className="border-t border-border px-4 py-3 max-h-[70vh] overflow-y-auto">
+        <div className="border-t border-border px-4 py-3">
           {isMarkdown ? (
             <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 prose-headings:text-sm prose-headings:font-semibold prose-headings:mt-2 prose-headings:mb-1 text-foreground">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>

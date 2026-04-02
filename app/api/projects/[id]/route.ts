@@ -9,6 +9,7 @@ import { isAtLeastAdmin } from '@/lib/auth/roles'
 const updateProjectSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   description: z.string().max(1000).nullable().optional(),
+  category: z.string().max(100).nullable().optional(),
   visibility: z.enum(['private', 'organization', 'team', 'specific_users']).optional(),
   teamIds: z.array(z.string().uuid()).optional(),
   memberIds: z.array(z.string().uuid()).optional(),

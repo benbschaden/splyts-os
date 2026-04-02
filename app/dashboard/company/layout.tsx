@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
-import { CompanyNav } from '@/components/company/company-nav'
 import { CompanyLayoutClient } from '@/components/company/company-layout-client'
 
 export default async function CompanyLayout({ children }: { children: React.ReactNode }) {
@@ -20,14 +19,8 @@ export default async function CompanyLayout({ children }: { children: React.Reac
         <h1 className="text-sm font-semibold text-foreground">Company</h1>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        <aside className="w-56 shrink-0 overflow-y-auto border-r border-border p-3">
-          <CompanyNav />
-        </aside>
-
-        <div className="flex-1 overflow-y-auto p-6">
-          <CompanyLayoutClient>{children}</CompanyLayoutClient>
-        </div>
+      <div className="flex-1 overflow-y-auto p-6">
+        <CompanyLayoutClient>{children}</CompanyLayoutClient>
       </div>
     </div>
   )

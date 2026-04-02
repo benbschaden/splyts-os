@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { updateOutput, publishOutput, updateOutputPerformance, deleteOutput } from '@/lib/queries/outputs'
 import { createServiceClient } from '@/lib/supabase/service'
+import { indexContent, removeFromIndex } from '@/lib/indexing/index-content'
 
 const patchSchema = z.object({
   content: z.string().min(1, 'Content is required').optional(),
@@ -63,6 +64,9 @@ export async function PATCH(
   if (publish === true) {
     const { output, error } = await publishOutput(id, org.id, user.id)
     if (error || !output) return Response.json({ error }, { status: 500 })
+    indexContent('output', output, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
     return Response.json({ output })
   }
 
@@ -85,6 +89,9 @@ export async function PATCH(
       email_signups,
     })
     if (error || !output) return Response.json({ error }, { status: 500 })
+    indexContent('output', output, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
     return Response.json({ output })
   }
 
@@ -95,6 +102,10 @@ export async function PATCH(
 
   const { output, error } = await updateOutput(id, org.id, content)
   if (error || !output) return Response.json({ error }, { status: 500 })
+
+  indexContent('output', output, org.id).catch(err =>
+    console.error('[content-index] Index failed:', err)
+  )
 
   return Response.json({ output })
 }
@@ -117,6 +128,10 @@ export async function DELETE(
 
   const { error } = await deleteOutput(id, org.id)
   if (error) return Response.json({ error }, { status: 500 })
+
+  removeFromIndex('output', id).catch(err =>
+    console.error('[content-index] Remove failed:', err)
+  )
 
   return new Response(null, { status: 204 })
 }

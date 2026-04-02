@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { updateCompetitor, deleteCompetitor } from '@/lib/queries/competitors'
+import { indexContent, removeFromIndex } from '@/lib/indexing/index-content'
 
 const patchSchema = z.object({
   name: z.string().min(1).max(300).optional(),
@@ -37,6 +38,10 @@ export async function PATCH(
     const { competitor, error } = await updateCompetitor(id, org.id, parsed.data, user.id)
     if (error || !competitor) return Response.json({ error }, { status: 500 })
 
+    indexContent('competitor', competitor, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
+
     return Response.json({ data: competitor })
   } catch {
     return Response.json({ error: 'Internal error' }, { status: 500 })
@@ -59,6 +64,10 @@ export async function DELETE(
 
     const { error } = await deleteCompetitor(id, org.id)
     if (error) return Response.json({ error }, { status: 500 })
+
+    removeFromIndex('competitor', id).catch(err =>
+      console.error('[content-index] Remove failed:', err)
+    )
 
     return new Response(null, { status: 204 })
   } catch {

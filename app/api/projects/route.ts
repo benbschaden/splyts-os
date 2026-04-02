@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { createProject } from '@/lib/queries/projects'
+import { indexContent } from '@/lib/indexing/index-content'
 
 const createProjectSchema = z.object({
   name: z.string().min(1, 'Project name is required').max(200),
@@ -64,6 +65,10 @@ export async function POST(request: Request) {
   if (error || !project) {
     return NextResponse.json({ error }, { status: 500 })
   }
+
+  indexContent('project', project, org.id).catch(err =>
+    console.error('[content-index] Index failed:', err)
+  )
 
   return NextResponse.json({ data: project }, { status: 201 })
 }

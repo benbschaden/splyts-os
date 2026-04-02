@@ -7,6 +7,7 @@ import { getBrandContext } from '@/lib/queries/brand-context'
 import { createDocument } from '@/lib/queries/documents'
 import { buildDocumentCapturePrompt } from '@/lib/ai/prompts'
 import { DEFAULT_MODEL } from '@/lib/ai/models'
+import { indexContent } from '@/lib/indexing/index-content'
 
 const schema = z.object({
   document_type: z.string().min(1).max(100),
@@ -94,6 +95,10 @@ export async function POST(
     if (error || !document) {
       return Response.json({ error: 'Document generated but failed to save' }, { status: 500 })
     }
+
+    indexContent('document', document, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
 
     return Response.json({ document }, { status: 201 })
   } catch {

@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { updateRisk, deleteRisk } from '@/lib/queries/risks'
+import { indexContent, removeFromIndex } from '@/lib/indexing/index-content'
 
 const updateSchema = z.object({
   title: z.string().min(1).max(200).optional(),
@@ -37,6 +38,11 @@ export async function PATCH(
 
   const { risk, error } = await updateRisk(id, org.id, parsed.data, user.id)
   if (error || !risk) return Response.json({ error: error ?? 'Failed to update risk' }, { status: 500 })
+
+  indexContent('risk', risk, org.id).catch(err =>
+    console.error('[content-index] Index failed:', err)
+  )
+
   return Response.json({ risk })
 }
 
@@ -56,5 +62,10 @@ export async function DELETE(
 
   const { error } = await deleteRisk(id, org.id)
   if (error) return Response.json({ error }, { status: 500 })
+
+  removeFromIndex('risk', id).catch(err =>
+    console.error('[content-index] Remove failed:', err)
+  )
+
   return new Response(null, { status: 204 })
 }

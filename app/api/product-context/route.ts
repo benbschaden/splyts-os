@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getProductContext, upsertProductContext } from '@/lib/queries/product-context'
 import { PRODUCT_SECTIONS } from '@/lib/company/product-sections'
+import { indexContent } from '@/lib/indexing/index-content'
 
 const patchSchema = z.object({
   sections: z.record(z.string()),
@@ -47,6 +48,10 @@ export async function PATCH(request: Request) {
 
     const { data, error } = await upsertProductContext(org.id, filteredSections, user.id)
     if (error || !data) return Response.json({ error }, { status: 500 })
+
+    indexContent('product_context', data, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
 
     return Response.json({ data })
   } catch {

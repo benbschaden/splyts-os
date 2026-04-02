@@ -5,6 +5,7 @@ import { createOutput } from '@/lib/queries/outputs'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getModelById, DEFAULT_MODEL } from '@/lib/ai/models'
 import { deriveOutputSummary } from '@/lib/ai/output-summary'
+import { indexContent } from '@/lib/indexing/index-content'
 
 const schema = z.object({
   projectId: z.string().uuid(),
@@ -78,6 +79,10 @@ export async function POST(request: Request): Promise<Response> {
     if (saveError || !output) {
       return Response.json({ error: 'Failed to save output. Please try again.' }, { status: 500 })
     }
+
+    indexContent('output', output, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
 
     return Response.json({ output }, { status: 201 })
   } catch {

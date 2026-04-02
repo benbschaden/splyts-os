@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getPersonas, createPersona } from '@/lib/queries/personas'
+import { indexContent } from '@/lib/indexing/index-content'
 
 const personaFieldSchema = z.string().max(2000).nullable().optional()
 
@@ -83,5 +84,10 @@ export async function POST(request: Request) {
   )
 
   if (error || !persona) return NextResponse.json({ error }, { status: 500 })
+
+  indexContent('persona', persona, org.id).catch(err =>
+    console.error('[content-index] Index failed:', err)
+  )
+
   return NextResponse.json({ data: persona }, { status: 201 })
 }

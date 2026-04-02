@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { updateCompanyMilestone, deleteCompanyMilestone } from '@/lib/queries/company-milestones'
+import { indexContent, removeFromIndex } from '@/lib/indexing/index-content'
 
 const patchSchema = z.object({
   title: z.string().min(1).max(300).optional(),
@@ -35,6 +36,10 @@ export async function PATCH(
     const { milestone, error } = await updateCompanyMilestone(id, org.id, parsed.data, user.id)
     if (error || !milestone) return Response.json({ error }, { status: 500 })
 
+    indexContent('company_milestone', milestone, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
+
     return Response.json({ data: milestone })
   } catch {
     return Response.json({ error: 'Internal error' }, { status: 500 })
@@ -57,6 +62,10 @@ export async function DELETE(
 
     const { error } = await deleteCompanyMilestone(id, org.id)
     if (error) return Response.json({ error }, { status: 500 })
+
+    removeFromIndex('company_milestone', id).catch(err =>
+      console.error('[content-index] Remove failed:', err)
+    )
 
     return new Response(null, { status: 204 })
   } catch {

@@ -215,11 +215,7 @@ function buildProjectMaterialsBlock(materials: ProjectMaterialForPrompt[]): stri
 function buildRetrievedContextBlock(items: RetrievedContext[]): string {
   if (items.length === 0) return ''
   return items.map((item) => {
-    const typeLabel = item.visibility === 'filed'
-      ? 'Filed document (canonical)'
-      : item.type === 'material'
-        ? 'Project material'
-        : 'Shared document'
+    const typeLabel = item.type.replace(/_/g, ' ')
     const title = item.title ? item.title : 'Untitled'
     return `[${typeLabel}] ${title}\n${item.summary}`
   }).join('\n\n')

@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getRisks, createRisk } from '@/lib/queries/risks'
+import { indexContent } from '@/lib/indexing/index-content'
 
 const createSchema = z.object({
   title: z.string().min(1).max(200),
@@ -49,5 +50,10 @@ export async function POST(request: Request) {
   })
 
   if (error || !risk) return Response.json({ error: error ?? 'Failed to create risk' }, { status: 500 })
+
+  indexContent('risk', risk, org.id).catch(err =>
+    console.error('[content-index] Index failed:', err)
+  )
+
   return Response.json({ risk }, { status: 201 })
 }

@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { updatePeriodGoal, deletePeriodGoal } from '@/lib/queries/goal-periods'
+import { indexContent, removeFromIndex } from '@/lib/indexing/index-content'
 
 const patchSchema = z.object({
   title: z.string().min(1).max(500).optional(),
@@ -32,6 +33,10 @@ export async function PATCH(
     const { goal, error } = await updatePeriodGoal(goalId, org.id, parsed.data)
     if (error || !goal) return Response.json({ error: error ?? 'Failed to update goal' }, { status: 400 })
 
+    indexContent('period_goal', goal, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
+
     return Response.json({ data: goal })
   } catch {
     return Response.json({ error: 'Internal error' }, { status: 500 })
@@ -54,6 +59,10 @@ export async function DELETE(
     const { goalId } = await params
     const { error } = await deletePeriodGoal(goalId, org.id)
     if (error) return Response.json({ error }, { status: 500 })
+
+    removeFromIndex('period_goal', goalId).catch(err =>
+      console.error('[content-index] Remove failed:', err)
+    )
 
     return new Response(null, { status: 204 })
   } catch {

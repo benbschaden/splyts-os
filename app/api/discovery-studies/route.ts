@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { createDiscoveryStudy } from '@/lib/queries/discovery-studies'
+import { indexContent } from '@/lib/indexing/index-content'
 
 const createSchema = z.object({
   project_id: z.string().uuid(),
@@ -41,6 +42,11 @@ export async function POST(request: Request) {
     })
 
     if (error || !study) return Response.json({ error: 'Failed to create study' }, { status: 500 })
+
+    indexContent('discovery_study', study, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
+
     return Response.json({ data: study }, { status: 201 })
   } catch {
     return Response.json({ error: 'Internal error' }, { status: 500 })

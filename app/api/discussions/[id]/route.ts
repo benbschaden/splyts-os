@@ -6,6 +6,7 @@ import {
   getDiscussionResolution,
   updateDiscussion,
 } from '@/lib/queries/discussions'
+import { indexContent } from '@/lib/indexing/index-content'
 
 const PatchSchema = z.object({
   title: z.string().min(1).max(300).optional(),
@@ -66,6 +67,10 @@ export async function PATCH(
     if (error || !discussion) {
       return Response.json({ error: 'Failed to update discussion' }, { status: 500 })
     }
+
+    indexContent('discussion', discussion, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
 
     return Response.json({ discussion })
   } catch {

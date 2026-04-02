@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getProjectById, updateProject, deleteProject } from '@/lib/queries/projects'
+import { indexContent, removeFromIndex } from '@/lib/indexing/index-content'
 
 const updateProjectSchema = z.object({
   name: z.string().min(1).max(200).optional(),
@@ -64,6 +65,10 @@ export async function PATCH(
     return NextResponse.json({ error }, { status: 500 })
   }
 
+  indexContent('project', updated, org.id).catch(err =>
+    console.error('[content-index] Index failed:', err)
+  )
+
   return NextResponse.json({ data: updated })
 }
 
@@ -91,6 +96,10 @@ export async function DELETE(
   if (error) {
     return NextResponse.json({ error }, { status: 500 })
   }
+
+  removeFromIndex('project', id).catch(err =>
+    console.error('[content-index] Remove failed:', err)
+  )
 
   return NextResponse.json({ data: null }, { status: 200 })
 }

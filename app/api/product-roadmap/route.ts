@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getProductRoadmapItems, createProductRoadmapItem } from '@/lib/queries/product-roadmap'
+import { indexContent } from '@/lib/indexing/index-content'
 
 const createSchema = z.object({
   title: z.string().min(1, 'Title is required').max(300),
@@ -54,6 +55,11 @@ export async function POST(request: Request) {
     })
 
     if (error || !item) return Response.json({ error }, { status: 500 })
+
+    indexContent('product_roadmap_item', item, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
+
     return Response.json({ data: item }, { status: 201 })
   } catch {
     return Response.json({ error: 'Internal error' }, { status: 500 })

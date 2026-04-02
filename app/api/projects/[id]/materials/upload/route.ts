@@ -4,6 +4,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { createProjectMaterial } from '@/lib/queries/project-materials'
 import { extractText } from '@/lib/company/extract-text'
+import { indexContent } from '@/lib/indexing/index-content'
 
 const BUCKET = 'project-files'
 const MAX_BYTES = 52_428_800 // 50 MiB — matches bucket policy
@@ -182,6 +183,10 @@ export async function POST(
     if (error || !material) {
       return Response.json({ error: error ?? 'Failed to save material' }, { status: 500 })
     }
+
+    indexContent('project_material', material, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
 
     return Response.json(
       { material: { ...material, file_url: signed.signedUrl } },

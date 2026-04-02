@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getProjectMaterials, createProjectMaterial } from '@/lib/queries/project-materials'
+import { indexContent } from '@/lib/indexing/index-content'
 
 const postBodySchema = z.object({
   material_type: z.enum(['note', 'file', 'link']),
@@ -89,6 +90,10 @@ export async function POST(
     if (error || !material) {
       return Response.json({ error: error ?? 'Failed to create material' }, { status: 500 })
     }
+
+    indexContent('project_material', material, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
 
     return Response.json({ material }, { status: 201 })
   } catch (error) {

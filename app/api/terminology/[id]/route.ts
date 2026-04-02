@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { updateTerminology, deleteTerminology } from '@/lib/queries/terminology'
+import { indexContent, removeFromIndex } from '@/lib/indexing/index-content'
 
 const categorySchema = z.enum(['product', 'brand', 'audience', 'general'])
 
@@ -37,6 +38,10 @@ export async function PATCH(
     const { row, error } = await updateTerminology(id, org.id, parsed.data, user.id)
     if (error || !row) return Response.json({ error }, { status: 500 })
 
+    indexContent('terminology', row, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
+
     return Response.json({ data: row })
   } catch {
     return Response.json({ error: 'Internal error' }, { status: 500 })
@@ -59,6 +64,10 @@ export async function DELETE(
 
     const { error } = await deleteTerminology(id, org.id)
     if (error) return Response.json({ error }, { status: 500 })
+
+    removeFromIndex('terminology', id).catch(err =>
+      console.error('[content-index] Remove failed:', err)
+    )
 
     return new Response(null, { status: 204 })
   } catch {

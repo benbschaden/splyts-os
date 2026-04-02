@@ -12,6 +12,7 @@ import {
 } from '@/lib/queries/company-knowledge'
 import { extractText, SUPPORTED_MIMES, MIME_TO_EXT } from '@/lib/company/extract-text'
 import { detectConflicts } from '@/lib/company/conflict-detect'
+import { indexContent } from '@/lib/indexing/index-content'
 
 const BUCKET = 'company-knowledge'
 const MAX_BYTES = 52_428_800 // 50 MiB
@@ -149,6 +150,10 @@ export async function POST(request: Request) {
       // Conflict detection failure must not block the upload response
       console.error('[company-knowledge/upload] Conflict detection error:', err)
     }
+
+    indexContent('company_knowledge_file', readyFile, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
 
     return Response.json({ file: readyFile }, { status: 201 })
   } catch (err) {

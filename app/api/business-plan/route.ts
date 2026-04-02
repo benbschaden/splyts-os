@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getBusinessPlan, upsertBusinessPlan } from '@/lib/queries/business-plan'
+import { indexContent } from '@/lib/indexing/index-content'
 
 export async function GET() {
   const supabase = await createClient()
@@ -40,6 +41,12 @@ export async function PATCH(request: Request) {
   const { plan, error } = await upsertBusinessPlan(org.id, parsed.data.sections)
   if (error) {
     return Response.json({ error }, { status: 500 })
+  }
+
+  if (plan) {
+    indexContent('business_plan', plan, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
   }
 
   return Response.json({ plan })

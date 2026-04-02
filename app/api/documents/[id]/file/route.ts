@@ -3,6 +3,7 @@ import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { canUserFileDocument, getDocumentById, fileDocument } from '@/lib/queries/documents'
 import { generateDocumentSummary } from '@/lib/retrieval/summarize'
 import { getReviewerTeamsForUser } from '@/lib/queries/teams'
+import { indexContent } from '@/lib/indexing/index-content'
 
 export async function POST(
   _request: Request,
@@ -44,6 +45,10 @@ export async function POST(
         headers: { Cookie: _request.headers.get('Cookie') ?? '' },
       }).catch(() => {})
     }
+
+    indexContent('document', document, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
 
     return Response.json({ document })
   } catch {

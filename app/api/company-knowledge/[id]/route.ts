@@ -5,6 +5,7 @@ import {
   getKnowledgeFileById,
   softDeleteKnowledgeFile,
 } from '@/lib/queries/company-knowledge'
+import { removeFromIndex } from '@/lib/indexing/index-content'
 
 const BUCKET = 'company-knowledge'
 
@@ -38,6 +39,10 @@ export async function DELETE(
       console.error('[company-knowledge/[id] DELETE]', error)
       return Response.json({ error: 'Failed to delete file' }, { status: 500 })
     }
+
+    removeFromIndex('company_knowledge_file', id).catch(err =>
+      console.error('[content-index] Remove failed:', err)
+    )
 
     service.storage
       .from(BUCKET)

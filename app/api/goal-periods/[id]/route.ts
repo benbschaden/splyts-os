@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { updateGoalPeriod } from '@/lib/queries/goal-periods'
+import { indexContent } from '@/lib/indexing/index-content'
 
 const patchSchema = z.object({
   focus_areas: z.string().nullable().optional(),
@@ -35,6 +36,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const { period, error } = await updateGoalPeriod(id, org.id, updates)
     if (error || !period) return Response.json({ error: error ?? 'Failed to update period' }, { status: 400 })
+
+    indexContent('goal_period', period, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
 
     return Response.json({ data: period })
   } catch {

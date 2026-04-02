@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { createPeriodGoal } from '@/lib/queries/goal-periods'
+import { indexContent } from '@/lib/indexing/index-content'
 
 const createSchema = z.object({
   title: z.string().min(1).max(500),
@@ -33,6 +34,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     })
 
     if (error || !goal) return Response.json({ error: error ?? 'Failed to create goal' }, { status: 400 })
+
+    indexContent('period_goal', goal, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
+
     return Response.json({ data: goal }, { status: 201 })
   } catch {
     return Response.json({ error: 'Internal error' }, { status: 500 })

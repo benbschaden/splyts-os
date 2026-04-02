@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { updateSocialProof, deleteSocialProof } from '@/lib/queries/social-proof'
+import { indexContent, removeFromIndex } from '@/lib/indexing/index-content'
 
 const proofTypeEnum = z.enum(['testimonial', 'case_study', 'metric', 'award'])
 
@@ -78,6 +79,10 @@ export async function PATCH(
     const { socialProof, error } = await updateSocialProof(id, org.id, updates, user.id)
     if (error || !socialProof) return Response.json({ error }, { status: 500 })
 
+    indexContent('social_proof', socialProof, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
+
     return Response.json({ data: socialProof })
   } catch {
     return Response.json({ error: 'Internal error' }, { status: 500 })
@@ -102,6 +107,10 @@ export async function DELETE(
 
     const { error } = await deleteSocialProof(id, org.id)
     if (error) return Response.json({ error }, { status: 500 })
+
+    removeFromIndex('social_proof', id).catch(err =>
+      console.error('[content-index] Remove failed:', err)
+    )
 
     return new Response(null, { status: 204 })
   } catch {

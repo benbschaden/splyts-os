@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getContentIdeasForProject, createContentIdea } from '@/lib/queries/content-ideas'
+import { indexContent } from '@/lib/indexing/index-content'
 
 const ALLOWED_PLATFORMS = [
   'LinkedIn',
@@ -79,6 +80,11 @@ export async function POST(request: Request): Promise<Response> {
     })
 
     if (error || !idea) return Response.json({ error: 'Failed to create idea' }, { status: 500 })
+
+    indexContent('content_idea', idea, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
+
     return Response.json({ idea }, { status: 201 })
   } catch {
     return Response.json({ error: 'Internal error' }, { status: 500 })

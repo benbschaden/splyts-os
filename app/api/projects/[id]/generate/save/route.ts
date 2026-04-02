@@ -5,6 +5,7 @@ import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { createOutput } from '@/lib/queries/outputs'
 import { getModelById, DEFAULT_MODEL } from '@/lib/ai/models'
 import { deriveOutputSummary } from '@/lib/ai/output-summary'
+import { indexContent } from '@/lib/indexing/index-content'
 
 const schema = z.object({
   brief: z.string().min(1, 'Brief is required').max(5000),
@@ -64,6 +65,10 @@ export async function POST(
     if (saveError || !output) {
       return Response.json({ error: 'Failed to save output. Please try again.' }, { status: 500 })
     }
+
+    indexContent('output', output, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
 
     return Response.json({ output }, { status: 201 })
   } catch {

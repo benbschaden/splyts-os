@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { restoreDocumentVersion } from '@/lib/queries/documents'
+import { indexContent } from '@/lib/indexing/index-content'
 
 export async function POST(
   _request: Request,
@@ -25,6 +26,10 @@ export async function POST(
     if (error || !document) {
       return Response.json({ error: error ?? 'Failed to restore version' }, { status: 500 })
     }
+
+    indexContent('document', document, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
 
     return Response.json({ document })
   } catch {

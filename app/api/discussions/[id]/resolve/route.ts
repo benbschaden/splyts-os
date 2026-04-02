@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getDiscussionById, resolveDiscussion } from '@/lib/queries/discussions'
+import { indexContent } from '@/lib/indexing/index-content'
 
 const ResolveSchema = z.object({
   summary: z.string().min(1),
@@ -55,6 +56,10 @@ export async function POST(
     if (error || !resolved) {
       return Response.json({ error: 'Failed to resolve discussion' }, { status: 500 })
     }
+
+    indexContent('discussion', resolved, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
 
     return Response.json({ discussion: resolved })
   } catch {

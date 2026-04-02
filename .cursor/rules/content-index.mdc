@@ -1,0 +1,50 @@
+# Content Index
+
+## The rule
+Every table that holds user-created content must be registered in the content index. No exceptions.
+
+## When creating a new content table:
+
+1. **Register in `lib/indexing/content-registry.ts`**
+   Add an entry with:
+   - Content type key (snake_case, matches the table name or a clear alias)
+   - `deriveText` function that extracts `{ title, summary }` from a row
+   - Optional `deriveMetadata` function for filterable fields (project_id, status, tags)
+
+2. **Call `indexContent()` on create and update**
+   In the API route handler, after the successful save:
+   ```typescript
+   import { indexContent } from '@/lib/indexing/index-content'
+   
+   // After save — fire and forget
+   if (data) {
+     indexContent('your_type', data, organizationId).catch(err =>
+       console.error('[content-index] Index failed:', err)
+     )
+   }
+   ```
+
+3. **Call `removeFromIndex()` on delete**
+   ```typescript
+   import { removeFromIndex } from '@/lib/indexing/index-content'
+   
+   removeFromIndex('your_type', id).catch(err =>
+     console.error('[content-index] Remove failed:', err)
+   )
+   ```
+
+## Summary strategy
+- **Short/structured content** (milestones, terminology, features): concatenate fields directly
+- **Long-form content** (documents, outputs, discussions): truncate to 500 chars for embedding text
+
+## If a new content table is created without these three things, it is incomplete:
+1. Registry entry in `content-registry.ts`
+2. `indexContent()` call on create/update
+3. `removeFromIndex()` call on delete
+
+## What is NOT indexed
+- Config tables (brand_context, content_type_templates, kpi_definitions)
+- Junction/membership tables (project_items, organization_members, team_members)
+- System tables (invites, user_profiles)
+- Embedding storage tables (content_index itself)
+- Version history tables (document_versions)

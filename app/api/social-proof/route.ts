@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getSocialProof, createSocialProof } from '@/lib/queries/social-proof'
+import { indexContent } from '@/lib/indexing/index-content'
 
 const proofTypeEnum = z.enum(['testimonial', 'case_study', 'metric', 'award'])
 
@@ -90,6 +91,11 @@ export async function POST(request: Request) {
     })
 
     if (error || !socialProof) return Response.json({ error }, { status: 500 })
+
+    indexContent('social_proof', socialProof, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
+
     return Response.json({ data: socialProof }, { status: 201 })
   } catch {
     return Response.json({ error: 'Internal error' }, { status: 500 })

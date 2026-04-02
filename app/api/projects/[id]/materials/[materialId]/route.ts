@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { updateProjectMaterial, deleteProjectMaterial } from '@/lib/queries/project-materials'
+import { indexContent, removeFromIndex } from '@/lib/indexing/index-content'
 
 const patchBodySchema = z.object({
   title: z.string().max(2000).optional(),
@@ -49,6 +50,10 @@ export async function PATCH(
       return Response.json({ error }, { status: 500 })
     }
 
+    indexContent('project_material', material, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
+
     return Response.json({ material })
   } catch (error) {
     console.error('[projects/[id]/materials/[materialId] PATCH]', error)
@@ -88,6 +93,10 @@ export async function DELETE(
     if (error) {
       return Response.json({ error }, { status: 500 })
     }
+
+    removeFromIndex('project_material', materialId).catch(err =>
+      console.error('[content-index] Remove failed:', err)
+    )
 
     return Response.json({ success: true })
   } catch (error) {

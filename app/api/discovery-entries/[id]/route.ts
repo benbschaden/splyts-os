@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { updateDiscoveryEntry, deleteDiscoveryEntry } from '@/lib/queries/discovery-entries'
+import { indexContent, removeFromIndex } from '@/lib/indexing/index-content'
 
 const patchSchema = z.object({
   entry_type: z.enum(['interview', 'review', 'survey', 'observation', 'email']).optional(),
@@ -45,6 +46,10 @@ export async function PATCH(
     const { entry, error } = await updateDiscoveryEntry(id, org.id, parsed.data)
     if (error || !entry) return Response.json({ error: 'Failed to update entry' }, { status: 500 })
 
+    indexContent('discovery_entry', entry, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
+
     return Response.json({ data: entry })
   } catch {
     return Response.json({ error: 'Internal error' }, { status: 500 })
@@ -66,6 +71,10 @@ export async function DELETE(
 
     const { error } = await deleteDiscoveryEntry(id, org.id)
     if (error) return Response.json({ error }, { status: 500 })
+
+    removeFromIndex('discovery_entry', id).catch(err =>
+      console.error('[content-index] Remove failed:', err)
+    )
 
     return new Response(null, { status: 204 })
   } catch {

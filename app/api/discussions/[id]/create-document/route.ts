@@ -10,6 +10,7 @@ import {
 import { createDocument } from '@/lib/queries/documents'
 import { buildDiscussionDocumentPrompt } from '@/lib/ai/prompts'
 import { DEFAULT_MODEL } from '@/lib/ai/models'
+import { indexContent } from '@/lib/indexing/index-content'
 
 const Schema = z.object({
   document_type: z.string().min(1).max(100),
@@ -92,6 +93,10 @@ export async function POST(
       documentId: document.id,
       relationshipType: 'created_from',
     })
+
+    indexContent('document', document, org.id).catch(err =>
+      console.error('[content-index] Index failed:', err)
+    )
 
     return Response.json({ document }, { status: 201 })
   } catch {

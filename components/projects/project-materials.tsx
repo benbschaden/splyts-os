@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import {
   FileText,
   Upload,
@@ -65,6 +67,28 @@ function mimeBadge(mime: string | null): string {
   return map[mime] ?? mime.split('/').pop()?.toUpperCase() ?? 'File'
 }
 
+const MD_PATTERN = /(?:^#{1,6}\s|\*\*[^*]|\*[^*\s]|__[^_]|_[^_\s]|^\s*[-*+]\s|\d+\.\s|```|`[^`]|\[.+?\]\(.+?\)|^>\s|^---$)/m
+
+function hasMarkdown(text: string): boolean {
+  return MD_PATTERN.test(text)
+}
+
+function stripMarkdownForPreview(text: string): string {
+  return text
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    .replace(/`{1,3}[^`]*`{1,3}/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^>\s+/gm, '')
+    .replace(/^[-*+]\s+/gm, '')
+    .replace(/^\d+\.\s+/gm, '')
+    .replace(/^-{3,}$/gm, '')
+    .trim()
+}
+
 function NoteCard({
   material,
   onEdit,
@@ -82,8 +106,12 @@ function NoteCard({
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
-  const preview = material.content
-    ? material.content.slice(0, 160) + (material.content.length > 160 ? '…' : '')
+  const isMarkdown = material.content ? hasMarkdown(material.content) : false
+  const previewSource = material.content
+    ? (isMarkdown ? stripMarkdownForPreview(material.content) : material.content)
+    : ''
+  const preview = previewSource
+    ? previewSource.slice(0, 160) + (previewSource.length > 160 ? '…' : '')
     : ''
 
   async function handleSave(): Promise<void> {
@@ -211,9 +239,17 @@ function NoteCard({
       </div>
       {expanded && material.content && (
         <div className="border-t border-border px-4 py-3">
-          <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-            {material.content}
-          </p>
+          {isMarkdown ? (
+            <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 prose-headings:text-sm prose-headings:font-semibold prose-headings:mt-2 prose-headings:mb-1 text-foreground">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {material.content}
+              </ReactMarkdown>
+            </div>
+          ) : (
+            <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+              {material.content}
+            </p>
+          )}
         </div>
       )}
     </div>

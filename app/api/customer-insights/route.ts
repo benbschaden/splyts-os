@@ -19,6 +19,10 @@ const createSchema = z.object({
   status: z.enum(['new', 'validated', 'actioned', 'archived']).default('new'),
   source_contact_id: z.string().uuid().nullable().optional(),
   source_communication_id: z.string().uuid().nullable().optional(),
+  source_segment: z
+    .enum(['beta_user', 'free_user', 'customer', 'power_user', 'prospect', 'churned', 'other'])
+    .nullable()
+    .optional(),
   tags: z.array(z.string().max(100)).max(20).default([]),
   include_in_ai: z.boolean().default(true),
 })
@@ -50,6 +54,7 @@ export async function POST(request: Request) {
       status: d.status,
       source_contact_id: d.source_contact_id ?? null,
       source_communication_id: d.source_communication_id ?? null,
+      source_segment: d.source_segment ?? null,
       tags: d.tags,
       include_in_ai: d.include_in_ai,
     })

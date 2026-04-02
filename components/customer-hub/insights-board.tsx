@@ -8,6 +8,7 @@ import type {
   InsightCategory,
   InsightImpact,
   InsightStatus,
+  InsightSourceSegment,
 } from '@/lib/queries/customer-insights'
 import { AddInsightDialog } from './add-insight-dialog'
 
@@ -58,6 +59,16 @@ const STATUS_LABELS: Record<InsightStatus, string> = {
   archived: 'Archived',
 }
 
+const SEGMENT_LABELS: Record<InsightSourceSegment, string> = {
+  beta_user: 'Beta Users',
+  free_user: 'Free Users',
+  customer: 'Paying Customers',
+  power_user: 'Power Users',
+  prospect: 'Prospects',
+  churned: 'Churned',
+  other: 'Other',
+}
+
 const STATUS_CYCLE: Record<InsightStatus, InsightStatus> = {
   new: 'validated',
   validated: 'actioned',
@@ -78,6 +89,7 @@ export function InsightsBoard({
   const [categoryFilter, setCategoryFilter] = useState<InsightCategory | 'all'>('all')
   const [impactFilter, setImpactFilter] = useState<InsightImpact | 'all'>('all')
   const [statusFilter, setStatusFilter] = useState<InsightStatus | 'all'>('all')
+  const [segmentFilter, setSegmentFilter] = useState<InsightSourceSegment | 'all'>('all')
   const [cyclingId, setCyclingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
@@ -85,10 +97,11 @@ export function InsightsBoard({
     if (categoryFilter !== 'all' && i.category !== categoryFilter) return false
     if (impactFilter !== 'all' && i.impact !== impactFilter) return false
     if (statusFilter !== 'all' && i.status !== statusFilter) return false
+    if (segmentFilter !== 'all' && i.source_segment !== segmentFilter) return false
     return true
   })
 
-  const isFiltered = categoryFilter !== 'all' || impactFilter !== 'all' || statusFilter !== 'all'
+  const isFiltered = categoryFilter !== 'all' || impactFilter !== 'all' || statusFilter !== 'all' || segmentFilter !== 'all'
 
   async function handleCycleStatus(insight: CustomerInsightRow) {
     const nextStatus = STATUS_CYCLE[insight.status]
@@ -152,6 +165,20 @@ export function InsightsBoard({
           <option value="validated">Validated</option>
           <option value="actioned">Actioned</option>
           <option value="archived">Archived</option>
+        </select>
+
+        <select
+          value={segmentFilter}
+          onChange={(e) => setSegmentFilter(e.target.value as InsightSourceSegment | 'all')}
+          className={SELECT_CLASS}
+          aria-label="Filter by segment"
+        >
+          <option value="all">All segments</option>
+          {(Object.keys(SEGMENT_LABELS) as InsightSourceSegment[]).map((s) => (
+            <option key={s} value={s}>
+              {SEGMENT_LABELS[s]}
+            </option>
+          ))}
         </select>
 
         {isFiltered && (
@@ -256,6 +283,11 @@ export function InsightsBoard({
                   >
                     {cyclingId === insight.id ? '…' : STATUS_LABELS[insight.status]}
                   </button>
+                  {insight.source_segment && (
+                    <span className="rounded border border-sky-200 bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 dark:border-sky-800 dark:text-sky-400">
+                      {SEGMENT_LABELS[insight.source_segment]}
+                    </span>
+                  )}
                   {insight.source_contact_name && (
                     <span className="text-[11px] text-muted-foreground/60 ml-auto">
                       From: {insight.source_contact_name}

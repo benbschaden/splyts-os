@@ -21,6 +21,10 @@ const patchSchema = z.object({
   status: z.enum(['new', 'validated', 'actioned', 'archived']).optional(),
   source_contact_id: z.string().uuid().nullable().optional(),
   source_communication_id: z.string().uuid().nullable().optional(),
+  source_segment: z
+    .enum(['beta_user', 'free_user', 'customer', 'power_user', 'prospect', 'churned', 'other'])
+    .nullable()
+    .optional(),
   tags: z.array(z.string().max(100)).max(20).optional(),
   include_in_ai: z.boolean().optional(),
 })

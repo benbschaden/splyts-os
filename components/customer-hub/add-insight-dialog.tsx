@@ -8,6 +8,7 @@ import type {
   InsightCategory,
   InsightImpact,
   InsightStatus,
+  InsightSourceSegment,
 } from '@/lib/queries/customer-insights'
 
 interface AddInsightDialogProps {
@@ -24,6 +25,7 @@ interface FormData {
   category: InsightCategory
   impact: InsightImpact
   status: InsightStatus
+  source_segment: InsightSourceSegment | ''
   tags: string
   include_in_ai: boolean
 }
@@ -33,8 +35,19 @@ const EMPTY: FormData = {
   category: 'pain_point',
   impact: 'medium',
   status: 'new',
+  source_segment: '',
   tags: '',
   include_in_ai: true,
+}
+
+const SEGMENT_LABELS: Record<InsightSourceSegment, string> = {
+  beta_user: 'Beta Users',
+  free_user: 'Free Users',
+  customer: 'Paying Customers',
+  power_user: 'Power Users',
+  prospect: 'Prospects',
+  churned: 'Churned Users',
+  other: 'Other',
 }
 
 const CATEGORY_LABELS: Record<InsightCategory, string> = {
@@ -116,6 +129,7 @@ export function AddInsightDialog({
           .map((t) => t.trim())
           .filter(Boolean),
         include_in_ai: form.include_in_ai,
+        source_segment: form.source_segment || null,
         source_contact_id: sourceContactId ?? null,
         source_communication_id: sourceCommunicationId ?? null,
       }),
@@ -173,6 +187,25 @@ export function AddInsightDialog({
                 placeholder="What did you learn from this customer?"
                 className={cn(INPUT_CLASS, 'resize-none')}
               />
+            </div>
+
+            <div>
+              <label htmlFor="insight-segment" className="block text-xs font-medium text-foreground mb-1">
+                From segment
+              </label>
+              <select
+                id="insight-segment"
+                value={form.source_segment}
+                onChange={(e) => set('source_segment', e.target.value as InsightSourceSegment | '')}
+                className={INPUT_CLASS}
+              >
+                <option value="">No segment (individual contact)</option>
+                {(Object.keys(SEGMENT_LABELS) as InsightSourceSegment[]).map((s) => (
+                  <option key={s} value={s}>
+                    {SEGMENT_LABELS[s]}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>

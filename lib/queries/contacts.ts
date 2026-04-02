@@ -1,6 +1,6 @@
 import { createUntypedServiceClient } from '@/lib/supabase/service'
 
-export type ContactSegment = 'beta_user' | 'prospect' | 'customer' | 'churned' | 'investor' | 'partner' | 'other'
+export type ContactSegment = 'beta_user' | 'free_user' | 'customer' | 'power_user' | 'prospect' | 'churned' | 'other'
 export type ContactStatus = 'active' | 'inactive' | 'archived'
 export type ContactHealth = 'green' | 'yellow' | 'red'
 

@@ -30,21 +30,21 @@ interface ContactDetailProps {
 
 const SEGMENT_LABELS: Record<ContactSegment, string> = {
   beta_user: 'Beta User',
+  free_user: 'Free User',
+  customer: 'Paying Customer',
+  power_user: 'Power User',
   prospect: 'Prospect',
-  customer: 'Customer',
   churned: 'Churned',
-  investor: 'Investor',
-  partner: 'Partner',
   other: 'Other',
 }
 
 const SEGMENT_BADGE_CLASSES: Record<ContactSegment, string> = {
   beta_user: 'bg-blue-500/10 text-blue-700 border-blue-200 dark:text-blue-400 dark:border-blue-800',
+  free_user: 'bg-sky-500/10 text-sky-700 border-sky-200 dark:text-sky-400 dark:border-sky-800',
   customer: 'bg-green-500/10 text-green-700 border-green-200 dark:text-green-400 dark:border-green-800',
+  power_user: 'bg-violet-500/10 text-violet-700 border-violet-200 dark:text-violet-400 dark:border-violet-800',
   prospect: 'bg-amber-500/10 text-amber-700 border-amber-200 dark:text-amber-400 dark:border-amber-800',
   churned: 'bg-red-500/10 text-red-700 border-red-200 dark:text-red-400 dark:border-red-800',
-  investor: 'bg-purple-500/10 text-purple-700 border-purple-200 dark:text-purple-400 dark:border-purple-800',
-  partner: 'bg-indigo-500/10 text-indigo-700 border-indigo-200 dark:text-indigo-400 dark:border-indigo-800',
   other: 'bg-muted text-muted-foreground border-border',
 }
 
@@ -313,11 +313,6 @@ export function ContactDetail({
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
                   <Mail className="h-3.5 w-3.5 shrink-0" />
                   {contact.email}
-                </span>
-              )}
-              {(contact.company || contact.role) && (
-                <span className="text-xs text-muted-foreground">
-                  {[contact.role, contact.company].filter(Boolean).join(' · ')}
                 </span>
               )}
             </div>

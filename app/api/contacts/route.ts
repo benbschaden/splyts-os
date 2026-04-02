@@ -10,7 +10,7 @@ const createSchema = z.object({
   company: z.string().max(500).nullable().optional(),
   role: z.string().max(500).nullable().optional(),
   segment: z
-    .enum(['beta_user', 'prospect', 'customer', 'churned', 'investor', 'partner', 'other'])
+    .enum(['beta_user', 'free_user', 'customer', 'power_user', 'prospect', 'churned', 'other'])
     .nullable()
     .optional(),
   health: z.enum(['green', 'yellow', 'red']).nullable().optional(),

@@ -359,6 +359,105 @@ export async function getDiscussionParticipants(
 }
 
 // -------------------------------------------------------
+// Inbox (all active discussions for a user)
+// -------------------------------------------------------
+
+export interface DiscussionInboxRow extends DiscussionRow {
+  has_unread: boolean
+  parent_name: string | null
+}
+
+export async function getDiscussionsInboxForUser(
+  userId: string,
+  organizationId: string,
+): Promise<DiscussionInboxRow[]> {
+  const supabase = createServiceClient()
+
+  // Get all active discussions where user is a participant
+  const { data: participantRows, error: pErr } = await supabase
+    .from('discussion_participants')
+    .select('discussion_id')
+    .eq('user_id', userId)
+
+  if (pErr || !participantRows || participantRows.length === 0) return []
+
+  const discussionIds = participantRows.map((r: { discussion_id: string }) => r.discussion_id)
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabaseAny = supabase as any
+
+  const [{ data: discussions, error: dErr }, { data: receipts, error: rErr }] = await Promise.all([
+    supabase
+      .from('discussions')
+      .select(DISCUSSION_SELECT)
+      .eq('organization_id', organizationId)
+      .eq('status', 'active')
+      .in('id', discussionIds)
+      .order('updated_at', { ascending: false }),
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    supabaseAny
+      .from('discussion_read_receipts')
+      .select('discussion_id, last_read_at')
+      .eq('user_id', userId)
+      .in('discussion_id', discussionIds),
+  ])
+
+  if (dErr || !discussions) return []
+
+  const receiptMap: Record<string, string> = {}
+  if (!rErr && receipts) {
+    for (const r of receipts as Array<{ discussion_id: string; last_read_at: string }>) {
+      receiptMap[r.discussion_id] = r.last_read_at
+    }
+  }
+
+  // For each discussion, get parent name (projects only for now)
+  const projectIds = (discussions as DiscussionRow[])
+    .filter((d) => d.parent_type === 'project')
+    .map((d) => d.parent_id)
+
+  const parentNames: Record<string, string> = {}
+  if (projectIds.length > 0) {
+    const { data: projects } = await supabase
+      .from('projects')
+      .select('id, name')
+      .in('id', projectIds)
+    if (projects) {
+      for (const p of projects as Array<{ id: string; name: string }>) {
+        parentNames[p.id] = p.name
+      }
+    }
+  }
+
+  return (discussions as DiscussionRow[]).map((d) => {
+    const lastRead = receiptMap[d.id]
+    const hasUnread = !lastRead || d.updated_at > lastRead
+    return {
+      ...d,
+      has_unread: hasUnread,
+      parent_name: parentNames[d.parent_id] ?? null,
+    }
+  })
+}
+
+export async function getUnreadDiscussionCount(
+  userId: string,
+  organizationId: string,
+): Promise<number> {
+  const inbox = await getDiscussionsInboxForUser(userId, organizationId)
+  return inbox.filter((d) => d.has_unread).length
+}
+
+export async function markDiscussionRead(discussionId: string, userId: string): Promise<void> {
+  const supabase = createServiceClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+  await (supabase as any).from('discussion_read_receipts').upsert(
+    { discussion_id: discussionId, user_id: userId, last_read_at: new Date().toISOString() },
+    { onConflict: 'discussion_id,user_id' },
+  )
+}
+
+// -------------------------------------------------------
 // Document links
 // -------------------------------------------------------
 

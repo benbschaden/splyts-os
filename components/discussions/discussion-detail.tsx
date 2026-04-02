@@ -1,11 +1,14 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { ArrowUpRight, CheckCircle2, ChevronUp, FileText, Loader2 } from 'lucide-react'
 import type { DiscussionRow, DiscussionMessageRow, DiscussionResolutionData, DiscussionParticipantRow } from '@/lib/queries/discussions'
+import type { UserProfileSummary } from '@/lib/queries/user-profile'
 import { DiscussionMessageStream } from './discussion-message-stream'
 import { ResolveDiscussionDialog } from './resolve-discussion-dialog'
 import { CreateDocFromDiscussionDialog } from './create-doc-from-discussion-dialog'
+
+const POLL_INTERVAL_MS = 15_000
 
 interface DiscussionDetailProps {
   discussion: DiscussionRow
@@ -22,6 +25,7 @@ export function DiscussionDetail({
 }: DiscussionDetailProps) {
   const [discussion, setDiscussion] = useState(initialDiscussion)
   const [messages, setMessages] = useState<DiscussionMessageRow[]>([])
+  const [profiles, setProfiles] = useState<Record<string, UserProfileSummary>>({})
   const [resolution, setResolution] = useState<DiscussionResolutionData | null>(null)
   const [participants, setParticipants] = useState<DiscussionParticipantRow[]>([])
   const [isLoadingMessages, setIsLoadingMessages] = useState(true)
@@ -31,18 +35,11 @@ export function DiscussionDetail({
   const [showResolve, setShowResolve] = useState(false)
   const [showCreateDoc, setShowCreateDoc] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const isFirstLoad = useRef(true)
 
-  useEffect(() => {
-    void loadMessages()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [discussion.id])
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
-
-  async function loadMessages(): Promise<void> {
-    setIsLoadingMessages(true)
+  const loadMessages = useCallback(async (isInitial = false): Promise<void> => {
+    if (isInitial) setIsLoadingMessages(true)
 
     const [messagesRes, participantsRes] = await Promise.all([
       fetch(`/api/discussions/${discussion.id}/messages`),
@@ -50,12 +47,22 @@ export function DiscussionDetail({
     ])
 
     if (messagesRes.ok) {
-      const data = (await messagesRes.json()) as { messages: DiscussionMessageRow[] }
+      const data = (await messagesRes.json()) as {
+        messages: DiscussionMessageRow[]
+        profiles: Record<string, UserProfileSummary>
+      }
       setMessages(data.messages ?? [])
+      setProfiles((prev) => ({ ...prev, ...(data.profiles ?? {}) }))
     }
     if (participantsRes.ok) {
-      const data = (await participantsRes.json()) as { participants: DiscussionParticipantRow[] }
+      const data = (await participantsRes.json()) as {
+        participants: DiscussionParticipantRow[]
+        profiles?: Record<string, UserProfileSummary>
+      }
       setParticipants(data.participants ?? [])
+      if (data.profiles) {
+        setProfiles((prev) => ({ ...prev, ...data.profiles }))
+      }
     }
 
     if (discussion.status === 'resolved') {
@@ -68,8 +75,31 @@ export function DiscussionDetail({
         setResolution(data.resolution ?? null)
       }
     }
-    setIsLoadingMessages(false)
-  }
+
+    // Mark this discussion as read
+    void fetch(`/api/discussions/${discussion.id}/mark-read`, { method: 'POST' })
+
+    if (isInitial) setIsLoadingMessages(false)
+  }, [discussion.id, discussion.status])
+
+  useEffect(() => {
+    isFirstLoad.current = true
+    void loadMessages(true).then(() => { isFirstLoad.current = false })
+
+    pollRef.current = setInterval(() => {
+      void loadMessages(false)
+    }, POLL_INTERVAL_MS)
+
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current)
+    }
+  }, [loadMessages])
+
+  useEffect(() => {
+    if (!isFirstLoad.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages])
 
   async function handleSend(e: React.FormEvent): Promise<void> {
     e.preventDefault()
@@ -144,15 +174,28 @@ export function DiscussionDetail({
           {participants.length > 0 && (
             <div className="mt-1.5 flex items-center gap-1.5">
               <div className="flex -space-x-1.5">
-                {participants.slice(0, 5).map((p) => (
-                  <div
-                    key={p.user_id}
-                    title={p.user_id}
-                    className="flex h-5 w-5 items-center justify-center rounded-full border border-background bg-foreground/10 text-[9px] font-semibold text-foreground ring-1 ring-border"
-                  >
-                    {p.user_id.slice(0, 2).toUpperCase()}
-                  </div>
-                ))}
+                {participants.slice(0, 5).map((p) => {
+                  const pProfile = profiles[p.user_id]
+                  const pName = pProfile?.full_name ?? null
+                  const pAvatar = pProfile?.avatar_url ?? null
+                  const pInitials = pName
+                    ? pName.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()
+                    : '?'
+                  return (
+                    <div
+                      key={p.user_id}
+                      title={pName ?? p.user_id}
+                      className="flex h-5 w-5 items-center justify-center rounded-full border border-background bg-foreground/10 text-[9px] font-semibold text-foreground ring-1 ring-border overflow-hidden"
+                    >
+                      {pAvatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={pAvatar} alt={pName ?? ''} className="h-full w-full object-cover" />
+                      ) : (
+                        pInitials
+                      )}
+                    </div>
+                  )
+                })}
               </div>
               {participants.length > 5 && (
                 <span className="text-xs text-muted-foreground">+{participants.length - 5} more</span>
@@ -249,7 +292,7 @@ export function DiscussionDetail({
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <DiscussionMessageStream messages={messages} currentUserId={currentUserId} />
+          <DiscussionMessageStream messages={messages} currentUserId={currentUserId} profiles={profiles} />
         )}
         <div ref={messagesEndRef} />
       </div>

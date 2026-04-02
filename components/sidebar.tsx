@@ -5,6 +5,8 @@ import { NorthStarTrigger } from '@/components/company/north-star-trigger'
 import { ProjectsNav } from '@/components/projects/projects-nav'
 import { PerformanceNav } from '@/components/performance/performance-nav'
 import { CompanyNav } from '@/components/company/company-nav'
+import { DiscussionsNavItem } from '@/components/discussions/discussions-nav-item'
+import { NotificationBell } from '@/components/layout/notification-bell'
 
 const staticNavItems = [
   { name: 'Assistant', href: '/dashboard/chat', icon: MessageSquare },
@@ -43,13 +45,14 @@ export function Sidebar({ orgName, userName, avatarUrl, email, isAdmin, isOwner 
     <div className="flex h-screen w-60 flex-col border-r border-border bg-background">
 
       {/* Workspace */}
-      <div className="flex h-12 items-center border-b border-border px-4">
+      <div className="flex h-12 items-center justify-between border-b border-border px-4">
         <Link
           href="/dashboard"
-          className="text-sm font-semibold tracking-tight text-foreground hover:opacity-70 transition-opacity truncate"
+          className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight text-foreground hover:opacity-70 transition-opacity"
         >
           {orgName}
         </Link>
+        <NotificationBell />
       </div>
 
       {/* User */}
@@ -74,6 +77,9 @@ export function Sidebar({ orgName, userName, avatarUrl, email, isAdmin, isOwner 
 
       {/* Main nav */}
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3">
+        {/* Discussions — top entry, global inbox */}
+        <DiscussionsNavItem />
+
         {/* Projects with expandable categories */}
         <ProjectsNav categories={projectCategories} projectCount={projectCount} tools={tools} />
 

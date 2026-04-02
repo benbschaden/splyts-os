@@ -34,6 +34,27 @@ export async function getUserDisplayNamesByIds(userIds: string[]): Promise<Recor
   return Object.fromEntries(data.map((p) => [p.id, p.full_name]))
 }
 
+export type UserProfileSummary = { full_name: string | null; avatar_url: string | null }
+
+/** Names + avatars for message streams (user id → { full_name, avatar_url }). */
+export async function getUserDisplayNamesAndAvatarsByIds(
+  userIds: string[],
+): Promise<Record<string, UserProfileSummary>> {
+  const unique = [...new Set(userIds)].filter(Boolean)
+  if (unique.length === 0) return {}
+
+  const supabase = createServiceClient()
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select('id, full_name, avatar_url')
+    .in('id', unique)
+
+  if (error || !data) return {}
+  return Object.fromEntries(
+    data.map((p) => [p.id, { full_name: p.full_name ?? null, avatar_url: p.avatar_url ?? null }]),
+  )
+}
+
 export async function upsertUserProfile(userId: string, profile: UserProfileData) {
   const supabase = createServiceClient()
 

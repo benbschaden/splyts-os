@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getDiscussionById, getDiscussionParticipants } from '@/lib/queries/discussions'
+import { getUserDisplayNamesAndAvatarsByIds } from '@/lib/queries/user-profile'
 
 export async function GET(
   _request: Request,
@@ -19,7 +20,8 @@ export async function GET(
     if (!discussion) return Response.json({ error: 'Not found' }, { status: 404 })
 
     const participants = await getDiscussionParticipants(id, org.id)
-    return Response.json({ participants })
+    const profiles = await getUserDisplayNamesAndAvatarsByIds(participants.map((p) => p.user_id))
+    return Response.json({ participants, profiles })
   } catch {
     return Response.json({ error: 'Internal error' }, { status: 500 })
   }

@@ -6,6 +6,7 @@ import {
   getDiscussionMessages,
   createDiscussionMessage,
 } from '@/lib/queries/discussions'
+import { getUserDisplayNamesAndAvatarsByIds } from '@/lib/queries/user-profile'
 
 const SendSchema = z.object({
   content: z.string().min(1).max(10000),
@@ -28,7 +29,9 @@ export async function GET(
     if (!discussion) return Response.json({ error: 'Not found' }, { status: 404 })
 
     const messages = await getDiscussionMessages(id, org.id)
-    return Response.json({ messages })
+    const userIds = [...new Set(messages.map((m) => m.user_id))]
+    const profiles = await getUserDisplayNamesAndAvatarsByIds(userIds)
+    return Response.json({ messages, profiles })
   } catch {
     return Response.json({ error: 'Internal error' }, { status: 500 })
   }

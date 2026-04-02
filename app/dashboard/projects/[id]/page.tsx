@@ -12,6 +12,9 @@ import { getBrandContext } from '@/lib/queries/brand-context'
 import { getProjectMaterials } from '@/lib/queries/project-materials'
 import { getDiscoveryEntries } from '@/lib/queries/discovery-entries'
 import { getDiscoveryStudies } from '@/lib/queries/discovery-studies'
+import { getContactsForOrg } from '@/lib/queries/contacts'
+import { getRecentCommunicationsForOrg } from '@/lib/queries/contact-communications'
+import { getCustomerInsightsForOrg } from '@/lib/queries/customer-insights'
 import { getTeamsForOrg, getOrgMembersWithProfiles } from '@/lib/queries/teams'
 import { getContentIdeasForProject } from '@/lib/queries/content-ideas'
 import { getPublishedOutputsForOrg } from '@/lib/queries/outputs'
@@ -62,9 +65,14 @@ export default async function ProjectPage({ params }: PageProps) {
 
   if (!project) notFound()
 
-  const [projectTeams, projectMembers] = await Promise.all([
+  const isCustomerHub = project.tool_key === 'customer_hub'
+
+  const [projectTeams, projectMembers, hubContacts, hubCommunications, hubInsights] = await Promise.all([
     getProjectTeams(id),
     getProjectMembers(id),
+    isCustomerHub ? getContactsForOrg(org.id) : Promise.resolve([]),
+    isCustomerHub ? getRecentCommunicationsForOrg(org.id) : Promise.resolve([]),
+    isCustomerHub ? getCustomerInsightsForOrg(org.id) : Promise.resolve([]),
   ])
 
   const outputAttachmentsByOutputId =
@@ -104,6 +112,9 @@ export default async function ProjectPage({ params }: PageProps) {
       projectMembers={projectMembers.map((m) => ({ user_id: m.user_id, full_name: m.full_name }))}
       contentIdeas={contentIdeas}
       publishedOutputs={publishedOutputs}
+      hubContacts={hubContacts}
+      hubCommunications={hubCommunications}
+      hubInsights={hubInsights}
     />
   )
 }

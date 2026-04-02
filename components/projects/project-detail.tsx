@@ -21,9 +21,13 @@ import { SharingSettings } from '@/components/projects/sharing-settings'
 import { DiscussionsPanel } from '@/components/discussions/discussions-panel'
 import { ContentStudioDetail } from '@/components/content-studio/content-studio-detail'
 import { CustomerDiscoveryDetail } from '@/components/customer-discovery/customer-discovery-detail'
+import { CustomerHubDetail } from '@/components/customer-hub/customer-hub-detail'
 import { Globe, Users, Lock, UserCheck } from 'lucide-react'
 import type { DiscoveryEntryRow } from '@/lib/queries/discovery-entries'
 import type { DiscoveryStudyRow } from '@/lib/queries/discovery-studies'
+import type { ContactRow } from '@/lib/queries/contacts'
+import type { ContactCommunicationRow } from '@/lib/queries/contact-communications'
+import type { CustomerInsightRow } from '@/lib/queries/customer-insights'
 import type { ProjectVisibility } from '@/lib/queries/projects'
 import type { ContentIdeaRow } from '@/lib/queries/content-ideas'
 import type { PublishedOutput } from '@/lib/queries/outputs'
@@ -132,6 +136,9 @@ interface ProjectDetailProps {
   projectMembers: Array<{ user_id: string; full_name: string | null }>
   contentIdeas: ContentIdeaRow[]
   publishedOutputs: PublishedOutput[]
+  hubContacts?: ContactRow[]
+  hubCommunications?: ContactCommunicationRow[]
+  hubInsights?: CustomerInsightRow[]
 }
 
 export function ProjectDetail({
@@ -154,7 +161,21 @@ export function ProjectDetail({
   projectMembers,
   contentIdeas,
   publishedOutputs,
+  hubContacts = [],
+  hubCommunications = [],
+  hubInsights = [],
 }: ProjectDetailProps) {
+  if (project.tool_key === 'customer_hub') {
+    return (
+      <CustomerHubDetail
+        project={project}
+        initialContacts={hubContacts}
+        initialCommunications={hubCommunications}
+        initialInsights={hubInsights}
+      />
+    )
+  }
+
   if (project.tool_key === 'content_studio') {
     return (
       <ContentStudioDetail

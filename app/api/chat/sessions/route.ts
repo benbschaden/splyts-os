@@ -23,6 +23,8 @@ const createSchema = z.object({
     project_materials: z.boolean(),
     discovery_entries: z.boolean().optional().default(false),
     discovery_participant: z.string().nullable().optional().default(null),
+    customer_insights: z.boolean().optional().default(false),
+    customer_hub_contact_id: z.string().uuid().nullable().optional().default(null),
   }).optional().default({
     brand: true,
     business_plan: false,
@@ -39,6 +41,8 @@ const createSchema = z.object({
     project_materials: false,
     discovery_entries: false,
     discovery_participant: null,
+    customer_insights: false,
+    customer_hub_contact_id: null,
   }),
 })
 

@@ -71,6 +71,8 @@ export function DiscoveryHub({ projectId, initialStudies, initialEntries }: Disc
       project_materials: false,
       discovery_entries: true,
       discovery_participant: participant,
+      customer_insights: false,
+      customer_hub_contact_id: null,
     }
     try {
       const res = await fetch('/api/chat/sessions', {

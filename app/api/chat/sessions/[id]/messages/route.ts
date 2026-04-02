@@ -20,6 +20,8 @@ import { getKpiDefinitions } from '@/lib/queries/kpi-definitions'
 import { getLatestSnapshot } from '@/lib/queries/kpi-snapshots'
 import { getProjectMaterials } from '@/lib/queries/project-materials'
 import { getAiVisibleDiscoveryEntries, getParticipantDiscoveryEntries } from '@/lib/queries/discovery-entries'
+import { getAiVisibleInsights } from '@/lib/queries/customer-insights'
+import { getCommunicationsForContact } from '@/lib/queries/contact-communications'
 import { buildChatSystemPrompt } from '@/lib/ai/prompts'
 import { DEFAULT_MODEL, getModelById } from '@/lib/ai/models'
 import { retrieveRelevantDocuments } from '@/lib/retrieval/search'
@@ -132,6 +134,8 @@ export async function POST(
       project_materials: includeProjectMaterials = false,
       discovery_entries: includeDiscoveryEntries = false,
       discovery_participant: discoveryParticipant = null,
+      customer_insights: includeCustomerInsights = false,
+      customer_hub_contact_id: customerHubContactId = null,
     } = config
     const model = getModelById(session.model_id) ?? DEFAULT_MODEL
 
@@ -157,6 +161,8 @@ export async function POST(
       kpiSnapshot,
       projectMaterials,
       discoveryEntries,
+      customerInsightsData,
+      contactCommsData,
       existingMessages,
       retrievedContext,
     ] = await Promise.all([
@@ -181,6 +187,8 @@ export async function POST(
           ? getParticipantDiscoveryEntries(session.project_id!, org.id, discoveryParticipant)
           : getAiVisibleDiscoveryEntries(session.project_id!, org.id)
         : Promise.resolve([]),
+      includeCustomerInsights ? getAiVisibleInsights(org.id) : Promise.resolve([]),
+      customerHubContactId ? getCommunicationsForContact(customerHubContactId, org.id) : Promise.resolve([]),
       getChatMessages(id),
       retrieveRelevantDocuments({
         query: content,
@@ -254,6 +262,10 @@ export async function POST(
       discoveryEntries: shouldLoadDiscovery ? discoveryEntries : undefined,
       includeDiscoveryEntries: shouldLoadDiscovery,
       discoveryParticipant: discoveryParticipant ?? undefined,
+      customerInsights: includeCustomerInsights ? customerInsightsData : undefined,
+      includeCustomerInsights,
+      customerHubContactComms: customerHubContactId ? contactCommsData : undefined,
+      includeCustomerHubContact: !!customerHubContactId,
       retrievedContext: retrievedContext.length > 0 ? retrievedContext : undefined,
     })
 

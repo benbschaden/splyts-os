@@ -11,6 +11,8 @@ import type { KpiDefinitionRow } from '@/lib/queries/kpi-definitions'
 import type { KpiSnapshotRow } from '@/lib/queries/kpi-snapshots'
 import type { RetrievedContext } from '@/lib/retrieval/search'
 import type { DiscoveryEntryRow } from '@/lib/queries/discovery-entries'
+import type { CustomerInsightRow } from '@/lib/queries/customer-insights'
+import type { ContactCommunicationRow } from '@/lib/queries/contact-communications'
 
 export type { BusinessPlanSections }
 
@@ -268,6 +270,10 @@ export function buildChatSystemPrompt(params: {
   discoveryEntries?: DiscoveryEntryRow[]
   includeDiscoveryEntries?: boolean
   discoveryParticipant?: string | null
+  customerInsights?: CustomerInsightRow[]
+  includeCustomerInsights?: boolean
+  customerHubContactComms?: ContactCommunicationRow[]
+  includeCustomerHubContact?: boolean
   retrievedContext?: RetrievedContext[]
 }): string {
   const {
@@ -278,6 +284,8 @@ export function buildChatSystemPrompt(params: {
     includeCurrentGoals, includeFiledDocs, includeCompetitors, includeSocialProof,
     includeKpis, projectMaterials, includeProjectMaterials,
     discoveryEntries, includeDiscoveryEntries, discoveryParticipant,
+    customerInsights, includeCustomerInsights,
+    customerHubContactComms, includeCustomerHubContact,
     retrievedContext,
   } = params
 
@@ -443,6 +451,32 @@ export function buildChatSystemPrompt(params: {
       lines.push(`- [${entry.entry_type}${src}${who}${date}] ${entry.raw_content.slice(0, 800)}`)
       if (entry.key_quote_1) lines.push(`  Key quote: "${entry.key_quote_1}"`)
       if (entry.jtbd) lines.push(`  JTBD: ${entry.jtbd}`)
+    })
+    lines.push('')
+  }
+
+  if (includeCustomerInsights && customerInsights && customerInsights.length > 0) {
+    lines.push('[CUSTOMER INSIGHTS — validated learnings from the field]')
+    lines.push('These are structured learnings extracted from customer communications and research.')
+    lines.push('Use them to ground answers in real signal from customers.')
+    customerInsights.slice(0, 25).forEach((insight) => {
+      const src = insight.source_contact_name ? ` (from ${insight.source_contact_name})` : ''
+      const category = insight.category.replace(/_/g, ' ')
+      lines.push(`- [${category} · ${insight.impact} impact] ${insight.content}${src}`)
+    })
+    lines.push('')
+  }
+
+  if (includeCustomerHubContact && customerHubContactComms && customerHubContactComms.length > 0) {
+    const contactName = customerHubContactComms[0]?.contact_name ?? 'this contact'
+    lines.push(`[CONTACT FILE — ${contactName}]`)
+    lines.push(`All of the following are recorded communications with ${contactName}.`)
+    lines.push('Use this context to help draft replies, understand their needs, and summarise their journey.')
+    customerHubContactComms.slice(0, 20).forEach((comm) => {
+      const date = comm.sent_at ? ` (${comm.sent_at.slice(0, 10)})` : ''
+      const subject = comm.subject ? ` · ${comm.subject}` : ''
+      const dir = comm.direction === 'inbound' ? '→ Received' : comm.direction === 'outbound' ? '← Sent' : '📝 Note'
+      lines.push(`- [${dir} · ${comm.channel}${subject}${date}] ${comm.content.slice(0, 600)}`)
     })
     lines.push('')
   }

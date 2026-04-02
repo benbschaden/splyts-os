@@ -16,6 +16,8 @@ export interface ContextConfig {
   project_materials: boolean
   discovery_entries: boolean
   discovery_participant: string | null
+  customer_insights: boolean
+  customer_hub_contact_id: string | null
 }
 
 export interface ChatSessionRow {

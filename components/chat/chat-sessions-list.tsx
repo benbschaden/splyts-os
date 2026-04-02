@@ -28,6 +28,8 @@ const DEFAULT_CONTEXT: ContextConfig = {
   project_materials: false,
   discovery_entries: false,
   discovery_participant: null,
+  customer_insights: false,
+  customer_hub_contact_id: null,
 }
 
 // Category definitions — each category owns a set of context keys
@@ -81,7 +83,7 @@ const CONTEXT_CATEGORIES = [
   },
 ]
 
-type ContextKey = keyof Omit<ContextConfig, 'browser' | 'discovery_participant'>
+type ContextKey = keyof Omit<ContextConfig, 'browser' | 'discovery_participant' | 'customer_hub_contact_id'>
 
 export function ChatSessionsList({ sessions: initialSessions }: ChatSessionsListProps) {
   const router = useRouter()

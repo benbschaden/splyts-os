@@ -6,6 +6,7 @@ import {
   softDeleteKnowledgeFile,
 } from '@/lib/queries/company-knowledge'
 import { removeFromIndex } from '@/lib/indexing/index-content'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 const BUCKET = 'company-knowledge'
 
@@ -23,7 +24,7 @@ export async function DELETE(
     const org = await getOrganizationForUser(user.id)
     if (!org) return Response.json({ error: 'Not found' }, { status: 404 })
 
-    if (org.role !== 'admin') {
+    if (!isAtLeastAdmin(org.role)) {
       return Response.json({ error: 'Not found' }, { status: 404 })
     }
 

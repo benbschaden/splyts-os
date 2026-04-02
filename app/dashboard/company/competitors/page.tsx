@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getCompetitors } from '@/lib/queries/competitors'
 import { CompetitorsList } from '@/components/company/competitors-list'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 export default async function CompetitorsPage() {
   const supabase = await createClient()
@@ -19,7 +20,7 @@ export default async function CompetitorsPage() {
         <h1 className="text-lg font-semibold text-foreground">Competitors</h1>
         <p className="text-sm text-muted-foreground mt-1">Competitive intelligence used in AI-generated content for differentiation.</p>
       </div>
-      <CompetitorsList competitors={competitors} isAdmin={org.role === 'admin'} />
+      <CompetitorsList competitors={competitors} isAdmin={isAtLeastAdmin(org.role)} />
     </div>
   )
 }

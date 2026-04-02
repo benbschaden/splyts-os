@@ -7,6 +7,7 @@ import { getKpiDefinitions } from '@/lib/queries/kpi-definitions'
 import { getLatestSnapshot } from '@/lib/queries/kpi-snapshots'
 import { KpiDefinitionsList } from '@/components/company/kpi-definitions-list'
 import { KpiSnapshotForm } from '@/components/company/kpi-snapshot-form'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 export default async function KpisPage() {
   const supabase = await createClient()
@@ -20,7 +21,7 @@ export default async function KpisPage() {
     getLatestSnapshot(org.id),
   ])
 
-  const isAdmin = org.role === 'admin'
+  const isAdmin = isAtLeastAdmin(org.role)
 
   return (
     <div className="p-8 max-w-4xl">

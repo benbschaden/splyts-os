@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { listKnowledgeFiles, listActiveConflicts } from '@/lib/queries/company-knowledge'
 import { KnowledgePanel } from '@/components/company/knowledge-panel'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 export default async function CompanyKnowledgePage() {
   const supabase = await createClient()
@@ -44,7 +45,7 @@ export default async function CompanyKnowledgePage() {
       <KnowledgePanel
         initialFiles={files ?? []}
         initialConflicts={(conflicts ?? []) as ConflictWithFiles[]}
-        isAdmin={org.role === 'admin'}
+        isAdmin={isAtLeastAdmin(org.role)}
       />
     </div>
   )

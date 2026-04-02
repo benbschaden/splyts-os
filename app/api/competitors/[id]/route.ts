@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { updateCompetitor, deleteCompetitor } from '@/lib/queries/competitors'
 import { indexContent, removeFromIndex } from '@/lib/indexing/index-content'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 const patchSchema = z.object({
   name: z.string().min(1).max(300).optional(),
@@ -27,7 +28,7 @@ export async function PATCH(
 
     const org = await getOrganizationForUser(user.id)
     if (!org) return Response.json({ error: 'Not found' }, { status: 404 })
-    if (org.role !== 'admin') return Response.json({ error: 'Not found' }, { status: 404 })
+    if (!isAtLeastAdmin(org.role)) return Response.json({ error: 'Not found' }, { status: 404 })
 
     const body = await request.json()
     const parsed = patchSchema.safeParse(body)
@@ -60,7 +61,7 @@ export async function DELETE(
 
     const org = await getOrganizationForUser(user.id)
     if (!org) return Response.json({ error: 'Not found' }, { status: 404 })
-    if (org.role !== 'admin') return Response.json({ error: 'Not found' }, { status: 404 })
+    if (!isAtLeastAdmin(org.role)) return Response.json({ error: 'Not found' }, { status: 404 })
 
     const { error } = await deleteCompetitor(id, org.id)
     if (error) return Response.json({ error }, { status: 500 })

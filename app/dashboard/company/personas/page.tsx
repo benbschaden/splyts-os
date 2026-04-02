@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getPersonas } from '@/lib/queries/personas'
 import { PersonasList } from '@/components/company/personas-list'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 export default async function PersonasPage() {
   const supabase = await createClient()
@@ -22,7 +23,7 @@ export default async function PersonasPage() {
   return (
     <PersonasList
       personas={personas}
-      isAdmin={org.role === 'admin'}
+      isAdmin={isAtLeastAdmin(org.role)}
     />
   )
 }

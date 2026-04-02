@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getProjectById, updateProject, deleteProject } from '@/lib/queries/projects'
 import { indexContent, removeFromIndex } from '@/lib/indexing/index-content'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 const updateProjectSchema = z.object({
   name: z.string().min(1).max(200).optional(),
@@ -41,7 +42,7 @@ export async function PATCH(
 
   // Only the creator or an org admin may update a project
   const isCreator = project.created_by === user.id
-  const isAdmin = org.role === 'admin'
+  const isAdmin = isAtLeastAdmin(org.role)
   if (!isCreator && !isAdmin) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
@@ -86,7 +87,7 @@ export async function DELETE(
   }
 
   const org = await getOrganizationForUser(user.id)
-  if (!org || org.role !== 'admin') {
+  if (!org || !isAtLeastAdmin(org.role)) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 

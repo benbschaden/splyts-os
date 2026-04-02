@@ -26,6 +26,7 @@ interface SidebarProps {
   avatarUrl: string | null
   email: string
   isAdmin: boolean
+  isOwner?: boolean
   northStar?: string | null
   mission?: string | null
   vision?: string | null
@@ -34,7 +35,7 @@ interface SidebarProps {
   tools?: Tool[]
 }
 
-export function Sidebar({ orgName, userName, avatarUrl, email, isAdmin, northStar, mission, vision, projectCategories = [], projectCount, tools = [] }: SidebarProps) {
+export function Sidebar({ orgName, userName, avatarUrl, email, isAdmin, isOwner = false, northStar, mission, vision, projectCategories = [], projectCount, tools = [] }: SidebarProps) {
   const displayName = userName || email?.split('@')[0] || ''
   const initials = displayName?.[0]?.toUpperCase() ?? '?'
 
@@ -77,7 +78,7 @@ export function Sidebar({ orgName, userName, avatarUrl, email, isAdmin, northSta
         <ProjectsNav categories={projectCategories} projectCount={projectCount} tools={tools} />
 
         {/* Performance nav — expandable */}
-        <PerformanceNav />
+        <PerformanceNav isOwner={isOwner} />
 
         {/* Company nav — expandable */}
         <CompanyNav />

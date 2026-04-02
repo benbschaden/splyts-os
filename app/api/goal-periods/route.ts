@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getGoalPeriods, createGoalPeriod } from '@/lib/queries/goal-periods'
 import { indexContent } from '@/lib/indexing/index-content'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 const createSchema = z.object({
   period_label: z.string().min(1).max(100),
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
 
     const org = await getOrganizationForUser(user.id)
     if (!org) return Response.json({ error: 'Not found' }, { status: 404 })
-    if (org.role !== 'admin') return Response.json({ error: 'Not found' }, { status: 404 })
+    if (!isAtLeastAdmin(org.role)) return Response.json({ error: 'Not found' }, { status: 404 })
 
     const body = await request.json()
     const parsed = createSchema.safeParse(body)

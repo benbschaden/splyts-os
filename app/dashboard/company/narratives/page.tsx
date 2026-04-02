@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getBrandNarratives } from '@/lib/queries/brand-narratives'
 import { NarrativesList } from '@/components/company/narratives-list'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 export default async function BrandNarrativesPage() {
   const supabase = await createClient()
@@ -21,7 +22,7 @@ export default async function BrandNarrativesPage() {
           The 3-5 core stories your company tells. AI uses these to anchor content in consistent messaging.
         </p>
       </div>
-      <NarrativesList narratives={narratives} isAdmin={org.role === 'admin'} />
+      <NarrativesList narratives={narratives} isAdmin={isAtLeastAdmin(org.role)} />
     </div>
   )
 }

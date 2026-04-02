@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { BarChart2, ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 
-const PERFORMANCE_ITEMS = [
+const BASE_ITEMS = [
   { name: 'Goals', href: '/dashboard/company/goals' },
   { name: 'KPIs & Metrics', href: '/dashboard/company/kpis' },
   { name: 'Milestones', href: '/dashboard/company/milestones' },
@@ -15,14 +15,22 @@ const PERFORMANCE_ITEMS = [
   { name: 'Funnels', href: '/dashboard/company/funnels' },
 ]
 
-const PERFORMANCE_PATHS = PERFORMANCE_ITEMS.map((i) => i.href)
+const OWNER_ITEMS = [
+  { name: 'Reports', href: '/dashboard/performance/reports' },
+]
 
-export function PerformanceNav() {
+interface PerformanceNavProps {
+  isOwner?: boolean
+}
+
+export function PerformanceNav({ isOwner = false }: PerformanceNavProps) {
+  const items = isOwner ? [...BASE_ITEMS, ...OWNER_ITEMS] : BASE_ITEMS
+  const allPaths = items.map((i) => i.href)
   const pathname = usePathname()
 
   const isPerformance =
     pathname === '/dashboard/performance' ||
-    PERFORMANCE_PATHS.some((p) => pathname === p)
+    allPaths.some((p) => pathname === p)
 
   const [open, setOpen] = useState(isPerformance)
 
@@ -54,7 +62,7 @@ export function PerformanceNav() {
 
       {open && (
         <div className="flex flex-col gap-0.5 pl-4">
-          {PERFORMANCE_ITEMS.map((item) => {
+          {items.map((item) => {
             const isActive = pathname === item.href
             return (
               <Link

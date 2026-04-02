@@ -6,6 +6,7 @@ import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getContentTypes, getContentTypeTemplates } from '@/lib/queries/content-types'
 import { ContentTypesList } from '@/components/settings/content-types-list'
 import { AccessDenied } from '@/components/shared/access-denied'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 export default async function CompanyContentTypesPage() {
   const supabase = await createClient()
@@ -18,7 +19,7 @@ export default async function CompanyContentTypesPage() {
   const org = await getOrganizationForUser(user.id)
   if (!org) redirect('/setup')
 
-  if (org.role !== 'admin') {
+  if (!isAtLeastAdmin(org.role)) {
     return (
       <AccessDenied
         message="You do not have permission to manage content types."
@@ -37,7 +38,7 @@ export default async function CompanyContentTypesPage() {
     <ContentTypesList
       contentTypes={contentTypes as Parameters<typeof ContentTypesList>[0]['contentTypes']}
       templates={templates}
-      isAdmin={org.role === 'admin'}
+      isAdmin={isAtLeastAdmin(org.role)}
     />
   )
 }

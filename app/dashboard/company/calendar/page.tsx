@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { ContentCalendar } from '@/components/company/content-calendar'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 export default async function ContentCalendarPage() {
   const supabase = await createClient()
@@ -24,7 +25,7 @@ export default async function ContentCalendarPage() {
           Plan and track content across all platforms. Link generated outputs directly to calendar items.
         </p>
       </div>
-      <ContentCalendar isAdmin={org.role === 'admin'} />
+      <ContentCalendar isAdmin={isAtLeastAdmin(org.role)} />
     </div>
   )
 }

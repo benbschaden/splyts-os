@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getBenchmarksWithDefaults } from '@/lib/queries/content-benchmarks'
 import { BenchmarksList } from '@/components/company/benchmarks-list'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 export default async function ContentBenchmarksPage() {
   const supabase = await createClient()
@@ -23,7 +24,7 @@ export default async function ContentBenchmarksPage() {
           Industry-standard performance targets per platform. Customize with your own numbers.
         </p>
       </div>
-      <BenchmarksList benchmarks={benchmarks} isAdmin={org.role === 'admin'} />
+      <BenchmarksList benchmarks={benchmarks} isAdmin={isAtLeastAdmin(org.role)} />
     </div>
   )
 }

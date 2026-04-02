@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getBrandContext, type BrandAssets } from '@/lib/queries/brand-context'
 import { BrandAssetsForm } from '@/components/company/brand-assets-form'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 function parseBrandAssets(raw: unknown): BrandAssets {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
@@ -34,7 +35,7 @@ export default async function BrandAssetsPage() {
           Visual identity reference — logos, colors, typography, and image style guidelines.
         </p>
       </div>
-      <BrandAssetsForm initial={initial} isAdmin={org.role === 'admin'} />
+      <BrandAssetsForm initial={initial} isAdmin={isAtLeastAdmin(org.role)} />
     </div>
   )
 }

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { createInvite } from '@/lib/queries/team'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 const schema = z.object({
   email: z.string().email('Invalid email address'),
@@ -16,7 +17,7 @@ export async function POST(request: Request) {
 
   const org = await getOrganizationForUser(user.id)
   if (!org) return Response.json({ error: 'Organisation not found' }, { status: 404 })
-  if (org.role !== 'admin') return Response.json({ error: 'Admin access required' }, { status: 403 })
+  if (!isAtLeastAdmin(org.role)) return Response.json({ error: 'Admin access required' }, { status: 403 })
 
   const body = await request.json()
   const parsed = schema.safeParse(body)

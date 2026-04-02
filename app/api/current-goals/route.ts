@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getCurrentGoals, upsertCurrentGoals } from '@/lib/queries/current-goals'
 import { CURRENT_GOALS_SECTIONS } from '@/lib/company/current-goals-sections'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 const patchSchema = z.object({
   sections: z.record(z.string()),
@@ -32,7 +33,7 @@ export async function PATCH(request: Request) {
 
     const org = await getOrganizationForUser(user.id)
     if (!org) return Response.json({ error: 'Not found' }, { status: 404 })
-    if (org.role !== 'admin') return Response.json({ error: 'Not found' }, { status: 404 })
+    if (!isAtLeastAdmin(org.role)) return Response.json({ error: 'Not found' }, { status: 404 })
 
     const body = await request.json()
     const parsed = patchSchema.safeParse(body)

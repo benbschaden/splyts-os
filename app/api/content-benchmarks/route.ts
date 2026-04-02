@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getBenchmarksWithDefaults, upsertBenchmark } from '@/lib/queries/content-benchmarks'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 const upsertSchema = z.object({
   platform: z.string().min(1).max(200),
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
 
     const org = await getOrganizationForUser(user.id)
     if (!org) return Response.json({ error: 'Not found' }, { status: 404 })
-    if (org.role !== 'admin') return Response.json({ error: 'Not found' }, { status: 404 })
+    if (!isAtLeastAdmin(org.role)) return Response.json({ error: 'Not found' }, { status: 404 })
 
     const body = await request.json()
     const parsed = upsertSchema.safeParse(body)

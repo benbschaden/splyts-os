@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getBusinessPlan, upsertBusinessPlan } from '@/lib/queries/business-plan'
 import { indexContent } from '@/lib/indexing/index-content'
+import { isOwner } from '@/lib/auth/roles'
 
 export async function GET() {
   const supabase = await createClient()
@@ -28,7 +29,7 @@ export async function PATCH(request: Request) {
   const org = await getOrganizationForUser(user.id)
   if (!org) return Response.json({ error: 'Not found' }, { status: 404 })
 
-  if (org.role !== 'admin') {
+  if (!isOwner(org.role)) {
     return Response.json({ error: 'Not found' }, { status: 404 })
   }
 

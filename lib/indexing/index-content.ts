@@ -8,12 +8,13 @@ import { CONTENT_REGISTRY } from './content-registry'
  * Safe to call on create or update — uses upsert on (content_type, content_id).
  *
  * This function is designed to be called fire-and-forget from API routes:
- *   indexContent('output', savedRow, orgId).catch(err => console.error('[content-index]', err))
+ *   indexContent('output', savedRow, orgId, userId).catch(err => console.error('[content-index]', err))
  */
 export async function indexContent(
   contentType: string,
   row: unknown,
   organizationId: string,
+  createdBy?: string,
 ): Promise<void> {
   const data = row as Record<string, unknown>
   const config = CONTENT_REGISTRY[contentType]
@@ -50,18 +51,25 @@ export async function indexContent(
   const metadata = config.deriveMetadata?.(data) ?? {}
   const embeddingStr = `[${embedding.join(',')}]`
 
+  const userId = createdBy || (data.created_by as string | undefined) || null
+
   const supabase = createUntypedServiceClient()
+  const upsertPayload: Record<string, unknown> = {
+    organization_id: organizationId,
+    content_type: contentType,
+    content_id: contentId,
+    title,
+    summary,
+    embedding: embeddingStr as unknown as string,
+    metadata,
+    updated_at: new Date().toISOString(),
+  }
+  if (userId) {
+    upsertPayload.created_by = userId
+  }
+
   const { error } = await supabase.from('content_index').upsert(
-    {
-      organization_id: organizationId,
-      content_type: contentType,
-      content_id: contentId,
-      title,
-      summary,
-      embedding: embeddingStr as unknown as string,
-      metadata,
-      updated_at: new Date().toISOString(),
-    },
+    upsertPayload,
     { onConflict: 'content_type,content_id' },
   )
 

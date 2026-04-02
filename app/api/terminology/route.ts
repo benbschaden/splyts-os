@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getTerminology, createTerminology } from '@/lib/queries/terminology'
 import { indexContent } from '@/lib/indexing/index-content'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 const categorySchema = z.enum(['product', 'brand', 'audience', 'general'])
 
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
 
     const org = await getOrganizationForUser(user.id)
     if (!org) return Response.json({ error: 'Not found' }, { status: 404 })
-    if (org.role !== 'admin') return Response.json({ error: 'Not found' }, { status: 404 })
+    if (!isAtLeastAdmin(org.role)) return Response.json({ error: 'Not found' }, { status: 404 })
 
     const body = await request.json()
     const parsed = createSchema.safeParse(body)

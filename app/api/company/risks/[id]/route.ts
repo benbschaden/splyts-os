@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { updateRisk, deleteRisk } from '@/lib/queries/risks'
 import { indexContent, removeFromIndex } from '@/lib/indexing/index-content'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 const updateSchema = z.object({
   title: z.string().min(1).max(200).optional(),
@@ -28,7 +29,7 @@ export async function PATCH(
 
   const org = await getOrganizationForUser(user.id)
   if (!org) return Response.json({ error: 'Not found' }, { status: 404 })
-  if (org.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 })
+  if (!isAtLeastAdmin(org.role)) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await request.json()
   const parsed = updateSchema.safeParse(body)
@@ -58,7 +59,7 @@ export async function DELETE(
 
   const org = await getOrganizationForUser(user.id)
   if (!org) return Response.json({ error: 'Not found' }, { status: 404 })
-  if (org.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 })
+  if (!isAtLeastAdmin(org.role)) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
   const { error } = await deleteRisk(id, org.id)
   if (error) return Response.json({ error }, { status: 500 })

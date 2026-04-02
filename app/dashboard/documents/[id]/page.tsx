@@ -6,6 +6,7 @@ import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { canUserFileDocument, getDocumentById } from '@/lib/queries/documents'
 import { DocumentViewer } from '@/components/documents/document-viewer'
 import { getReviewerTeamsForUser } from '@/lib/queries/teams'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 export default async function DocumentPage({
   params,
@@ -42,7 +43,7 @@ export default async function DocumentPage({
     <DocumentViewer
       document={document}
       isOwner={isOwner}
-      isAdmin={org.role === 'admin'}
+      isAdmin={isAtLeastAdmin(org.role)}
       canFile={canFile}
     />
   )

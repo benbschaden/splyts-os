@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getSocialProof } from '@/lib/queries/social-proof'
 import { SocialProofList } from '@/components/company/social-proof-list'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 export default async function SocialProofPage() {
   const supabase = await createClient()
@@ -23,7 +24,7 @@ export default async function SocialProofPage() {
           Testimonials, case studies, and metrics that AI can use to strengthen content.
         </p>
       </div>
-      <SocialProofList items={items} isAdmin={org.role === 'admin'} />
+      <SocialProofList items={items} isAdmin={isAtLeastAdmin(org.role)} />
     </div>
   )
 }

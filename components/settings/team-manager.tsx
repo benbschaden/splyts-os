@@ -4,10 +4,11 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { UserCircle, Mail, Crown, User, Trash2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 interface Member {
   userId: string
-  role: 'admin' | 'member'
+  role: 'owner' | 'admin' | 'member'
   fullName: string | null
   createdAt: string
 }
@@ -241,8 +242,8 @@ export function TeamManager({ members, pendingInvites, currentUserId, reviewerTe
                 <div className="flex items-center gap-2 shrink-0">
                   {isCurrentUser ? (
                     <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                      {member.role === 'admin' ? (
-                        <><Crown className="h-3 w-3" /> Admin</>
+                      {isAtLeastAdmin(member.role) ? (
+                        <><Crown className="h-3 w-3" /> {member.role === 'owner' ? 'Owner' : 'Admin'}</>
                       ) : (
                         <><User className="h-3 w-3" /> Member</>
                       )}

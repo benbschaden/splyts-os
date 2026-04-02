@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getBusinessPlan } from '@/lib/queries/business-plan'
 import { BusinessPlanForm } from '@/components/company/business-plan-form'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 export default async function BusinessPlanPage() {
   const supabase = await createClient()
@@ -22,7 +23,7 @@ export default async function BusinessPlanPage() {
   return (
     <BusinessPlanForm
       initial={plan?.sections ?? {}}
-      isAdmin={org.role === 'admin'}
+      isAdmin={isAtLeastAdmin(org.role)}
       lastSaved={plan?.updated_at ?? null}
     />
   )

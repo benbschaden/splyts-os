@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getConflictById, dismissConflict } from '@/lib/queries/company-knowledge'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 const schema = z.object({
   trust: z.enum(['a', 'b']).optional(),
@@ -21,7 +22,7 @@ export async function PATCH(
     const org = await getOrganizationForUser(user.id)
     if (!org) return Response.json({ error: 'Not found' }, { status: 404 })
 
-    if (org.role !== 'admin') {
+    if (!isAtLeastAdmin(org.role)) {
       return Response.json({ error: 'Not found' }, { status: 404 })
     }
 

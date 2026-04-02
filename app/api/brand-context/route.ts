@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getBrandContext, upsertBrandContext } from '@/lib/queries/brand-context'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 const brandContextSchema = z.object({
   company_name: z.string().min(1, 'Company name is required'),
@@ -42,7 +43,7 @@ export async function PUT(request: Request) {
   }
 
   const org = await getOrganizationForUser(user.id)
-  if (!org || org.role !== 'admin') {
+  if (!org || !isAtLeastAdmin(org.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

@@ -6,6 +6,7 @@ import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getFunnels } from '@/lib/queries/funnels'
 import { getKpiDefinitions } from '@/lib/queries/kpi-definitions'
 import { FunnelsList } from '@/components/company/funnels-list'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 export default async function FunnelsPage() {
   const supabase = await createClient()
@@ -19,7 +20,7 @@ export default async function FunnelsPage() {
     getKpiDefinitions(org.id),
   ])
 
-  const isAdmin = org.role === 'admin'
+  const isAdmin = isAtLeastAdmin(org.role)
 
   return (
     <div className="p-8 max-w-4xl">

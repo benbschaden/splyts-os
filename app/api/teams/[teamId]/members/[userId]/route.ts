@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { updateTeamMemberRole } from '@/lib/queries/teams'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 const patchSchema = z.object({
   role: z.enum(['member', 'reviewer']),
@@ -21,7 +22,7 @@ export async function PATCH(
 
     const org = await getOrganizationForUser(user.id)
     if (!org) return Response.json({ error: 'Not found' }, { status: 404 })
-    if (org.role !== 'admin') return Response.json({ error: 'Admin access required' }, { status: 403 })
+    if (!isAtLeastAdmin(org.role)) return Response.json({ error: 'Admin access required' }, { status: 403 })
 
     const body = await request.json()
     const parsed = patchSchema.safeParse(body)

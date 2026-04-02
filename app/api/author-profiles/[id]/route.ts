@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { updateAuthorProfile, deleteAuthorProfile } from '@/lib/queries/author-profiles'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 const updateAuthorSchema = z.object({
   name: z.string().min(1).max(200).optional(),
@@ -24,7 +25,7 @@ export async function PATCH(
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const org = await getOrganizationForUser(user.id)
-  if (!org || org.role !== 'admin') {
+  if (!org || !isAtLeastAdmin(org.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -52,7 +53,7 @@ export async function DELETE(
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const org = await getOrganizationForUser(user.id)
-  if (!org || org.role !== 'admin') {
+  if (!org || !isAtLeastAdmin(org.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

@@ -1,4 +1,5 @@
 import { createServiceClient } from '@/lib/supabase/service'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 export type DocumentVisibility = 'private' | 'shared' | 'filed'
 
@@ -284,12 +285,12 @@ export async function fileDocument(
 
 export function canUserFileDocument(input: {
   userId: string
-  userRole: 'admin' | 'member'
+  userRole: 'owner' | 'admin' | 'member'
   document: Pick<DocumentRow, 'team_id'>
   reviewerTeamIds: string[]
 }): boolean {
   const { userRole, document, reviewerTeamIds } = input
-  if (userRole === 'admin') return true
+  if (isAtLeastAdmin(userRole)) return true
   if (!document.team_id) return false
   return reviewerTeamIds.includes(document.team_id)
 }
@@ -320,7 +321,7 @@ export async function requestDocumentReview(
 export async function getPendingReviewDocuments(
   organizationId: string,
   reviewerTeamIds: string[],
-  userRole: 'admin' | 'member',
+  userRole: 'owner' | 'admin' | 'member',
 ): Promise<DocumentRow[]> {
   const supabase = createServiceClient()
 
@@ -333,7 +334,7 @@ export async function getPendingReviewDocuments(
     .neq('visibility', 'filed')
     .order('review_requested_at', { ascending: false })
 
-  if (userRole !== 'admin') {
+  if (!isAtLeastAdmin(userRole)) {
     if (reviewerTeamIds.length === 0) return []
     query = query.in('team_id', reviewerTeamIds)
   }

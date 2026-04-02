@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getProductRoadmapItems, createProductRoadmapItem } from '@/lib/queries/product-roadmap'
 import { indexContent } from '@/lib/indexing/index-content'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 const createSchema = z.object({
   title: z.string().min(1, 'Title is required').max(300),
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
 
     const org = await getOrganizationForUser(user.id)
     if (!org) return Response.json({ error: 'Not found' }, { status: 404 })
-    if (org.role !== 'admin') return Response.json({ error: 'Not found' }, { status: 404 })
+    if (!isAtLeastAdmin(org.role)) return Response.json({ error: 'Not found' }, { status: 404 })
 
     const body = await request.json()
     const parsed = createSchema.safeParse(body)

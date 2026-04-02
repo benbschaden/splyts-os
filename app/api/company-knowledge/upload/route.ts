@@ -13,6 +13,7 @@ import {
 import { extractText, SUPPORTED_MIMES, MIME_TO_EXT } from '@/lib/company/extract-text'
 import { detectConflicts } from '@/lib/company/conflict-detect'
 import { indexContent } from '@/lib/indexing/index-content'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 const BUCKET = 'company-knowledge'
 const MAX_BYTES = 52_428_800 // 50 MiB
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
     const org = await getOrganizationForUser(user.id)
     if (!org) return Response.json({ error: 'Not found' }, { status: 404 })
 
-    if (org.role !== 'admin') {
+    if (!isAtLeastAdmin(org.role)) {
       return Response.json({ error: 'Not found' }, { status: 404 })
     }
 

@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { GoalPeriodsView } from '@/components/company/goal-periods-view'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 export default async function GoalPeriodsPage() {
   const supabase = await createClient()
@@ -14,5 +15,5 @@ export default async function GoalPeriodsPage() {
   const org = await getOrganizationForUser(user.id)
   if (!org) redirect('/setup')
 
-  return <GoalPeriodsView isAdmin={org.role === 'admin'} />
+  return <GoalPeriodsView isAdmin={isAtLeastAdmin(org.role)} />
 }

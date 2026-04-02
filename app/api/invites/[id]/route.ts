@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { revokeInvite } from '@/lib/queries/team'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 export async function DELETE(
   _request: Request,
@@ -14,7 +15,7 @@ export async function DELETE(
 
   const org = await getOrganizationForUser(user.id)
   if (!org) return Response.json({ error: 'Organisation not found' }, { status: 404 })
-  if (org.role !== 'admin') return Response.json({ error: 'Admin access required' }, { status: 403 })
+  if (!isAtLeastAdmin(org.role)) return Response.json({ error: 'Admin access required' }, { status: 403 })
 
   const { error } = await revokeInvite(id, org.id)
   if (error) return Response.json({ error }, { status: 500 })

@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { MarketingNav } from '@/components/marketing/marketing-nav'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 export default async function MarketingLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -11,7 +12,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
   const org = await getOrganizationForUser(user.id)
   if (!org) redirect('/setup')
 
-  const isAdmin = org.role === 'admin'
+  const isAdmin = isAtLeastAdmin(org.role)
 
   return (
     <div className="flex h-full flex-col">

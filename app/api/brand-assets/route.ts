@@ -6,6 +6,7 @@ import {
   updateBrandAssets,
   type BrandAssets,
 } from '@/lib/queries/brand-context'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 const brandAssetsPatchSchema = z.object({
   logo_url: z.string().optional(),
@@ -56,7 +57,7 @@ export async function PATCH(request: Request) {
 
     const org = await getOrganizationForUser(user.id)
     if (!org) return Response.json({ error: 'Not found' }, { status: 404 })
-    if (org.role !== 'admin') return Response.json({ error: 'Not found' }, { status: 404 })
+    if (!isAtLeastAdmin(org.role)) return Response.json({ error: 'Not found' }, { status: 404 })
 
     let body: unknown
     try {

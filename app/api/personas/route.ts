@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getPersonas, createPersona } from '@/lib/queries/personas'
 import { indexContent } from '@/lib/indexing/index-content'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 const personaFieldSchema = z.string().max(2000).nullable().optional()
 
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const org = await getOrganizationForUser(user.id)
-  if (!org || org.role !== 'admin') {
+  if (!org || !isAtLeastAdmin(org.role)) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 

@@ -6,6 +6,7 @@ import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getBrandContext } from '@/lib/queries/brand-context'
 import { BrandContextForm } from '@/components/settings/brand-context-form'
 import { AccessDenied } from '@/components/shared/access-denied'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 export default async function CompanyBrandPage() {
   const supabase = await createClient()
@@ -18,7 +19,7 @@ export default async function CompanyBrandPage() {
   const org = await getOrganizationForUser(user.id)
   if (!org) redirect('/setup')
 
-  if (org.role !== 'admin') {
+  if (!isAtLeastAdmin(org.role)) {
     return (
       <AccessDenied
         message="You do not have permission to edit brand settings."
@@ -52,7 +53,7 @@ export default async function CompanyBrandPage() {
           target_audience: context?.target_audience ?? '',
           values: context?.values ?? '',
         }}
-        isAdmin={org.role === 'admin'}
+        isAdmin={isAtLeastAdmin(org.role)}
       />
     </div>
   )

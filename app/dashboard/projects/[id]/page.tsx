@@ -19,6 +19,7 @@ import { getTeamsForOrg, getOrgMembersWithProfiles } from '@/lib/queries/teams'
 import { getContentIdeasForProject } from '@/lib/queries/content-ideas'
 import { getPublishedOutputsForOrg } from '@/lib/queries/outputs'
 import { ProjectDetail } from '@/components/projects/project-detail'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -96,7 +97,7 @@ export default async function ProjectPage({ params }: PageProps) {
       project={project}
       organizationId={org.id}
       currentUserId={user.id}
-      isAdmin={org.role === 'admin'}
+      isAdmin={isAtLeastAdmin(org.role)}
       isCreator={project.created_by === user.id}
       outputs={outputs}
       outputAttachmentsByOutputId={outputAttachmentsByOutputId}

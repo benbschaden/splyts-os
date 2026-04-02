@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { updateMemberRole, removeMember } from '@/lib/queries/team'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 const patchSchema = z.object({
   role: z.enum(['admin', 'member']),
@@ -19,7 +20,7 @@ export async function PATCH(
 
   const org = await getOrganizationForUser(user.id)
   if (!org) return Response.json({ error: 'Organisation not found' }, { status: 404 })
-  if (org.role !== 'admin') return Response.json({ error: 'Admin access required' }, { status: 403 })
+  if (!isAtLeastAdmin(org.role)) return Response.json({ error: 'Admin access required' }, { status: 403 })
 
   // Prevent changing your own role
   if (targetUserId === user.id) {
@@ -50,7 +51,7 @@ export async function DELETE(
 
   const org = await getOrganizationForUser(user.id)
   if (!org) return Response.json({ error: 'Organisation not found' }, { status: 404 })
-  if (org.role !== 'admin') return Response.json({ error: 'Admin access required' }, { status: 403 })
+  if (!isAtLeastAdmin(org.role)) return Response.json({ error: 'Admin access required' }, { status: 403 })
 
   if (targetUserId === user.id) {
     return Response.json({ error: 'You cannot remove yourself from the organisation' }, { status: 400 })

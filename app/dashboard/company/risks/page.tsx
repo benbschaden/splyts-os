@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getRisks } from '@/lib/queries/risks'
 import { RiskRegister } from '@/components/company/risk-register'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 export default async function RisksPage() {
   const supabase = await createClient()
@@ -14,7 +15,7 @@ export default async function RisksPage() {
   if (!org) redirect('/setup')
 
   const risks = await getRisks(org.id)
-  const isAdmin = org.role === 'admin'
+  const isAdmin = isAtLeastAdmin(org.role)
 
   return (
     <div className="p-8 max-w-5xl">

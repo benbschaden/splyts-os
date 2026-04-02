@@ -5,6 +5,7 @@ import { getUserProfile } from '@/lib/queries/user-profile'
 import { getBrandContext } from '@/lib/queries/brand-context'
 import { getProjectCategories, getProjectsForOrg, getToolsForOrg } from '@/lib/queries/projects'
 import { Sidebar } from '@/components/sidebar'
+import { isAtLeastAdmin, isOwner } from '@/lib/auth/roles'
 
 export default async function DashboardLayout({
   children,
@@ -44,7 +45,8 @@ export default async function DashboardLayout({
         userName={displayName}
         avatarUrl={profile?.avatar_url ?? null}
         email={user.email ?? ''}
-        isAdmin={org.role === 'admin'}
+        isAdmin={isAtLeastAdmin(org.role)}
+        isOwner={isOwner(org.role)}
         northStar={brandContext?.north_star}
         mission={brandContext?.mission}
         vision={brandContext?.vision}

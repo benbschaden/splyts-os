@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { MilestonesList } from '@/components/company/milestones-list'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 export default async function CompanyMilestonesPage() {
   const supabase = await createClient()
@@ -16,5 +17,5 @@ export default async function CompanyMilestonesPage() {
   const org = await getOrganizationForUser(user.id)
   if (!org) redirect('/setup')
 
-  return <MilestonesList isAdmin={org.role === 'admin'} />
+  return <MilestonesList isAdmin={isAtLeastAdmin(org.role)} />
 }

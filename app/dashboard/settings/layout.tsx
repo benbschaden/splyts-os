@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -12,7 +13,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
   const org = await getOrganizationForUser(user.id)
   if (!org) redirect('/setup')
 
-  const isAdmin = org.role === 'admin'
+  const isAdmin = isAtLeastAdmin(org.role)
 
   const tabs = [
     { name: 'Profile', href: '/dashboard/settings/profile' },

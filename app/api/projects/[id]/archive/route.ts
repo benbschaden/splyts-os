@@ -8,6 +8,7 @@ import { getBrandContext } from '@/lib/queries/brand-context'
 import { createDocument } from '@/lib/queries/documents'
 import { buildProjectArchivePrompt } from '@/lib/ai/prompts'
 import { DEFAULT_MODEL } from '@/lib/ai/models'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 export async function POST(
   _request: Request,
@@ -25,7 +26,7 @@ export async function POST(
     }
 
     const org = await getOrganizationForUser(user.id)
-    if (!org || org.role !== 'admin') {
+    if (!org || !isAtLeastAdmin(org.role)) {
       return Response.json({ error: 'Forbidden' }, { status: 403 })
     }
 

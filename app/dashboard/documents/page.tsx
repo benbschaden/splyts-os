@@ -6,6 +6,7 @@ import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getDocuments, getPendingReviewDocuments } from '@/lib/queries/documents'
 import { DocumentsList } from '@/components/documents/documents-list'
 import { getReviewerTeamsForUser } from '@/lib/queries/teams'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 export default async function DocumentsPage() {
   const supabase = await createClient()
@@ -26,7 +27,7 @@ export default async function DocumentsPage() {
     <DocumentsList
       documents={documents}
       pendingReviewDocuments={pendingReviewDocuments}
-      canReview={org.role === 'admin' || reviewerTeamIds.length > 0}
+      canReview={isAtLeastAdmin(org.role) || reviewerTeamIds.length > 0}
     />
   )
 }

@@ -4,6 +4,7 @@ import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { updateContentCalendarItem, deleteContentCalendarItem } from '@/lib/queries/content-calendar'
 import { createServiceClient } from '@/lib/supabase/service'
 import { indexContent, removeFromIndex } from '@/lib/indexing/index-content'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 const patchSchema = z.object({
   title: z.string().min(1).max(300).optional(),
@@ -19,7 +20,7 @@ const patchSchema = z.object({
 })
 
 async function isCreatorOrAdmin(itemId: string, orgId: string, userId: string, userRole: string): Promise<boolean> {
-  if (userRole === 'admin') return true
+  if (isAtLeastAdmin(userRole)) return true
   const db = createServiceClient()
   const { data } = await db
     .from('content_calendar')

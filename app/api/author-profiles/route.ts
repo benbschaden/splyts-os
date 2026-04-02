@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getAuthorProfiles, createAuthorProfile } from '@/lib/queries/author-profiles'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 const createAuthorSchema = z.object({
   name: z.string().min(1, 'Name is required').max(200),
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const org = await getOrganizationForUser(user.id)
-  if (!org || org.role !== 'admin') {
+  if (!org || !isAtLeastAdmin(org.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

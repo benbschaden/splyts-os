@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getTerminology } from '@/lib/queries/terminology'
 import { TerminologyList } from '@/components/company/terminology-list'
+import { isAtLeastAdmin } from '@/lib/auth/roles'
 
 export default async function TerminologyPage() {
   const supabase = await createClient()
@@ -21,7 +22,7 @@ export default async function TerminologyPage() {
           Words and phrases to always use, never use, and why. Injected into every AI prompt for consistency.
         </p>
       </div>
-      <TerminologyList terms={terms} isAdmin={org.role === 'admin'} />
+      <TerminologyList terms={terms} isAdmin={isAtLeastAdmin(org.role)} />
     </div>
   )
 }

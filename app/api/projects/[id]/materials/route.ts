@@ -4,6 +4,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getProjectMaterials, createProjectMaterial } from '@/lib/queries/project-materials'
 import { indexContent } from '@/lib/indexing/index-content'
+import { logProjectActivity } from '@/lib/queries/project-activity'
 
 const postBodySchema = z.object({
   material_type: z.enum(['note', 'file', 'link']),
@@ -94,6 +95,22 @@ export async function POST(
     indexContent('project_material', material, org.id).catch(err =>
       console.error('[content-index] Index failed:', err)
     )
+
+    const actionType =
+      parsed.data.material_type === 'note'
+        ? 'note_added'
+        : parsed.data.material_type === 'link'
+          ? 'link_added'
+          : null
+    if (actionType) {
+      logProjectActivity({
+        organizationId: org.id,
+        projectId,
+        actorUserId: user.id,
+        actionType,
+        entityName: parsed.data.title ?? parsed.data.link_url ?? null,
+      })
+    }
 
     return Response.json({ material }, { status: 201 })
   } catch (error) {

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getDiscussionById, resolveDiscussion } from '@/lib/queries/discussions'
 import { indexContent } from '@/lib/indexing/index-content'
+import { logProjectActivity } from '@/lib/queries/project-activity'
 
 const ResolveSchema = z.object({
   summary: z.string().min(1),
@@ -60,6 +61,16 @@ export async function POST(
     indexContent('discussion', resolved, org.id).catch(err =>
       console.error('[content-index] Index failed:', err)
     )
+
+    if (resolved.parent_type === 'project') {
+      logProjectActivity({
+        organizationId: org.id,
+        projectId: resolved.parent_id,
+        actorUserId: user.id,
+        actionType: 'discussion_resolved',
+        entityName: resolved.title,
+      })
+    }
 
     return Response.json({ discussion: resolved })
   } catch {

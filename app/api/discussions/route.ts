@@ -8,6 +8,7 @@ import {
 } from '@/lib/queries/discussions'
 import type { DiscussionParentType, DiscussionMode, DiscussionStatus } from '@/lib/queries/discussions'
 import { indexContent } from '@/lib/indexing/index-content'
+import { logProjectActivity } from '@/lib/queries/project-activity'
 
 const CreateSchema = z.object({
   parent_type: z.enum(['project', 'document', 'section']),
@@ -91,6 +92,16 @@ export async function POST(request: Request) {
     indexContent('discussion', discussion, org.id).catch(err =>
       console.error('[content-index] Index failed:', err)
     )
+
+    if (discussion.parent_type === 'project') {
+      logProjectActivity({
+        organizationId: org.id,
+        projectId: discussion.parent_id,
+        actorUserId: user.id,
+        actionType: 'discussion_started',
+        entityName: discussion.title,
+      })
+    }
 
     return Response.json({ discussion }, { status: 201 })
   } catch {

@@ -5,6 +5,7 @@ import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { createProjectMaterial } from '@/lib/queries/project-materials'
 import { extractText } from '@/lib/company/extract-text'
 import { indexContent } from '@/lib/indexing/index-content'
+import { logProjectActivity } from '@/lib/queries/project-activity'
 
 const BUCKET = 'project-files'
 const MAX_BYTES = 52_428_800 // 50 MiB — matches bucket policy
@@ -187,6 +188,14 @@ export async function POST(
     indexContent('project_material', material, org.id).catch(err =>
       console.error('[content-index] Index failed:', err)
     )
+
+    logProjectActivity({
+      organizationId: org.id,
+      projectId,
+      actorUserId: user.id,
+      actionType: 'file_uploaded',
+      entityName: file.name || null,
+    })
 
     return Response.json(
       { material: { ...material, file_url: signed.signedUrl } },

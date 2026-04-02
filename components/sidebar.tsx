@@ -6,7 +6,7 @@ import { ProjectsNav } from '@/components/projects/projects-nav'
 import { PerformanceNav } from '@/components/performance/performance-nav'
 import { CompanyNav } from '@/components/company/company-nav'
 import { DiscussionsNavItem } from '@/components/discussions/discussions-nav-item'
-import { NotificationBell } from '@/components/layout/notification-bell'
+import { NotificationsDropdown } from '@/components/layout/notifications-dropdown'
 
 const staticNavItems = [
   { name: 'Assistant', href: '/dashboard/chat', icon: MessageSquare },
@@ -52,7 +52,7 @@ export function Sidebar({ orgName, userName, avatarUrl, email, isAdmin, isOwner 
         >
           {orgName}
         </Link>
-        <NotificationBell />
+        <NotificationsDropdown />
       </div>
 
       {/* User */}

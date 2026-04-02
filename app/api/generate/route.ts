@@ -18,6 +18,7 @@ import { PRODUCT_SECTIONS } from '@/lib/company/product-sections'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createOutput } from '@/lib/queries/outputs'
 import { getModelById, DEFAULT_MODEL } from '@/lib/ai/models'
+import { logProjectActivity } from '@/lib/queries/project-activity'
 
 const schema = z.object({
   projectId: z.string().uuid(),
@@ -459,6 +460,14 @@ export async function POST(request: Request) {
   if (saveError || !output) {
     return Response.json({ error: 'Content generated but failed to save. Please try again.' }, { status: 500 })
   }
+
+  logProjectActivity({
+    organizationId: org.id,
+    projectId,
+    actorUserId: user.id,
+    actionType: 'output_generated',
+    entityName: brief.slice(0, 80) || null,
+  })
 
   return Response.json({ output }, { status: 201 })
 }

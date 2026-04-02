@@ -452,7 +452,7 @@ export function ProjectDetail({
       )}
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto min-h-0">
+      <div className="flex-1 overflow-y-auto">
         {editing ? (
           <div className="max-w-xl space-y-4 p-6">
             <div className="space-y-1.5">

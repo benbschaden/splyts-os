@@ -16,6 +16,7 @@ export function DiscussionsNavItem() {
   useEffect(() => {
     async function fetchUnread(): Promise<void> {
       try {
+        // Use the discussions inbox count specifically for the nav badge
         const res = await fetch('/api/discussions/inbox?count_only=true')
         if (res.ok) {
           const data = (await res.json()) as { unread_count: number }

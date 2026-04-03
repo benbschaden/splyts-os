@@ -473,15 +473,18 @@ function LinkCard({
 function mapMaterialsPayload(list: unknown[]): Material[] {
   return list.map((row) => {
     const m = row as Record<string, unknown>
+    const materialType = m.material_type as Material['material_type']
     const rawContent = (m.content as string | null) ?? null
+    const shouldTruncateContent = materialType === 'file'
     return {
       id: String(m.id),
-      material_type: m.material_type as Material['material_type'],
+      material_type: materialType,
       title: (m.title as string | null) ?? null,
-      // Truncate to 500 chars for display — full content lives server-side for AI.
-      // Storing tens of thousands of chars in client state for uploaded docs causes
-      // memory spikes that freeze Safari when re-rendering the list.
-      content: rawContent ? rawContent.slice(0, 500) : null,
+      // Keep note/link content intact so authored text doesn't get clipped after refetch.
+      // Only truncate extracted file content to protect client memory.
+      content: rawContent
+        ? (shouldTruncateContent ? rawContent.slice(0, 500) : rawContent)
+        : null,
       file_url: (m.file_url as string | null) ?? null,
       file_name: (m.file_name as string | null) ?? null,
       file_mime: (m.file_mime as string | null) ?? null,

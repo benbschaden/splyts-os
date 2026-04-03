@@ -210,7 +210,7 @@ function parseInsightJson(raw: string): RespondentInsightResult[] {
           ).slice(0, 8)
         : [],
     }))
-    .filter((r) => r.insights.length > 0)
+    .filter((r) => r.email || r.name)
 }
 
 type RespondentWithContact = RespondentInsightResult & {
@@ -525,21 +525,24 @@ export async function POST(request: Request) {
       // Pass 1: Per-respondent extraction in batches using Claude Opus
       const respondents = await runPerRespondentExtractionBatched(survey, lookup, segment, file.name)
 
-      if (respondents.length === 0) {
+      const respondentsWithAnyInsights = respondents.filter((r) => r.insights.length > 0)
+
+      if (respondentsWithAnyInsights.length === 0) {
         await updateCohortDocument(doc.id, org.id, { status: 'failed' })
         return Response.json({
           document: doc,
           mode: 'per_respondent',
           consolidated: [],
-          respondents: [],
+          respondents,
           all_survey_respondents: allSurveyRespondents,
           total_respondents: survey.rows.length,
           extracted_respondents: 0,
         }, { status: 201 })
       }
 
-      // Pass 2: Consolidate patterns across respondents using Claude Opus
-      const consolidated = await runConsolidation(respondents, segment)
+      // Pass 2: Consolidate patterns — only feed respondents who have insights
+      const respondentsWithInsights = respondents.filter((r) => r.insights.length > 0)
+      const consolidated = await runConsolidation(respondentsWithInsights, segment)
 
       await updateCohortDocument(doc.id, org.id, { status: 'processed' })
 
@@ -550,7 +553,7 @@ export async function POST(request: Request) {
         consolidated,
         all_survey_respondents: allSurveyRespondents,
         total_respondents: survey.rows.length,
-        extracted_respondents: respondents.length,
+        extracted_respondents: respondentsWithInsights.length,
       }, { status: 201 })
     }
 

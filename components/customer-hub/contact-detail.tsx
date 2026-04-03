@@ -667,6 +667,7 @@ export function ContactDetail({
                 </label>
                 <input
                   type="text"
+                  autoComplete="off"
                   value={purpose}
                   onChange={(e) => setPurpose(e.target.value)}
                   placeholder="e.g. Follow up on their onboarding question, share new feature announcement…"

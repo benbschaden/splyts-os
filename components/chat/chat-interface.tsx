@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Send, FileDown, FileText, Loader2, ChevronDown, Globe } from 'lucide-react'
 import Link from 'next/link'
@@ -14,6 +14,21 @@ interface ChatInterfaceProps {
   session: ChatSessionRow
   initialMessages: ChatMessageRow[]
   initialPrompt?: string
+}
+
+/** ~3 lines of text-sm; composer grows with content up to max, then scrolls */
+const COMPOSER_MIN_HEIGHT_PX = 72
+const COMPOSER_MAX_HEIGHT_PX = 160
+
+function syncComposerHeight(textarea: HTMLTextAreaElement | null) {
+  if (!textarea) return
+  textarea.style.height = 'auto'
+  const target = Math.min(
+    Math.max(textarea.scrollHeight, COMPOSER_MIN_HEIGHT_PX),
+    COMPOSER_MAX_HEIGHT_PX,
+  )
+  textarea.style.height = `${target}px`
+  textarea.style.overflowY = textarea.scrollHeight > COMPOSER_MAX_HEIGHT_PX ? 'auto' : 'hidden'
 }
 
 export function ChatInterface({ session, initialMessages, initialPrompt }: ChatInterfaceProps) {
@@ -35,9 +50,17 @@ export function ChatInterface({ session, initialMessages, initialPrompt }: ChatI
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
+  const adjustComposerHeight = useCallback(() => {
+    syncComposerHeight(textareaRef.current)
+  }, [])
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  useEffect(() => {
+    adjustComposerHeight()
+  }, [input, adjustComposerHeight])
 
   async function handleSwitchModel(modelId: string) {
     if (modelId === currentModelId) { setShowModelPicker(false); return }
@@ -297,8 +320,7 @@ export function ChatInterface({ session, initialMessages, initialPrompt }: ChatI
               onKeyDown={handleKeyDown}
               placeholder="Ask anything… (Enter to send, Shift+Enter for new line)"
               rows={1}
-              className="flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
-              style={{ maxHeight: '160px' }}
+              className="min-h-[4.5rem] flex-1 resize-none overflow-y-hidden bg-transparent text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none"
             />
             <button
               onClick={handleSend}

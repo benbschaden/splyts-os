@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Upload, FileText, Trash2, CheckCircle, X, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
+import { Upload, FileText, Trash2, CheckCircle, X, ChevronDown, ChevronUp, Loader2, User, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { CohortDocumentRow, CohortDocumentSegment } from '@/lib/queries/cohort-documents'
 import type { CustomerInsightRow, InsightCategory, InsightImpact } from '@/lib/queries/customer-insights'
@@ -13,12 +13,27 @@ interface DraftInsight {
   source_contact_id?: string | null
 }
 
+interface RespondentDraft {
+  email: string | null
+  name: string | null
+  contact_id: string | null
+  contact_name: string | null
+  insights: DraftInsight[]
+}
+
+type ExtractionMode = 'thematic' | 'per_respondent'
+
 interface UploadState {
   segment: CohortDocumentSegment
   status: 'uploading' | 'extracting' | 'reviewing' | 'saving' | 'done' | 'error'
   error?: string
   documentId?: string
+  mode: ExtractionMode
+  // thematic
   drafts: DraftInsight[]
+  // per-respondent
+  respondents: RespondentDraft[]
+  savedCount?: number
 }
 
 interface ContactOption {
@@ -93,6 +108,13 @@ const IMPACT_BADGE: Record<InsightImpact, string> = {
 
 const ACCEPTED_TYPES = '.csv,.xlsx,.pdf,.docx,.txt,.md,.json'
 
+function totalInsightCount(state: UploadState): number {
+  if (state.mode === 'per_respondent') {
+    return state.respondents.reduce((sum, r) => sum + r.insights.length, 0)
+  }
+  return state.drafts.length
+}
+
 export function CohortsView({ projectId, initialDocuments, contacts = [], onInsightsAdded }: CohortsViewProps) {
   const [documents, setDocuments] = useState<CohortDocumentRow[]>(initialDocuments)
   const [uploadState, setUploadState] = useState<UploadState | null>(null)
@@ -116,7 +138,7 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
     e.target.value = ''
     if (!file || !segment) return
 
-    setUploadState({ segment, status: 'uploading', drafts: [] })
+    setUploadState({ segment, status: 'uploading', mode: 'thematic', drafts: [], respondents: [] })
     setExpandedSegment(segment)
 
     const formData = new FormData()
@@ -144,10 +166,44 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
 
       const data = await res.json()
       const newDoc: CohortDocumentRow = data.document
-      const drafts: DraftInsight[] = data.drafts ?? []
+      const mode: ExtractionMode = data.mode ?? 'thematic'
 
       setDocuments((prev) => [newDoc, ...prev])
 
+      if (mode === 'per_respondent') {
+        const respondents: RespondentDraft[] = (data.respondents ?? []).map(
+          (r: RespondentDraft & { contact_id?: string | null; contact_name?: string | null }) => ({
+            email: r.email ?? null,
+            name: r.name ?? null,
+            contact_id: r.contact_id ?? null,
+            contact_name: r.contact_name ?? null,
+            insights: r.insights ?? [],
+          }),
+        )
+
+        if (respondents.length === 0 || respondents.every((r) => r.insights.length === 0)) {
+          setUploadState((prev) => prev ? {
+            ...prev,
+            status: 'error',
+            error: 'File uploaded but no insights could be extracted.',
+            documentId: newDoc.id,
+          } : prev)
+          return
+        }
+
+        setUploadState({
+          segment,
+          status: 'reviewing',
+          documentId: newDoc.id,
+          mode: 'per_respondent',
+          drafts: [],
+          respondents,
+        })
+        return
+      }
+
+      // Thematic mode
+      const drafts: DraftInsight[] = data.drafts ?? []
       if (drafts.length === 0) {
         setUploadState((prev) => prev ? {
           ...prev,
@@ -162,7 +218,9 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
         segment,
         status: 'reviewing',
         documentId: newDoc.id,
+        mode: 'thematic',
         drafts,
+        respondents: [],
       })
     } catch {
       setUploadState((prev) => prev ? {
@@ -172,6 +230,8 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
       } : prev)
     }
   }
+
+  // ---- Thematic draft mutations ----
 
   function updateDraft(index: number, field: keyof DraftInsight, value: string | null) {
     setUploadState((prev) => {
@@ -185,21 +245,70 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
   function removeDraft(index: number) {
     setUploadState((prev) => {
       if (!prev) return prev
-      const drafts = prev.drafts.filter((_, i) => i !== index)
-      return { ...prev, drafts }
+      return { ...prev, drafts: prev.drafts.filter((_, i) => i !== index) }
     })
   }
 
+  // ---- Per-respondent mutations ----
+
+  function updateRespondentContact(rIdx: number, contactId: string | null) {
+    setUploadState((prev) => {
+      if (!prev) return prev
+      const respondents = [...prev.respondents]
+      const contact = contacts.find((c) => c.id === contactId) ?? null
+      respondents[rIdx] = {
+        ...respondents[rIdx],
+        contact_id: contactId,
+        contact_name: contact?.name ?? null,
+      }
+      return { ...prev, respondents }
+    })
+  }
+
+  function updateRespondentInsight(rIdx: number, iIdx: number, field: keyof DraftInsight, value: string | null) {
+    setUploadState((prev) => {
+      if (!prev) return prev
+      const respondents = [...prev.respondents]
+      const insights = [...respondents[rIdx].insights]
+      insights[iIdx] = { ...insights[iIdx], [field]: value }
+      respondents[rIdx] = { ...respondents[rIdx], insights }
+      return { ...prev, respondents }
+    })
+  }
+
+  function removeRespondentInsight(rIdx: number, iIdx: number) {
+    setUploadState((prev) => {
+      if (!prev) return prev
+      const respondents = [...prev.respondents]
+      const insights = respondents[rIdx].insights.filter((_, i) => i !== iIdx)
+      respondents[rIdx] = { ...respondents[rIdx], insights }
+      return { ...prev, respondents }
+    })
+  }
+
+  // ---- Confirm ----
+
   async function handleConfirm() {
-    if (!uploadState || !uploadState.documentId || uploadState.drafts.length === 0) return
+    if (!uploadState || !uploadState.documentId) return
+    const count = totalInsightCount(uploadState)
+    if (count === 0) return
 
     setUploadState((prev) => prev ? { ...prev, status: 'saving' } : prev)
+
+    let insights: DraftInsight[]
+    if (uploadState.mode === 'per_respondent') {
+      insights = uploadState.respondents.flatMap((r) =>
+        r.insights.map((ins) => ({ ...ins, source_contact_id: r.contact_id ?? null })),
+      )
+    } else {
+      insights = uploadState.drafts
+    }
 
     try {
       const res = await fetch(`/api/cohort-documents/${uploadState.documentId}/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ insights: uploadState.drafts }),
+        body: JSON.stringify({ insights }),
       })
 
       if (!res.ok) {
@@ -210,7 +319,6 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
       const data = await res.json()
       const saved: CustomerInsightRow[] = data.insights ?? []
 
-      // Update document's insight count in local state
       setDocuments((prev) =>
         prev.map((d) =>
           d.id === uploadState.documentId
@@ -220,7 +328,7 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
       )
 
       onInsightsAdded(saved)
-      setUploadState((prev) => prev ? { ...prev, status: 'done' } : prev)
+      setUploadState((prev) => prev ? { ...prev, status: 'done', savedCount: saved.length } : prev)
     } catch {
       setUploadState((prev) => prev ? { ...prev, status: 'error', error: 'Failed to save insights.' } : prev)
     }
@@ -254,26 +362,30 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
         <div className="rounded-xl border border-border bg-background shadow-sm">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <div className="flex items-center gap-2.5">
-              {(uploadState.status === 'uploading' || uploadState.status === 'extracting') && (
+              {(uploadState.status === 'uploading' || uploadState.status === 'extracting' || uploadState.status === 'saving') && (
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               )}
-              {uploadState.status === 'reviewing' && (
-                <CheckCircle className="h-4 w-4 text-green-500" />
-              )}
-              {uploadState.status === 'saving' && (
-                <Loader2 className="h-4 w-4 animate-spin text-primary" />
-              )}
-              {uploadState.status === 'done' && (
+              {(uploadState.status === 'reviewing' || uploadState.status === 'done') && (
                 <CheckCircle className="h-4 w-4 text-green-500" />
               )}
               <span className="text-sm font-semibold text-foreground">
                 {uploadState.status === 'uploading' && 'Uploading file…'}
                 {uploadState.status === 'extracting' && 'AI is reading the file…'}
-                {uploadState.status === 'reviewing' && `Review ${uploadState.drafts.length} extracted insights`}
+                {uploadState.status === 'reviewing' && uploadState.mode === 'per_respondent' && (
+                  `Review ${uploadState.respondents.length} respondents · ${totalInsightCount(uploadState)} insights`
+                )}
+                {uploadState.status === 'reviewing' && uploadState.mode === 'thematic' && (
+                  `Review ${uploadState.drafts.length} extracted insights`
+                )}
                 {uploadState.status === 'saving' && 'Saving insights…'}
                 {uploadState.status === 'done' && 'Insights saved'}
                 {uploadState.status === 'error' && 'Upload issue'}
               </span>
+              {uploadState.status === 'reviewing' && uploadState.mode === 'per_respondent' && (
+                <span className="rounded-full bg-blue-500/10 border border-blue-200 dark:border-blue-800 px-1.5 py-0.5 text-[10px] text-blue-700 dark:text-blue-400 font-medium">
+                  Per-person
+                </span>
+              )}
               {uploadState.status === 'reviewing' && (
                 <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
                   {SEGMENT_META[uploadState.segment].label}
@@ -299,14 +411,15 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
           {uploadState.status === 'done' && (
             <div className="px-5 py-4">
               <p className="text-sm text-muted-foreground">
-                {uploadState.drafts.length === 0
+                {(uploadState.savedCount ?? 0) === 0
                   ? 'No insights were saved.'
-                  : `${uploadState.drafts.length} insights added to the Insights tab and AI context.`}
+                  : `${uploadState.savedCount} insight${uploadState.savedCount !== 1 ? 's' : ''} added to the Insights tab and AI context.`}
               </p>
             </div>
           )}
 
-          {uploadState.status === 'reviewing' && uploadState.drafts.length > 0 && (
+          {/* Thematic review */}
+          {uploadState.status === 'reviewing' && uploadState.mode === 'thematic' && uploadState.drafts.length > 0 && (
             <>
               <div className="divide-y divide-border max-h-[50vh] overflow-y-auto">
                 {uploadState.drafts.map((draft, i) => (
@@ -381,6 +494,125 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
               </div>
             </>
           )}
+
+          {/* Per-respondent review */}
+          {uploadState.status === 'reviewing' && uploadState.mode === 'per_respondent' && uploadState.respondents.length > 0 && (
+            <>
+              <div className="max-h-[60vh] overflow-y-auto divide-y divide-border">
+                {uploadState.respondents.map((respondent, rIdx) => {
+                  const identity = respondent.name ?? respondent.email ?? `Respondent ${rIdx + 1}`
+                  const isMatched = !!respondent.contact_id
+                  const activeInsights = respondent.insights.length
+
+                  return (
+                    <div key={rIdx} className="px-5 py-3 space-y-2.5">
+                      {/* Respondent header */}
+                      <div className="flex items-center gap-2">
+                        <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-semibold text-foreground">{identity}</span>
+                          {respondent.email && respondent.name && (
+                            <span className="ml-1.5 text-[11px] text-muted-foreground">{respondent.email}</span>
+                          )}
+                        </div>
+                        {isMatched ? (
+                          <span className="flex items-center gap-1 text-[11px] text-green-700 dark:text-green-400 shrink-0">
+                            <CheckCircle className="h-3 w-3" />
+                            {respondent.contact_name}
+                          </span>
+                        ) : (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <AlertCircle className="h-3 w-3 text-amber-500" />
+                            <select
+                              value={respondent.contact_id ?? ''}
+                              onChange={(e) => updateRespondentContact(rIdx, e.target.value || null)}
+                              className="rounded border border-input bg-background px-2 py-0.5 text-[11px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                              title="Link to contact"
+                            >
+                              <option value="">Link to contact…</option>
+                              {contacts.map((c) => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* This respondent's insights */}
+                      {activeInsights === 0 ? (
+                        <p className="text-[11px] text-muted-foreground pl-5">All insights removed.</p>
+                      ) : (
+                        <div className="pl-5 space-y-2">
+                          {respondent.insights.map((ins, iIdx) => (
+                            <div key={iIdx} className="flex gap-2">
+                              <div className="flex-1 space-y-1.5">
+                                <textarea
+                                  value={ins.content}
+                                  onChange={(e) => updateRespondentInsight(rIdx, iIdx, 'content', e.target.value)}
+                                  rows={2}
+                                  className="w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                                />
+                                <div className="flex flex-wrap gap-1.5">
+                                  <select
+                                    value={ins.category}
+                                    onChange={(e) => updateRespondentInsight(rIdx, iIdx, 'category', e.target.value)}
+                                    className="rounded border border-input bg-background px-2 py-0.5 text-[11px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                                  >
+                                    {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
+                                      <option key={k} value={k}>{v}</option>
+                                    ))}
+                                  </select>
+                                  <select
+                                    value={ins.impact}
+                                    onChange={(e) => updateRespondentInsight(rIdx, iIdx, 'impact', e.target.value)}
+                                    className={cn(
+                                      'rounded border px-2 py-0.5 text-[11px] font-medium focus:outline-none focus:ring-1 focus:ring-ring',
+                                      IMPACT_BADGE[ins.impact],
+                                    )}
+                                  >
+                                    <option value="high">High impact</option>
+                                    <option value="medium">Medium impact</option>
+                                    <option value="low">Low impact</option>
+                                  </select>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removeRespondentInsight(rIdx, iIdx)}
+                                className="mt-1 shrink-0 rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                                aria-label="Remove insight"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-border">
+                <p className="text-xs text-muted-foreground">
+                  {uploadState.respondents.filter((r) => !r.contact_id).length > 0 && (
+                    <span className="text-amber-600 dark:text-amber-400 mr-2">
+                      {uploadState.respondents.filter((r) => !r.contact_id).length} unmatched
+                      {' '}—{' '}
+                    </span>
+                  )}
+                  Matched contacts will be linked automatically. Unlinked insights can be connected later.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleConfirm}
+                  disabled={totalInsightCount(uploadState) === 0}
+                  className="shrink-0 rounded-md bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  Save {totalInsightCount(uploadState)} insight{totalInsightCount(uploadState) !== 1 ? 's' : ''}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -397,7 +629,6 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
               key={seg}
               className={cn('rounded-xl border bg-background transition-all', meta.color)}
             >
-              {/* Card header */}
               <div className="flex items-start justify-between px-4 py-3">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-foreground">{meta.label}</p>
@@ -440,7 +671,6 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
                 </div>
               </div>
 
-              {/* Uploaded docs list */}
               {isExpanded && docs.length > 0 && (
                 <div className="border-t border-border divide-y divide-border/60">
                   {docs.map((doc) => (
@@ -474,7 +704,6 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
                 </div>
               )}
 
-              {/* Empty state hint */}
               {docs.length === 0 && (
                 <div className="px-4 pb-3">
                   <p className="text-[11px] text-muted-foreground/60">

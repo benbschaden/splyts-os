@@ -105,6 +105,7 @@ export async function createChatSession(
   contextConfig: ContextConfig,
   modelId: string,
   projectId?: string | null,
+  title?: string,
 ): Promise<{ session: ChatSessionRow | null; error: string | null }> {
   const supabase = createServiceClient()
 
@@ -116,6 +117,7 @@ export async function createChatSession(
       context_config: contextConfig,
       model_id: modelId,
       project_id: projectId ?? null,
+      ...(title ? { title } : {}),
     })
     .select(SESSION_SELECT)
     .single()

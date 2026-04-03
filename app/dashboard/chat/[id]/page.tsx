@@ -8,10 +8,12 @@ import { ChatInterface } from '@/components/chat/chat-interface'
 
 export default async function ChatSessionPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ prompt?: string }>
 }) {
-  const { id } = await params
+  const [{ id }, { prompt }] = await Promise.all([params, searchParams])
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -27,5 +29,5 @@ export default async function ChatSessionPage({
 
   if (!session || session.organization_id !== org.id) notFound()
 
-  return <ChatInterface session={session} initialMessages={messages} />
+  return <ChatInterface session={session} initialMessages={messages} initialPrompt={prompt} />
 }

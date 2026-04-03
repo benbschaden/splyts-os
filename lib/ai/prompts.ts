@@ -1230,6 +1230,12 @@ export interface ExtractedInsightDraft {
   impact: 'high' | 'medium' | 'low'
 }
 
+export interface RespondentInsightResult {
+  email: string | null
+  name: string | null
+  insights: ExtractedInsightDraft[]
+}
+
 const SEGMENT_DISPLAY: Record<string, string> = {
   beta_user: 'beta users',
   free_user: 'free users',
@@ -1272,6 +1278,45 @@ export function buildCohortExtractionPrompt(params: {
   lines.push('[DOCUMENT]')
   lines.push(documentText.slice(0, 40000))
   if (documentText.length > 40000) lines.push('(truncated — document was too long)')
+  lines.push('')
+  lines.push('JSON array:')
+
+  return lines.join('\n')
+}
+
+export function buildPerRespondentExtractionPrompt(params: {
+  respondentsText: string
+  segment: string
+  fileName: string
+}): string {
+  const { respondentsText, segment, fileName } = params
+  const segmentLabel = SEGMENT_DISPLAY[segment] ?? 'users'
+
+  const lines: string[] = []
+
+  lines.push('You are a customer intelligence analyst. Extract actionable product insights from a survey completed by individual respondents.')
+  lines.push('')
+  lines.push(`The survey was completed by ${segmentLabel} (file: "${fileName}").`)
+  lines.push('')
+  lines.push('Each respondent\'s answers are listed below, separated by ---')
+  lines.push('For each respondent, extract 1-5 specific, actionable insights from their answers.')
+  lines.push('')
+  lines.push('Return a JSON array. Each item represents one respondent:')
+  lines.push('  - email: their email address (string or null)')
+  lines.push('  - name: their name (string or null)')
+  lines.push('  - insights: array of insight objects, each with:')
+  lines.push('      - content: specific insight in plain English (1-2 sentences)')
+  lines.push('      - category: one of "pain_point", "feature_request", "praise", "objection", "churn_signal", "usage_pattern", "market_insight"')
+  lines.push('      - impact: one of "high", "medium", "low"')
+  lines.push('')
+  lines.push('Rules:')
+  lines.push('  - Only include respondents who gave substantive answers (skip blank rows)')
+  lines.push('  - Write insights as specific learnings, not generic summaries')
+  lines.push('  - "high" impact = blocks usage or strong signal; "low" = minor or one-off')
+  lines.push('  - Output ONLY valid JSON — no preamble, no markdown code fence')
+  lines.push('')
+  lines.push('[RESPONDENTS]')
+  lines.push(respondentsText.slice(0, 40000))
   lines.push('')
   lines.push('JSON array:')
 

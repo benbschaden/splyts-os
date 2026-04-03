@@ -4,7 +4,13 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { createCohortDocument, updateCohortDocument } from '@/lib/queries/cohort-documents'
-import { buildCohortExtractionPrompt, type ExtractedInsightDraft } from '@/lib/ai/prompts'
+import { getContactsForOrg } from '@/lib/queries/contacts'
+import {
+  buildCohortExtractionPrompt,
+  buildPerRespondentExtractionPrompt,
+  type ExtractedInsightDraft,
+  type RespondentInsightResult,
+} from '@/lib/ai/prompts'
 import { extractText } from '@/lib/company/extract-text'
 
 const BUCKET = 'cohort-files'
@@ -96,6 +102,164 @@ async function extractTextFromBuffer(buffer: Buffer, mime: string): Promise<stri
     return null
   }
 }
+
+// ----------------------------------------------------------------
+// Survey (per-respondent) detection and extraction
+// ----------------------------------------------------------------
+
+const EMAIL_HEADER_PATTERNS = ['email', 'e-mail', 'email address', 'respondent email', 'mail']
+const NAME_HEADER_PATTERNS = ['name', 'full name', 'first name', 'respondent', 'username', 'contact name']
+const MAX_RESPONDENTS = 30
+
+interface SurveyRow {
+  email: string | null
+  name: string | null
+  answers: Record<string, string>
+}
+
+interface ParsedSurvey {
+  rows: SurveyRow[]
+  questionColumns: string[]
+}
+
+function tryParseSurvey(buffer: Buffer, mime: string): ParsedSurvey | null {
+  if (mime !== 'text/csv' && mime !== 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') return null
+
+  try {
+    const XLSX = require('xlsx') as typeof import('xlsx')
+    const wb = XLSX.read(buffer, { type: 'buffer' })
+    const sheet = wb.Sheets[wb.SheetNames[0]]
+    const rawRows = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, { defval: '' })
+    if (rawRows.length < 2) return null
+
+    const headers = Object.keys(rawRows[0])
+
+    const emailCol = headers.find((h) =>
+      EMAIL_HEADER_PATTERNS.some((p) => h.toLowerCase().includes(p)),
+    ) ?? null
+    const nameCol = headers.find((h) =>
+      NAME_HEADER_PATTERNS.some((p) => h.toLowerCase() === p.toLowerCase()),
+    ) ?? null
+
+    // Require at least one identity column to be considered a survey
+    if (!emailCol && !nameCol) return null
+
+    const identitySet = new Set([emailCol, nameCol].filter(Boolean) as string[])
+    const questionColumns = headers.filter((h) => !identitySet.has(h))
+
+    const rows: SurveyRow[] = rawRows.slice(0, MAX_RESPONDENTS).map((row) => {
+      const answers: Record<string, string> = {}
+      for (const col of questionColumns) {
+        const val = String(row[col] ?? '').trim()
+        if (val) answers[col] = val
+      }
+      return {
+        email: emailCol ? (String(row[emailCol] ?? '').trim() || null) : null,
+        name: nameCol ? (String(row[nameCol] ?? '').trim() || null) : null,
+        answers,
+      }
+    }).filter((r) => Object.keys(r.answers).length > 0)
+
+    if (rows.length === 0) return null
+
+    return { rows, questionColumns }
+  } catch {
+    return null
+  }
+}
+
+function formatRespondentsText(rows: SurveyRow[]): string {
+  return rows.map((r, i) => {
+    const identity = [r.name, r.email].filter(Boolean).join(' <') + (r.email ? '>' : '')
+    const header = identity || `Respondent ${i + 1}`
+    const qa = Object.entries(r.answers)
+      .map(([q, a]) => `Q: ${q}\nA: ${a}`)
+      .join('\n\n')
+    return `RESPONDENT: ${header}\n${qa}`
+  }).join('\n\n---\n\n')
+}
+
+async function runPerRespondentExtraction(
+  survey: ParsedSurvey,
+  orgId: string,
+  segment: string,
+  fileName: string,
+): Promise<RespondentInsightResult[]> {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) return []
+
+  // Match contacts by email/name
+  const contacts = await getContactsForOrg(orgId)
+  const byEmail = new Map(contacts.filter((c) => c.email).map((c) => [c.email!.toLowerCase(), c]))
+  const byName = new Map(contacts.map((c) => [c.name.toLowerCase(), c]))
+
+  const respondentsText = formatRespondentsText(survey.rows)
+  const prompt = buildPerRespondentExtractionPrompt({ respondentsText, segment, fileName })
+  const anthropic = new Anthropic({ apiKey })
+
+  let parsed: RespondentInsightResult[] = []
+
+  try {
+    const message = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 8192,
+      messages: [{ role: 'user', content: prompt }],
+    })
+
+    const textBlock = message.content.find((b) => b.type === 'text')
+    if (!textBlock || textBlock.type !== 'text') return []
+
+    const raw = textBlock.text.trim()
+    const jsonStart = raw.indexOf('[')
+    const jsonEnd = raw.lastIndexOf(']')
+    if (jsonStart === -1 || jsonEnd === -1) return []
+
+    const jsonParsed = JSON.parse(raw.slice(jsonStart, jsonEnd + 1))
+    if (!Array.isArray(jsonParsed)) return []
+
+    const validCategories = new Set(['pain_point', 'feature_request', 'praise', 'objection', 'churn_signal', 'usage_pattern', 'market_insight'])
+    const validImpact = new Set(['high', 'medium', 'low'])
+
+    parsed = jsonParsed
+      .filter((item) => item && typeof item === 'object')
+      .map((item): RespondentInsightResult => ({
+        email: typeof item.email === 'string' ? item.email : null,
+        name: typeof item.name === 'string' ? item.name : null,
+        insights: Array.isArray(item.insights)
+          ? item.insights.filter(
+              (ins: ExtractedInsightDraft) =>
+                ins &&
+                typeof ins.content === 'string' &&
+                ins.content.trim().length > 0 &&
+                validCategories.has(ins.category) &&
+                validImpact.has(ins.impact),
+            ).slice(0, 8)
+          : [],
+      }))
+      .filter((r) => r.insights.length > 0)
+  } catch {
+    return []
+  }
+
+  // Attach matched contact IDs
+  return parsed.map((r) => {
+    let contactId: string | null = null
+    let contactName: string | null = null
+
+    if (r.email) {
+      const match = byEmail.get(r.email.toLowerCase())
+      if (match) { contactId = match.id; contactName = match.name }
+    }
+    if (!contactId && r.name) {
+      const match = byName.get(r.name.toLowerCase())
+      if (match) { contactId = match.id; contactName = match.name }
+    }
+
+    return { ...r, contact_id: contactId, contact_name: contactName } as RespondentInsightResult & { contact_id: string | null; contact_name: string | null }
+  })
+}
+
+// ----------------------------------------------------------------
 
 async function runAiExtraction(
   text: string,
@@ -205,7 +369,10 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Failed to upload file' }, { status: 500 })
     }
 
-    // Extract text
+    // Detect per-respondent survey mode before general text extraction
+    const survey = tryParseSurvey(buffer, mime)
+
+    // Extract text for storage (always)
     const extractedText = await extractTextFromBuffer(buffer, mime)
 
     // Create DB record
@@ -224,17 +391,25 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Failed to save document' }, { status: 500 })
     }
 
-    // Run AI extraction if we have text
+    if (survey) {
+      // Per-respondent mode: extract insights per person
+      const respondents = await runPerRespondentExtraction(survey, org.id, segment, file.name)
+      await updateCohortDocument(doc.id, org.id, {
+        status: respondents.length > 0 ? 'processed' : 'failed',
+      })
+      return Response.json({ document: doc, mode: 'per_respondent', respondents }, { status: 201 })
+    }
+
+    // Thematic mode: extract insights from full text
     let drafts: ExtractedInsightDraft[] = []
     if (extractedText) {
       drafts = await runAiExtraction(extractedText, segment, file.name)
-      // Update document status
       await updateCohortDocument(doc.id, org.id, {
         status: drafts.length > 0 ? 'processed' : 'failed',
       })
     }
 
-    return Response.json({ document: doc, drafts }, { status: 201 })
+    return Response.json({ document: doc, mode: 'thematic', drafts }, { status: 201 })
   } catch (error) {
     console.error('[cohort-documents/upload POST]', error)
     return Response.json({ error: 'Internal error' }, { status: 500 })

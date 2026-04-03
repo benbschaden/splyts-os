@@ -86,12 +86,14 @@ export function CustomerHubDetail({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           project_id: project.id,
+          title: `Reply · ${contact.name}`,
           context_config: contextConfig,
         }),
       })
       const data = await res.json()
       if (res.ok && data.session) {
-        router.push(`/dashboard/chat/${data.session.id}`)
+        const prompt = encodeURIComponent(`Draft a reply to ${contact.name}.`)
+        router.push(`/dashboard/chat/${data.session.id}?prompt=${prompt}`)
       }
     } catch {
       // navigation failure is non-critical

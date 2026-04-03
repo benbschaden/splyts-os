@@ -13,9 +13,10 @@ import { AI_MODELS, DEFAULT_MODEL } from '@/lib/ai/models'
 interface ChatInterfaceProps {
   session: ChatSessionRow
   initialMessages: ChatMessageRow[]
+  initialPrompt?: string
 }
 
-export function ChatInterface({ session, initialMessages }: ChatInterfaceProps) {
+export function ChatInterface({ session, initialMessages, initialPrompt }: ChatInterfaceProps) {
   const router = useRouter()
   const [messages, setMessages] = useState<ChatMessageRow[]>(initialMessages)
   // Resolve stored model_id against the current model list — fall back to default
@@ -23,7 +24,7 @@ export function ChatInterface({ session, initialMessages }: ChatInterfaceProps) 
   const resolvedInitialModelId =
     AI_MODELS.find((m) => m.id === session.model_id)?.id ?? DEFAULT_MODEL.id
   const [currentModelId, setCurrentModelId] = useState(resolvedInitialModelId)
-  const [input, setInput] = useState('')
+  const [input, setInput] = useState(initialPrompt ?? '')
   const [isSending, setIsSending] = useState(false)
   const [isSwitchingModel, setIsSwitchingModel] = useState(false)
   const [showModelPicker, setShowModelPicker] = useState(false)
@@ -138,6 +139,8 @@ export function ChatInterface({ session, initialMessages }: ChatInterfaceProps) 
 
   const currentModel = AI_MODELS.find((m) => m.id === currentModelId) ?? AI_MODELS[0]
   const contextLabels = [
+    session.context_config.customer_hub_contact_id && 'Contact file loaded',
+    session.context_config.customer_insights && !session.context_config.customer_hub_contact_id && 'Customer insights',
     session.context_config.brand && 'Brand',
     session.context_config.business_plan && 'Business Plan',
     session.context_config.personas && 'Personas',

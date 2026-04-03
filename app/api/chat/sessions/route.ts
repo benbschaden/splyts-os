@@ -6,6 +6,7 @@ import { DEFAULT_MODEL, getModelById } from '@/lib/ai/models'
 
 const createSchema = z.object({
   model_id: z.string().optional(),
+  title: z.string().max(200).optional(),
   project_id: z.string().uuid().optional().nullable(),
   context_config: z.object({
     brand: z.boolean(),
@@ -83,7 +84,7 @@ export async function POST(request: Request) {
     }
 
     const modelId = (parsed.data.model_id ? getModelById(parsed.data.model_id) : null)?.id ?? DEFAULT_MODEL.id
-    const { session, error } = await createChatSession(org.id, user.id, parsed.data.context_config, modelId, parsed.data.project_id)
+    const { session, error } = await createChatSession(org.id, user.id, parsed.data.context_config, modelId, parsed.data.project_id, parsed.data.title)
     if (error || !session) {
       return Response.json({ error: 'Failed to create chat session' }, { status: 500 })
     }

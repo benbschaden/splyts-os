@@ -613,13 +613,45 @@ export async function POST(request: Request) {
       const respondentsWithInsights = respondents.filter((r) => r.insights.length > 0)
       const consolidated = await runConsolidation(respondentsWithInsights, segment)
 
+      // CODE-LEVEL COVERAGE GUARANTEE
+      // After consolidation, any respondent who had insights in Pass 1 but wasn't
+      // attributed to any pattern gets their best insight added as a standalone entry.
+      // This ensures every respondent with data gets at least one insight linked to them.
+      const coveredKeys = new Set(
+        consolidated.flatMap((c) => c.respondent_keys),
+      )
+      const uncoveredRespondents = respondentsWithInsights.filter(
+        (r) => !coveredKeys.has(r.respondent_key),
+      )
+      const standaloneFallbacks: ConsolidatedInsightDraft[] = uncoveredRespondents.map((r) => {
+        const best = r.insights.reduce((a, b) => {
+          const rank = { high: 3, medium: 2, low: 1 } as Record<string, number>
+          return (rank[b.impact] ?? 0) > (rank[a.impact] ?? 0) ? b : a
+        })
+        return {
+          content: best.content,
+          category: best.category,
+          impact: best.impact,
+          respondent_keys: [r.respondent_key],
+          attributed_respondents: [{
+            respondent_key: r.respondent_key,
+            name: r.name,
+            email: r.email,
+            contact_id: r.contact_id,
+            contact_name: r.contact_name,
+          }],
+        }
+      })
+
+      const finalConsolidated = [...consolidated, ...standaloneFallbacks]
+
       await updateCohortDocument(doc.id, org.id, { status: 'processed' })
 
       return Response.json({
         document: doc,
         mode: 'per_respondent',
         respondents,
-        consolidated,
+        consolidated: finalConsolidated,
         all_survey_respondents: allSurveyRespondents,
         total_respondents: survey.rows.length,
         extracted_respondents: respondentsWithInsights.length,

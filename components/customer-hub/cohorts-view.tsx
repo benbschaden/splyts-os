@@ -261,12 +261,12 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
   async function handleCreateUnmatched() {
     if (!uploadState) return
     const toCreate = getUnmatchedRespondents()
-    if (toCreate.length === 0) return
 
     setCreatingContacts(true)
 
-    // Fix names on already-matched contacts where the CSV has a real full name
-    // but the contact was created with an email prefix, bare email, or single-word placeholder
+    // Always fix names on already-matched contacts where the CSV has a real full name
+    // but the contact was created with an email prefix, bare email, or single-word placeholder.
+    // This runs regardless of whether there are new contacts to create.
     const isNamePlaceholder = (s: string) => {
       const t = s.trim()
       return !t.includes(' ') || t.includes('@') // single word or an email address
@@ -289,6 +289,11 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
           body: JSON.stringify({ name: r.name!.trim() }),
         })
       } catch {}
+    }
+
+    if (toCreate.length === 0) {
+      setCreatingContacts(false)
+      return
     }
 
     type CreatedContact = { id: string; name: string; email: string | null }
@@ -719,13 +724,18 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
                       </div>
                       {(() => {
                         const unmatched = getUnmatchedRespondents()
+                        const isNamePlaceholderCheck = (s: string) => !s.trim().includes(' ') || s.trim().includes('@')
+                        const needsNameFix = uploadState.allRespondents.some(
+                          (r) => r.contact_id && r.name?.trim()?.includes(' ') && r.contact_name && isNamePlaceholderCheck(r.contact_name),
+                        )
+                        const showContactsBtn = unmatched.length > 0 || needsNameFix
                         return (
                           <div className="flex items-center justify-between gap-3 px-5 py-3 border-t border-border">
                             <p className="text-xs text-muted-foreground shrink-0">
                               {uploadState.consolidated.length} pattern{uploadState.consolidated.length !== 1 ? 's' : ''} · <strong>{meta.label}</strong>
                             </p>
                             <div className="flex items-center gap-2">
-                              {unmatched.length > 0 && (
+                              {showContactsBtn && (
                                 <button
                                   type="button"
                                   onClick={handleCreateUnmatched}
@@ -737,8 +747,10 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
                                     : <UserPlus className="h-3.5 w-3.5" />
                                   }
                                   {creatingContacts
-                                    ? 'Creating…'
-                                    : `Create ${unmatched.length} contact${unmatched.length !== 1 ? 's' : ''}`
+                                    ? 'Syncing…'
+                                    : unmatched.length > 0
+                                      ? `Create ${unmatched.length} contact${unmatched.length !== 1 ? 's' : ''}`
+                                      : 'Update names'
                                   }
                                 </button>
                               )}

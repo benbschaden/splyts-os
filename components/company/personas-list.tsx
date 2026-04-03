@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Pencil, Trash2, Users, Sparkles, ShieldOff, MapPin, Briefcase, Quote } from 'lucide-react'
+import { Plus, Pencil, Trash2, Users, Sparkles, ShieldOff, MapPin, Briefcase, Quote, BookOpen, Loader2, Check, X } from 'lucide-react'
 import { PersonaDrawer } from './persona-drawer'
 import { cn } from '@/lib/utils'
 
@@ -27,6 +27,25 @@ interface Persona {
   include_in_ai: boolean
   created_at: string
   updated_at: string
+}
+
+interface SuggestedPersona {
+  name: string
+  tagline: string | null
+  age_range: string | null
+  job_title: string | null
+  industry: string | null
+  company_size: string | null
+  location: string | null
+  goals: string | null
+  frustrations: string | null
+  motivations: string | null
+  behaviors: string | null
+  values: string | null
+  channels: string | null
+  buying_triggers: string | null
+  objections: string | null
+  quote: string | null
 }
 
 interface PersonasListProps {
@@ -67,6 +86,11 @@ export function PersonasList({ personas, isAdmin, matchCountById = {} }: Persona
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const [generateError, setGenerateError] = useState<string | null>(null)
+  const [suggestions, setSuggestions] = useState<SuggestedPersona[]>([])
+  const [acceptingIdx, setAcceptingIdx] = useState<number | null>(null)
+  const [dismissedIdxs, setDismissedIdxs] = useState<Set<number>>(new Set())
 
   function openAdd() {
     setEditing(null)
@@ -99,6 +123,53 @@ export function PersonasList({ personas, isAdmin, matchCountById = {} }: Persona
     router.refresh()
   }
 
+  async function handleGenerate() {
+    setGenerating(true)
+    setGenerateError(null)
+    setSuggestions([])
+    setDismissedIdxs(new Set())
+
+    try {
+      const res = await fetch('/api/personas/generate', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        setGenerateError(data.error ?? 'Generation failed. Please try again.')
+        return
+      }
+      setSuggestions(data.personas as SuggestedPersona[])
+    } catch {
+      setGenerateError('Generation failed. Please try again.')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  async function handleAccept(idx: number) {
+    const p = suggestions[idx]
+    if (!p) return
+    setAcceptingIdx(idx)
+
+    try {
+      const res = await fetch('/api/personas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...p, include_in_ai: true }),
+      })
+      if (res.ok) {
+        setDismissedIdxs((prev) => new Set([...prev, idx]))
+        router.refresh()
+      }
+    } finally {
+      setAcceptingIdx(null)
+    }
+  }
+
+  function handleDismiss(idx: number) {
+    setDismissedIdxs((prev) => new Set([...prev, idx]))
+  }
+
+  const visibleSuggestions = suggestions.filter((_, i) => !dismissedIdxs.has(i))
+
   const confirmTarget = personas.find((p) => p.id === confirmDeleteId)
 
   return (
@@ -112,15 +183,144 @@ export function PersonasList({ personas, isAdmin, matchCountById = {} }: Persona
             </p>
           </div>
           {isAdmin && (
-            <button
-              onClick={openAdd}
-              className="flex shrink-0 items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Add persona
-            </button>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                onClick={handleGenerate}
+                disabled={generating}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-md border border-violet-200 bg-violet-500/10 px-3 py-1.5 text-sm font-medium text-violet-700 hover:bg-violet-500/20 dark:border-violet-800 dark:text-violet-400 transition-colors disabled:opacity-50',
+                  generating && 'animate-pulse',
+                )}
+              >
+                {generating ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <BookOpen className="h-3.5 w-3.5" />
+                )}
+                {generating ? 'Generating…' : 'Generate from knowledge'}
+              </button>
+              <button
+                onClick={openAdd}
+                className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add persona
+              </button>
+            </div>
           )}
         </div>
+
+        {generateError && (
+          <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{generateError}</p>
+        )}
+
+        {/* Suggested personas review panel */}
+        {visibleSuggestions.length > 0 && (
+          <div className="rounded-xl border border-violet-200 bg-violet-50/50 dark:border-violet-800 dark:bg-violet-900/10 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-violet-500" />
+                <p className="text-sm font-semibold text-foreground">
+                  {visibleSuggestions.length} persona{visibleSuggestions.length !== 1 ? 's' : ''} found in your knowledge docs
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSuggestions([])}
+                className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                title="Dismiss all"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">Review each suggestion and add the ones that fit.</p>
+            <div className="space-y-3">
+              {suggestions.map((p, idx) => {
+                if (dismissedIdxs.has(idx)) return null
+                const isAccepting = acceptingIdx === idx
+                return (
+                  <div key={idx} className="rounded-lg border border-border bg-background p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-foreground">{p.name}</p>
+                        {p.tagline && (
+                          <p className="mt-0.5 text-xs text-muted-foreground">{p.tagline}</p>
+                        )}
+                        {(p.job_title || p.industry || p.company_size || p.location) && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {p.job_title && (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-muted/60 px-2 py-0.5 text-[11px] text-muted-foreground">
+                                <Briefcase className="h-2.5 w-2.5" />
+                                {p.job_title}
+                              </span>
+                            )}
+                            {p.industry && (
+                              <span className="inline-flex items-center rounded-md bg-muted/60 px-2 py-0.5 text-[11px] text-muted-foreground">
+                                {p.industry}
+                              </span>
+                            )}
+                            {p.company_size && (
+                              <span className="inline-flex items-center rounded-md bg-muted/60 px-2 py-0.5 text-[11px] text-muted-foreground">
+                                {p.company_size}
+                              </span>
+                            )}
+                            {p.location && (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-muted/60 px-2 py-0.5 text-[11px] text-muted-foreground">
+                                <MapPin className="h-2.5 w-2.5" />
+                                {p.location}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {p.goals && (
+                          <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+                            <span className="font-medium text-foreground/70">Goals: </span>
+                            {p.goals}
+                          </p>
+                        )}
+                        {p.frustrations && (
+                          <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
+                            <span className="font-medium text-foreground/70">Frustrations: </span>
+                            {p.frustrations}
+                          </p>
+                        )}
+                        {p.quote && (
+                          <div className="mt-2 flex items-start gap-1.5 rounded-md bg-muted/40 px-3 py-2">
+                            <Quote className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground" />
+                            <p className="text-xs text-muted-foreground italic line-clamp-2">{p.quote}</p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1.5 pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => handleAccept(idx)}
+                          disabled={isAccepting}
+                          className="flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                        >
+                          {isAccepting ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Check className="h-3 w-3" />
+                          )}
+                          {isAccepting ? 'Adding…' : 'Add'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDismiss(idx)}
+                          disabled={isAccepting}
+                          className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors disabled:opacity-50"
+                        >
+                          Skip
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {deleteError && (
           <p className="text-sm text-destructive">{deleteError}</p>

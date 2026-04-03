@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Sparkles, ShieldOff, Loader2, BookOpen } from 'lucide-react'
+import { X, Sparkles, ShieldOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface PersonaFormData {
@@ -121,13 +121,10 @@ export function PersonaDrawer({ open, onClose, onSaved, editing }: PersonaDrawer
   const [form, setForm] = useState<PersonaFormData>(EMPTY)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [generating, setGenerating] = useState(false)
-  const [generatedBanner, setGeneratedBanner] = useState(false)
   const drawerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (open) {
-      setGeneratedBanner(false)
       setForm(editing ? {
         name: editing.name,
         tagline: editing.tagline ?? '',
@@ -161,47 +158,6 @@ export function PersonaDrawer({ open, onClose, onSaved, editing }: PersonaDrawer
 
   function set(key: keyof PersonaFormData, value: string | boolean) {
     setForm((prev) => ({ ...prev, [key]: value }))
-  }
-
-  async function handleGenerate() {
-    setGenerating(true)
-    setError(null)
-    setGeneratedBanner(false)
-
-    try {
-      const res = await fetch('/api/personas/generate', { method: 'POST' })
-      const data = await res.json()
-      if (!res.ok) {
-        setError(data.error ?? 'Generation failed. Please try again.')
-        return
-      }
-
-      const p = data.persona as Partial<PersonaFormData>
-      setForm((prev) => ({
-        ...prev,
-        name: p.name ?? prev.name,
-        tagline: p.tagline ?? prev.tagline,
-        age_range: p.age_range ?? prev.age_range,
-        job_title: p.job_title ?? prev.job_title,
-        industry: p.industry ?? prev.industry,
-        company_size: p.company_size ?? prev.company_size,
-        location: p.location ?? prev.location,
-        goals: p.goals ?? prev.goals,
-        frustrations: p.frustrations ?? prev.frustrations,
-        motivations: p.motivations ?? prev.motivations,
-        behaviors: p.behaviors ?? prev.behaviors,
-        values: p.values ?? prev.values,
-        channels: p.channels ?? prev.channels,
-        buying_triggers: p.buying_triggers ?? prev.buying_triggers,
-        objections: p.objections ?? prev.objections,
-        quote: p.quote ?? prev.quote,
-      }))
-      setGeneratedBanner(true)
-    } catch {
-      setError('Generation failed. Please try again.')
-    } finally {
-      setGenerating(false)
-    }
   }
 
   function filledCount(): number {
@@ -269,35 +225,13 @@ export function PersonaDrawer({ open, onClose, onSaved, editing }: PersonaDrawer
       >
         {/* Header */}
         <div className="flex shrink-0 items-start justify-between border-b border-border px-6 py-5">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h2 className="text-sm font-semibold text-foreground">
-                  {editing ? 'Edit persona' : 'New persona'}
-                </h2>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  The more detail you provide, the better the AI understands who you're writing for.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleGenerate}
-                disabled={generating || saving}
-                className={cn(
-                  'shrink-0 flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50',
-                  'bg-violet-500/10 text-violet-700 border border-violet-200 hover:bg-violet-500/20',
-                  'dark:border-violet-800 dark:text-violet-400',
-                  generating && 'animate-pulse',
-                )}
-              >
-                {generating ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <BookOpen className="h-3.5 w-3.5" />
-                )}
-                {generating ? 'Generating…' : 'Generate from knowledge'}
-              </button>
-            </div>
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold text-foreground">
+              {editing ? 'Edit persona' : 'New persona'}
+            </h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              The more detail you provide, the better the AI understands who you're writing for.
+            </p>
             {/* Progress bar */}
             <div className="mt-3 flex items-center gap-3">
               <div className="h-1 w-40 overflow-hidden rounded-full bg-muted">
@@ -324,25 +258,6 @@ export function PersonaDrawer({ open, onClose, onSaved, editing }: PersonaDrawer
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8">
           {error && (
             <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
-          )}
-
-          {generatedBanner && (
-            <div className="flex items-start justify-between gap-3 rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 dark:border-violet-800 dark:bg-violet-900/20">
-              <div className="flex items-start gap-2.5">
-                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-violet-500" />
-                <div>
-                  <p className="text-sm font-medium text-violet-900 dark:text-violet-200">Persona generated from your knowledge docs</p>
-                  <p className="mt-0.5 text-xs text-violet-700 dark:text-violet-400">Review and adjust any fields before saving.</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setGeneratedBanner(false)}
-                className="shrink-0 rounded p-0.5 text-violet-400 hover:text-violet-600 transition-colors"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
           )}
 
           {SECTIONS.map(({ group, color, fields }) => (

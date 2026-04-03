@@ -1575,26 +1575,22 @@ export function buildGeneratePersonaPrompt(params: {
 
   const existingNote =
     existingPersonaNames.length > 0
-      ? `Already-defined personas (do NOT duplicate): ${existingPersonaNames.join(', ')}`
+      ? `Already-defined personas — do NOT generate these again: ${existingPersonaNames.join(', ')}\n`
       : ''
 
-  return `You are a world-class product strategist and customer researcher. Your task is to generate a richly detailed user persona based on the company's uploaded knowledge documents.
+  return `You are a world-class product strategist and customer researcher. Your task is to identify ALL distinct customer archetypes that appear in the company's uploaded knowledge documents.
 
-Read the documents carefully. Look for evidence of:
-- Who the customers or target users are (job titles, industries, company sizes, locations)
-- What goals and outcomes they're trying to achieve
-- What frustrations, blockers, or pain points they have
-- What motivates their decisions and buying behaviour
-- What objections or hesitations come up
-- How they behave, what channels they use, what triggers them to buy
+Read the documents carefully. Look for evidence of different types of customers or target users — different job titles, industries, company sizes, goals, frustrations, behaviours, and buying triggers. Each meaningfully different group of people who would use this product for different reasons, or who have different needs, should be a separate persona.
 
 ${existingNote}
+Generate as many personas as you find genuine evidence for in the documents — typically 2–6. Do not pad with invented archetypes. Do not merge genuinely different groups. Every persona must be grounded in the documents.
 
-Generate ONE persona that represents a distinct, real archetype of this company's target customer — not a generic placeholder, but a specific, vivid portrait grounded in the documents.
+For each persona, fill in every field you can find evidence for. Leave a field null only if there is truly no evidence in the docs.
 
+[COMPANY DOCUMENTS]
 ${docsBlock}
 
-Return ONLY valid JSON — no preamble, no markdown fence — matching this exact shape:
+Return ONLY a valid JSON array — no preamble, no markdown fence. Each item in the array must match this exact shape:
 {
   "name": "Short archetype name, e.g. 'The Scaling Operator'",
   "tagline": "One-line summary of who they are and what they're trying to do",
@@ -1612,7 +1608,9 @@ Return ONLY valid JSON — no preamble, no markdown fence — matching this exac
   "buying_triggers": "1–2 sentences on what causes them to seek a solution",
   "objections": "1–2 sentences on their typical hesitations",
   "quote": "A single first-person quote in their voice (1–2 sentences)"
-}`
+}
+
+JSON array:`
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

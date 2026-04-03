@@ -46,7 +46,7 @@ export async function POST(_request: Request) {
     const anthropic = new Anthropic({ apiKey })
     const message = await anthropic.messages.create({
       model: 'claude-opus-4-5',
-      max_tokens: 2048,
+      max_tokens: 8000,
       messages: [{ role: 'user', content: prompt }],
     })
 
@@ -62,18 +62,32 @@ export async function POST(_request: Request) {
       return Response.json({ error: 'Generation failed — could not parse AI response' }, { status: 500 })
     }
 
-    let result: GeneratedPersona
+    // Response is a JSON array — find the outermost [ … ]
+    const arrStart = raw.indexOf('[')
+    const arrEnd = raw.lastIndexOf(']')
+    if (arrStart === -1 || arrEnd === -1) {
+      return Response.json({ error: 'Generation failed — could not parse AI response' }, { status: 500 })
+    }
+
+    let results: GeneratedPersona[]
     try {
-      result = JSON.parse(raw.slice(jsonStart, jsonEnd + 1)) as GeneratedPersona
+      results = JSON.parse(raw.slice(arrStart, arrEnd + 1)) as GeneratedPersona[]
     } catch {
       return Response.json({ error: 'Generation failed — invalid AI response' }, { status: 500 })
     }
 
-    if (!result.name) {
-      return Response.json({ error: 'Generation failed — missing persona name' }, { status: 500 })
+    if (!Array.isArray(results) || results.length === 0) {
+      return Response.json({ error: 'Generation failed — no personas returned' }, { status: 500 })
     }
 
-    return Response.json({ persona: result })
+    // Filter out any items missing a name
+    const valid = results.filter((p) => typeof p.name === 'string' && p.name.trim())
+
+    if (valid.length === 0) {
+      return Response.json({ error: 'Generation failed — no valid personas in response' }, { status: 500 })
+    }
+
+    return Response.json({ personas: valid })
   } catch (error) {
     console.error('[personas/generate POST]', error)
     return Response.json({ error: 'Internal error' }, { status: 500 })

@@ -20,8 +20,8 @@ import { getKpiDefinitions } from '@/lib/queries/kpi-definitions'
 import { getLatestSnapshot } from '@/lib/queries/kpi-snapshots'
 import { getProjectMaterials } from '@/lib/queries/project-materials'
 import { getAiVisibleDiscoveryEntries, getParticipantDiscoveryEntries } from '@/lib/queries/discovery-entries'
-import { getAiVisibleInsights, getInsightsForContact } from '@/lib/queries/customer-insights'
-import { getCommunicationsForContact } from '@/lib/queries/contact-communications'
+import { getAiVisibleInsights, getInsightsForContact, getInsightsForSegment, type InsightSourceSegment } from '@/lib/queries/customer-insights'
+import { getCommunicationsForContact, getCommunicationsForSegment } from '@/lib/queries/contact-communications'
 import { buildChatSystemPrompt } from '@/lib/ai/prompts'
 import { DEFAULT_MODEL, getModelById } from '@/lib/ai/models'
 import { retrieveRelevantDocuments } from '@/lib/retrieval/search'
@@ -136,6 +136,7 @@ export async function POST(
       discovery_participant: discoveryParticipant = null,
       customer_insights: includeCustomerInsights = false,
       customer_hub_contact_id: customerHubContactId = null,
+      customer_hub_segment: customerHubSegment = null,
     } = config
     const model = getModelById(session.model_id) ?? DEFAULT_MODEL
 
@@ -189,8 +190,12 @@ export async function POST(
           : getAiVisibleDiscoveryEntries(session.project_id!, org.id)
         : Promise.resolve([]),
       includeCustomerInsights ? getAiVisibleInsights(org.id) : Promise.resolve([]),
-      customerHubContactId ? getCommunicationsForContact(customerHubContactId, org.id) : Promise.resolve([]),
-      customerHubContactId ? getInsightsForContact(customerHubContactId, org.id) : Promise.resolve([]),
+      customerHubContactId ? getCommunicationsForContact(customerHubContactId, org.id)
+        : customerHubSegment ? getCommunicationsForSegment(customerHubSegment, org.id)
+        : Promise.resolve([]),
+      customerHubContactId ? getInsightsForContact(customerHubContactId, org.id)
+        : customerHubSegment ? getInsightsForSegment(customerHubSegment as InsightSourceSegment, org.id)
+        : Promise.resolve([]),
       getChatMessages(id),
       retrieveRelevantDocuments({
         query: content,
@@ -269,6 +274,9 @@ export async function POST(
       customerHubContactComms: customerHubContactId ? contactCommsData : undefined,
       includeCustomerHubContact: !!customerHubContactId,
       contactInsights: customerHubContactId && contactInsightsData.length > 0 ? contactInsightsData : undefined,
+      segmentComms: customerHubSegment ? contactCommsData : undefined,
+      segmentInsights: customerHubSegment ? contactInsightsData : undefined,
+      hubSegment: customerHubSegment ?? undefined,
       retrievedContext: retrievedContext.length > 0 ? retrievedContext : undefined,
     })
 

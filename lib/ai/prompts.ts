@@ -271,6 +271,9 @@ export function buildChatSystemPrompt(params: {
   customerHubContactComms?: ContactCommunicationRow[]
   includeCustomerHubContact?: boolean
   contactInsights?: CustomerInsightRow[]
+  segmentComms?: ContactCommunicationRow[]
+  segmentInsights?: CustomerInsightRow[]
+  hubSegment?: string
   retrievedContext?: RetrievedContext[]
 }): string {
   const {
@@ -283,6 +286,7 @@ export function buildChatSystemPrompt(params: {
     discoveryEntries, includeDiscoveryEntries, discoveryParticipant,
     customerInsights, includeCustomerInsights,
     customerHubContactComms, includeCustomerHubContact, contactInsights,
+    segmentComms, segmentInsights, hubSegment,
     retrievedContext,
   } = params
 
@@ -492,8 +496,70 @@ export function buildChatSystemPrompt(params: {
     }
   }
 
+  if (hubSegment && (segmentInsights?.length || segmentComms?.length)) {
+    const segLabel = hubSegment.replace(/_/g, ' ')
+    lines.push(`[COHORT FILE — ${segLabel}]`)
+    lines.push(`Everything below is specific to the ${segLabel} segment. Use it to analyse patterns, identify blockers, and answer questions about this cohort.`)
+    lines.push('')
+
+    if (segmentInsights && segmentInsights.length > 0) {
+      lines.push('Captured insights for this cohort:')
+      segmentInsights.slice(0, 40).forEach((insight) => {
+        const from = insight.source_contact_name ? ` · ${insight.source_contact_name}` : ''
+        const category = insight.category.replace(/_/g, ' ')
+        lines.push(`- [${category} · ${insight.impact} impact${from}] ${insight.content}`)
+      })
+      lines.push('')
+    }
+
+    if (segmentComms && segmentComms.length > 0) {
+      lines.push('Recent communications with contacts in this cohort:')
+      segmentComms.slice(0, 20).forEach((comm) => {
+        const date = comm.sent_at ? ` (${comm.sent_at.slice(0, 10)})` : ''
+        const who = comm.contact_name ? ` · ${comm.contact_name}` : ''
+        const subject = comm.subject ? ` · ${comm.subject}` : ''
+        const dir = comm.direction === 'inbound' ? '→ Received' : comm.direction === 'outbound' ? '← Sent' : '📝 Note'
+        lines.push(`- [${dir}${who}${subject}${date}] ${comm.content.slice(0, 400)}`)
+      })
+      lines.push('')
+    }
+  }
+
   lines.push('Use the company context above to give grounded, relevant answers.')
   lines.push('When you do not know something, say so — do not make up company details.')
+
+  return lines.join('\n')
+}
+
+// ----------------------------------------------------------------
+// Extract insights from a chat conversation
+// ----------------------------------------------------------------
+
+export function buildExtractInsightsPrompt(params: {
+  conversationText: string
+  scope: string
+}): string {
+  const { conversationText, scope } = params
+
+  const lines: string[] = []
+
+  lines.push(`You are extracting product insights from a conversation about ${scope}.`)
+  lines.push('')
+  lines.push('Read the conversation below and extract 3-8 concrete, actionable product insights.')
+  lines.push('Focus on: pain points, feature requests, churn signals, usage patterns, and validated learnings.')
+  lines.push('Skip meta-commentary about the conversation itself.')
+  lines.push('')
+  lines.push('Return a JSON array. Each item:')
+  lines.push('  - content: the insight in plain English (1-2 sentences, specific and actionable)')
+  lines.push('  - category: one of "pain_point", "feature_request", "praise", "objection", "churn_signal", "usage_pattern", "market_insight"')
+  lines.push('  - impact: one of "high", "medium", "low"')
+  lines.push('')
+  lines.push('Output ONLY valid JSON — no preamble, no code fence.')
+  lines.push('')
+  lines.push('[CONVERSATION]')
+  lines.push(conversationText.slice(0, 12000))
+  lines.push('')
+  lines.push('JSON array:')
 
   return lines.join('\n')
 }

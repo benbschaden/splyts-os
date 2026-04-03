@@ -18,6 +18,7 @@ export interface ContextConfig {
   discovery_participant: string | null
   customer_insights: boolean
   customer_hub_contact_id: string | null
+  customer_hub_segment: string | null
 }
 
 export interface ChatSessionRow {
@@ -97,6 +98,40 @@ export async function getChatSessionById(
 
   if (error || !data) return null
   return data as ChatSessionRow
+}
+
+export async function findChatSessionForContact(
+  contactId: string,
+  userId: string,
+): Promise<ChatSessionRow | null> {
+  const supabase = createServiceClient()
+  const { data } = await supabase
+    .from('chat_sessions')
+    .select(SESSION_SELECT)
+    .eq('created_by', userId)
+    .is('deleted_at', null)
+    .filter('context_config->>customer_hub_contact_id', 'eq', contactId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  return data ? (data as ChatSessionRow) : null
+}
+
+export async function findChatSessionForSegment(
+  segment: string,
+  userId: string,
+): Promise<ChatSessionRow | null> {
+  const supabase = createServiceClient()
+  const { data } = await supabase
+    .from('chat_sessions')
+    .select(SESSION_SELECT)
+    .eq('created_by', userId)
+    .is('deleted_at', null)
+    .filter('context_config->>customer_hub_segment', 'eq', segment)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  return data ? (data as ChatSessionRow) : null
 }
 
 export async function createChatSession(

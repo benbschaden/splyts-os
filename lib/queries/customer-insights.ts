@@ -68,6 +68,21 @@ export async function getCustomerInsightsForOrg(orgId: string): Promise<Customer
   return (data as unknown as Record<string, unknown>[]).map(mapRow)
 }
 
+export async function getInsightsForSegment(segment: InsightSourceSegment, orgId: string): Promise<CustomerInsightRow[]> {
+  const supabase = createUntypedServiceClient()
+  const { data, error } = await supabase
+    .from('customer_insights')
+    .select(SELECT_COLUMNS)
+    .eq('organization_id', orgId)
+    .eq('source_segment', segment)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .limit(60)
+
+  if (error || !data) return []
+  return (data as unknown as Record<string, unknown>[]).map(mapRow)
+}
+
 export async function getInsightsForContact(contactId: string, orgId: string): Promise<CustomerInsightRow[]> {
   const supabase = createUntypedServiceClient()
   const { data, error } = await supabase

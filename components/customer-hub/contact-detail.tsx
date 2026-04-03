@@ -18,6 +18,7 @@ import type { ContactCommunicationRow, CommunicationChannel } from '@/lib/querie
 import type { CustomerInsightRow, InsightCategory, InsightImpact } from '@/lib/queries/customer-insights'
 import { AddCommunicationDialog } from './add-communication-dialog'
 import { AddInsightDialog } from './add-insight-dialog'
+import { HubChatPanel } from './hub-chat-panel'
 
 interface ContactDetailProps {
   contact: ContactRow
@@ -272,7 +273,7 @@ function InsightCard({
   )
 }
 
-type Tab = 'communications' | 'insights'
+type Tab = 'communications' | 'insights' | 'chat'
 
 export function ContactDetail({
   contact,
@@ -581,28 +582,29 @@ export function ContactDetail({
 
       {/* Tab bar */}
       <div className="shrink-0 flex border-b border-border px-6">
-        {(['communications', 'insights'] as Tab[]).map((tab) => {
-          const count = tab === 'communications' ? communications.length : insights.length
-          return (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setActiveTab(tab)}
-              className={cn(
-                'px-1 py-3 mr-6 text-xs font-medium border-b-2 transition-colors capitalize',
-                activeTab === tab
-                  ? 'border-primary text-foreground'
-                  : 'border-transparent text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {tab === 'communications' ? 'Communications' : 'Insights'} ({count})
-            </button>
-          )
-        })}
+        {([
+          { id: 'communications', label: `Communications (${communications.length})` },
+          { id: 'insights', label: `Insights (${insights.length})` },
+          { id: 'chat', label: 'Chat' },
+        ] as Array<{ id: Tab; label: string }>).map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              'px-1 py-3 mr-6 text-xs font-medium border-b-2 transition-colors',
+              activeTab === tab.id
+                ? 'border-primary text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className={cn('flex-1 min-h-0', activeTab === 'chat' ? 'overflow-hidden' : 'overflow-y-auto px-6 py-4')}>
         {activeTab === 'communications' && (
           <div className="space-y-3">
             {sortedComms.length === 0 && (
@@ -648,6 +650,16 @@ export function ContactDetail({
               </div>
             ))}
           </div>
+        )}
+
+        {activeTab === 'chat' && (
+          <HubChatPanel
+            contactId={contact.id}
+            placeholder={`Ask about ${contact.name} — what's their biggest issue, how to help them, what to say next…`}
+            onInsightsExtracted={(saved) => {
+              saved.forEach((insight) => onInsightAdded(insight))
+            }}
+          />
         )}
       </div>
 

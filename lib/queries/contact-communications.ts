@@ -83,6 +83,26 @@ export async function getRecentCommunicationsForOrg(
   return (data as unknown as Record<string, unknown>[]).map(mapRow)
 }
 
+export async function getCommunicationsForSegment(
+  segment: string,
+  orgId: string,
+  limit = 30,
+): Promise<ContactCommunicationRow[]> {
+  const supabase = createUntypedServiceClient()
+  const { data, error } = await supabase
+    .from('contact_communications')
+    .select(`${SELECT_COLUMNS}, contacts!inner(segment)`)
+    .eq('organization_id', orgId)
+    .eq('contacts.segment', segment)
+    .is('deleted_at', null)
+    .order('sent_at', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (error || !data) return []
+  return (data as unknown as Record<string, unknown>[]).map(mapRow)
+}
+
 export async function createCommunication(params: {
   organizationId: string
   contactId: string

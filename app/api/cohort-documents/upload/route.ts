@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
-import { createServiceClient } from '@/lib/supabase/service'
+import { createServiceClient, createUntypedServiceClient } from '@/lib/supabase/service'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { createCohortDocument, updateCohortDocument } from '@/lib/queries/cohort-documents'
 import { getContactsForOrg } from '@/lib/queries/contacts'
@@ -590,6 +590,36 @@ export async function POST(request: Request) {
         const { contact_id, contact_name } = matchContact(row.email, row.name, lookup)
         return { name: row.name, email: row.email, contact_id, contact_name }
       })
+
+      // SERVER-SIDE NAME FIX: immediately update any matched contact whose stored name
+      // is a placeholder (email prefix or bare email) when the CSV has a proper full name.
+      // This runs on upload — no button click required.
+      const isPlaceholderName = (s: string) => !s.trim().includes(' ') || s.trim().includes('@')
+      const nameFixRows = allSurveyRespondents.filter((r) => {
+        if (!r.contact_id) return false
+        const csvName = r.name?.trim()
+        if (!csvName || !csvName.includes(' ')) return false // need a real full name from CSV
+        const stored = r.contact_name
+        if (!stored) return true
+        return isPlaceholderName(stored) && csvName !== stored
+      })
+      if (nameFixRows.length > 0) {
+        const serviceClient = createUntypedServiceClient()
+        await Promise.all(
+          nameFixRows.map((r) =>
+            serviceClient
+              .from('contacts')
+              .update({ name: r.name!.trim(), updated_at: new Date().toISOString() })
+              .eq('id', r.contact_id!)
+              .eq('organization_id', org.id),
+          ),
+        )
+        // Refresh lookup so the new names are used during extraction matching
+        for (const r of nameFixRows) {
+          const existing = lookup.byEmail.get(r.email?.toLowerCase() ?? '')
+          if (existing) existing.name = r.name!.trim()
+        }
+      }
 
       // Pass 1: Per-respondent extraction in batches using Claude Opus
       const respondents = await runPerRespondentExtractionBatched(survey, lookup, segment, file.name)

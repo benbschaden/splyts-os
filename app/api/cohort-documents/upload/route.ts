@@ -141,7 +141,7 @@ function tryParseSurvey(buffer: Buffer, mime: string): ParsedSurvey | null {
       EMAIL_HEADER_PATTERNS.some((p) => h.toLowerCase().includes(p)),
     ) ?? null
     const nameCol = headers.find((h) =>
-      NAME_HEADER_PATTERNS.some((p) => h.toLowerCase() === p.toLowerCase()),
+      NAME_HEADER_PATTERNS.some((p) => h.toLowerCase().includes(p)),
     ) ?? null
 
     // Require at least one identity column to be considered a survey

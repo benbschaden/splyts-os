@@ -265,14 +265,27 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
 
     setCreatingContacts(true)
 
-    // Track newly created contacts: keyed by the unique identifier we used to create them
+    // Also fix names on already-matched contacts where the CSV has a real name
+    // but the contact was created with an email prefix
+    const matchedWithBetterNames = uploadState.allRespondents.filter(
+      (r) => r.contact_id && r.name?.trim() && r.contact_name && !r.contact_name.includes(' ') && r.name.trim() !== r.contact_name,
+    )
+    for (const r of matchedWithBetterNames) {
+      try {
+        await fetch(`/api/contacts/${r.contact_id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: r.name!.trim() }),
+        })
+      } catch {}
+    }
+
     type CreatedContact = { id: string; name: string; email: string | null }
     const createdByEmail = new Map<string, CreatedContact>()
     const createdByName = new Map<string, CreatedContact>()
 
     for (const respondent of toCreate) {
-      const displayName = respondent.name?.trim()
-        || (respondent.email ? respondent.email.split('@')[0] : null)
+      const displayName = respondent.name?.trim() || respondent.email || null
       if (!displayName) continue
 
       try {

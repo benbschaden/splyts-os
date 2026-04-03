@@ -7,8 +7,10 @@ import {
   ArrowUp,
   StickyNote,
   Trash2,
-  MessageSquare,
   Sparkles,
+  Loader2,
+  X,
+  ChevronDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ContactRow, ContactSegment } from '@/lib/queries/contacts'
@@ -25,8 +27,15 @@ interface ContactDetailProps {
   onCommunicationDeleted: (id: string) => void
   onInsightAdded: (insight: CustomerInsightRow) => void
   onInsightDeleted: (id: string) => void
-  onChatWithContact: () => void
 }
+
+type GenerateState =
+  | { status: 'idle' }
+  | { status: 'form' }
+  | { status: 'generating' }
+  | { status: 'reviewing'; subject: string; body: string }
+  | { status: 'saving' }
+  | { status: 'error'; message: string }
 
 const SEGMENT_LABELS: Record<ContactSegment, string> = {
   beta_user: 'Beta User',
@@ -273,13 +282,73 @@ export function ContactDetail({
   onCommunicationDeleted,
   onInsightAdded,
   onInsightDeleted,
-  onChatWithContact,
 }: ContactDetailProps) {
   const [activeTab, setActiveTab] = useState<Tab>('communications')
   const [addCommOpen, setAddCommOpen] = useState(false)
   const [addInsightOpen, setAddInsightOpen] = useState(false)
   const [deletingCommId, setDeletingCommId] = useState<string | null>(null)
   const [deletingInsightId, setDeletingInsightId] = useState<string | null>(null)
+  const [generateState, setGenerateState] = useState<GenerateState>({ status: 'idle' })
+  const [purpose, setPurpose] = useState('')
+  const [additionalContext, setAdditionalContext] = useState('')
+  const [draftSubject, setDraftSubject] = useState('')
+  const [draftBody, setDraftBody] = useState('')
+
+  async function handleGenerate() {
+    if (!purpose.trim()) return
+    setGenerateState({ status: 'generating' })
+    try {
+      const res = await fetch(`/api/contacts/${contact.id}/generate-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ purpose: purpose.trim(), additional_context: additionalContext.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setGenerateState({ status: 'error', message: data.error ?? 'Generation failed.' })
+        return
+      }
+      setDraftSubject(data.subject)
+      setDraftBody(data.body)
+      setGenerateState({ status: 'reviewing', subject: data.subject, body: data.body })
+    } catch {
+      setGenerateState({ status: 'error', message: 'Something went wrong. Please try again.' })
+    }
+  }
+
+  async function handleSaveDraft() {
+    setGenerateState((prev) => prev.status === 'reviewing' ? { status: 'saving' } : prev)
+    try {
+      const res = await fetch('/api/contact-communications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contact_id: contact.id,
+          direction: 'outbound',
+          channel: 'email',
+          subject: draftSubject,
+          content: draftBody,
+          is_draft: true,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setGenerateState({ status: 'error', message: data.error ?? 'Failed to save draft.' })
+        return
+      }
+      onCommunicationAdded(data.communication)
+      setGenerateState({ status: 'idle' })
+      setPurpose('')
+      setAdditionalContext('')
+      setActiveTab('communications')
+    } catch {
+      setGenerateState({ status: 'error', message: 'Failed to save draft.' })
+    }
+  }
+
+  function dismissGenerate() {
+    setGenerateState({ status: 'idle' })
+  }
 
   async function handleDeleteComm(id: string) {
     setDeletingCommId(id)
@@ -351,20 +420,164 @@ export function ContactDetail({
         </button>
         <button
           type="button"
-          onClick={onChatWithContact}
-          className="flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+          onClick={() => setGenerateState({ status: 'form' })}
+          disabled={generateState.status === 'generating' || generateState.status === 'saving'}
+          className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
         >
-          <MessageSquare className="h-3.5 w-3.5" />
-          Draft reply
+          <Sparkles className="h-3.5 w-3.5" />
+          Generate email
         </button>
         <button
           type="button"
           onClick={() => setAddInsightOpen(true)}
-          className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+          className="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
         >
           Add insight
         </button>
       </div>
+
+      {/* Inline generate email panel */}
+      {generateState.status !== 'idle' && (
+        <div className="shrink-0 border-b border-border bg-background shadow-sm">
+          <div className="flex items-center justify-between px-6 py-3 border-b border-border">
+            <div className="flex items-center gap-2">
+              {(generateState.status === 'generating' || generateState.status === 'saving') && (
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              )}
+              {generateState.status === 'reviewing' && (
+                <Sparkles className="h-4 w-4 text-primary" />
+              )}
+              <span className="text-sm font-semibold text-foreground">
+                {generateState.status === 'form' && 'Generate email draft'}
+                {generateState.status === 'generating' && 'Generating…'}
+                {generateState.status === 'reviewing' && 'Review draft'}
+                {generateState.status === 'saving' && 'Saving draft…'}
+                {generateState.status === 'error' && 'Generation failed'}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={dismissGenerate}
+              className="rounded-md p-1 text-muted-foreground hover:bg-accent transition-colors"
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {generateState.status === 'error' && (
+            <div className="px-6 py-4 space-y-3">
+              <p className="text-sm text-destructive">{generateState.message}</p>
+              <button
+                type="button"
+                onClick={() => setGenerateState({ status: 'form' })}
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                Try again
+              </button>
+            </div>
+          )}
+
+          {generateState.status === 'form' && (
+            <div className="px-6 py-4 space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">
+                  What's the purpose of this email? <span className="text-destructive">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={purpose}
+                  onChange={(e) => setPurpose(e.target.value)}
+                  placeholder="e.g. Follow up on their onboarding question, share new feature announcement…"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">
+                  Additional context or info to include
+                  <span className="ml-1 text-muted-foreground font-normal">(optional)</span>
+                </label>
+                <textarea
+                  value={additionalContext}
+                  onChange={(e) => setAdditionalContext(e.target.value)}
+                  placeholder="e.g. They asked about CSV export last week — mention it's now live in v2.3…"
+                  rows={3}
+                  className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleGenerate}
+                  disabled={!purpose.trim()}
+                  className="flex items-center gap-1.5 rounded-md bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Generate
+                </button>
+                <button
+                  type="button"
+                  onClick={dismissGenerate}
+                  className="rounded-md border border-border px-4 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {(generateState.status === 'reviewing' || generateState.status === 'saving') && (
+            <div className="px-6 py-4 space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">Subject</label>
+                <input
+                  type="text"
+                  value={draftSubject}
+                  onChange={(e) => setDraftSubject(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">Body</label>
+                <textarea
+                  value={draftBody}
+                  onChange={(e) => setDraftBody(e.target.value)}
+                  rows={10}
+                  className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground whitespace-pre-wrap focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleSaveDraft}
+                  disabled={generateState.status === 'saving' || !draftSubject.trim() || !draftBody.trim()}
+                  className="rounded-md bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  {generateState.status === 'saving' ? 'Saving…' : 'Save as draft'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGenerateState({ status: 'form' })}
+                  disabled={generateState.status === 'saving'}
+                  className="flex items-center gap-1 rounded-md border border-border px-4 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent transition-colors disabled:opacity-50"
+                >
+                  <ChevronDown className="h-3 w-3 -rotate-90" />
+                  Regenerate
+                </button>
+                <button
+                  type="button"
+                  onClick={dismissGenerate}
+                  disabled={generateState.status === 'saving'}
+                  className="rounded-md border border-border px-4 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent transition-colors disabled:opacity-50"
+                >
+                  Discard
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Tab bar */}
       <div className="shrink-0 flex border-b border-border px-6">

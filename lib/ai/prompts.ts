@@ -1284,6 +1284,95 @@ export function buildCohortExtractionPrompt(params: {
   return lines.join('\n')
 }
 
+// ----------------------------------------------------------------
+// Email draft generation
+// ----------------------------------------------------------------
+
+export interface EmailDraftResult {
+  subject: string
+  body: string
+}
+
+export function buildEmailDraftPrompt(params: {
+  contactName: string
+  contactSegment: string | null
+  communicationHistory: Array<{
+    direction: string
+    channel: string
+    subject: string | null
+    content: string
+    sent_at: string | null
+  }>
+  purpose: string
+  additionalContext: string
+  brandVoice: string
+  brandTone: string
+  companyName: string
+}): string {
+  const {
+    contactName,
+    contactSegment,
+    communicationHistory,
+    purpose,
+    additionalContext,
+    brandVoice,
+    brandTone,
+    companyName,
+  } = params
+
+  const lines: string[] = []
+
+  lines.push(`You are drafting an outbound email from ${companyName} to their customer ${contactName}.`)
+  if (contactSegment) lines.push(`${contactName} is a ${contactSegment.replace(/_/g, ' ')}.`)
+  lines.push('')
+
+  if (brandVoice || brandTone) {
+    lines.push('[BRAND VOICE]')
+    if (brandVoice) lines.push(`Voice: ${brandVoice}`)
+    if (brandTone) lines.push(`Tone: ${brandTone}`)
+    lines.push('')
+  }
+
+  if (communicationHistory.length > 0) {
+    lines.push('[COMMUNICATION HISTORY — most recent first]')
+    for (const comm of communicationHistory) {
+      const when = comm.sent_at ? new Date(comm.sent_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'unknown date'
+      const dir = comm.direction === 'inbound' ? `← ${contactName}` : comm.direction === 'outbound' ? '→ Sent' : '(note)'
+      if (comm.subject) lines.push(`[${when}] ${dir} — ${comm.subject}`)
+      else lines.push(`[${when}] ${dir}`)
+      lines.push(comm.content.slice(0, 500))
+      lines.push('---')
+    }
+    lines.push('')
+  } else {
+    lines.push('[No prior communication history]')
+    lines.push('')
+  }
+
+  lines.push('[PURPOSE OF THIS EMAIL]')
+  lines.push(purpose)
+  lines.push('')
+
+  if (additionalContext.trim()) {
+    lines.push('[ADDITIONAL CONTEXT / INFO TO INCLUDE]')
+    lines.push(additionalContext)
+    lines.push('')
+  }
+
+  lines.push('Write a natural, professional email that:')
+  lines.push('- Reads as a genuine personal email, not a marketing template')
+  lines.push('- Continues naturally from the most recent conversation')
+  lines.push('- Addresses the stated purpose clearly')
+  lines.push('- Includes the additional context where relevant')
+  lines.push('- Matches the brand voice and tone above')
+  lines.push('- Is concise — no unnecessary padding')
+  lines.push('')
+  lines.push('Return ONLY valid JSON with these two fields, no preamble:')
+  lines.push('{ "subject": "...", "body": "..." }')
+
+  return lines.join('\n')
+}
+
 export function buildPerRespondentExtractionPrompt(params: {
   respondentsText: string
   segment: string

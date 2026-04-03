@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils'
 import type { ContactRow } from '@/lib/queries/contacts'
 import type { ContactCommunicationRow } from '@/lib/queries/contact-communications'
 import type { CustomerInsightRow } from '@/lib/queries/customer-insights'
-import type { ContextConfig } from '@/lib/queries/chat'
 import { ContactsList } from './contacts-list'
 import { ContactDetail } from './contact-detail'
 import { InboxView } from './inbox-view'
@@ -59,46 +58,6 @@ export function CustomerHubDetail({
   const selectedContactInsights = selectedContact
     ? insights.filter((i) => i.source_contact_id === selectedContact.id)
     : []
-
-  async function handleChatWithContact(contact: ContactRow) {
-    const contextConfig: ContextConfig = {
-      brand: true,
-      business_plan: false,
-      personas: false,
-      product: false,
-      product_roadmap: false,
-      company_milestones: false,
-      current_goals: false,
-      filed_documents: false,
-      competitors: false,
-      social_proof: false,
-      kpis: false,
-      browser: false,
-      project_materials: false,
-      discovery_entries: false,
-      discovery_participant: null,
-      customer_insights: true,
-      customer_hub_contact_id: contact.id,
-    }
-    try {
-      const res = await fetch('/api/chat/sessions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          project_id: project.id,
-          title: `Reply · ${contact.name}`,
-          context_config: contextConfig,
-        }),
-      })
-      const data = await res.json()
-      if (res.ok && data.session) {
-        const prompt = encodeURIComponent(`Draft a reply to ${contact.name}.`)
-        router.push(`/dashboard/chat/${data.session.id}?prompt=${prompt}`)
-      }
-    } catch {
-      // navigation failure is non-critical
-    }
-  }
 
   function handleContactCreated(contact: ContactRow) {
     setContacts((prev) => [...prev, contact].sort((a, b) => a.name.localeCompare(b.name)))
@@ -202,7 +161,6 @@ export function CustomerHubDetail({
                   onCommunicationDeleted={handleCommunicationDeleted}
                   onInsightAdded={handleInsightAdded}
                   onInsightDeleted={handleInsightDeleted}
-                  onChatWithContact={() => handleChatWithContact(selectedContact)}
                 />
               ) : (
                 <div className="flex h-full items-center justify-center">

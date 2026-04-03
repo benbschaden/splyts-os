@@ -333,9 +333,9 @@ export function ProjectDetail({
   }
 
   return (
-    <div className="flex flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background flex h-14 items-center justify-between border-b border-border px-6">
+      <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-6">
         {editing ? (
           <input
             type="text"
@@ -474,7 +474,7 @@ export function ProjectDetail({
       )}
 
       {/* Body */}
-      <div>
+      <div className="flex-1 min-h-0 overflow-y-auto">
         {editing ? (
           <div className="max-w-xl space-y-4 p-6">
             <div className="space-y-1.5">
@@ -571,7 +571,7 @@ export function ProjectDetail({
             )}
 
             {/* Tab bar */}
-            <nav className="sticky top-14 z-10 bg-background flex gap-0 border-b border-border px-6" aria-label="Project tabs">
+            <nav className="sticky top-0 z-10 bg-background flex gap-0 border-b border-border px-6" aria-label="Project tabs">
               {tabs.map((tab) => {
                 const Icon = tab.icon
                 const isActive = activeTab === tab.id

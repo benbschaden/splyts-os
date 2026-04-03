@@ -54,7 +54,7 @@ export default async function DashboardLayout({
         projectCount={projectsForNav.filter((p) => p.project_type !== 'tool').length}
         tools={tools}
       />
-      <main className="flex-1 h-full overflow-y-auto">
+      <main className="flex-1 overflow-hidden">
         {children}
       </main>
     </div>

@@ -32,6 +32,7 @@ interface Persona {
 interface PersonasListProps {
   personas: Persona[]
   isAdmin: boolean
+  matchCountById?: Record<string, { count: number; avgScore: number }>
 }
 
 function filledFields(p: Persona): number {
@@ -59,7 +60,7 @@ function CompletionBadge({ persona }: { persona: Persona }) {
   )
 }
 
-export function PersonasList({ personas, isAdmin }: PersonasListProps) {
+export function PersonasList({ personas, isAdmin, matchCountById = {} }: PersonasListProps) {
   const router = useRouter()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editing, setEditing] = useState<Persona | null>(null)
@@ -244,9 +245,18 @@ export function PersonasList({ personas, isAdmin }: PersonasListProps) {
                   </div>
                 )}
 
-                {/* Completion bar */}
-                <div className="mt-3 pt-3 border-t border-border/50">
+                {/* Completion bar + match stats */}
+                <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-between gap-4">
                   <CompletionBadge persona={persona} />
+                  {matchCountById[persona.id] ? (
+                    <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                      <Users className="h-3 w-3" />
+                      {matchCountById[persona.id].count} contact{matchCountById[persona.id].count !== 1 ? 's' : ''} matched
+                      <span className="opacity-60">· avg {matchCountById[persona.id].avgScore}%</span>
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground/40">No contacts matched yet</span>
+                  )}
                 </div>
               </div>
             ))}

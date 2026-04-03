@@ -21,10 +21,14 @@ export interface ContactRow {
   created_at: string
   updated_at: string
   deleted_at: string | null
+  persona_id: string | null
+  persona_match_score: number | null
+  persona_match_reasoning: string | null
+  persona_matched_at: string | null
 }
 
 const SELECT_COLUMNS =
-  'id, organization_id, created_by, name, email, company, role, segment, status, health, tags, notes, last_contacted_at, created_at, updated_at, deleted_at'
+  'id, organization_id, created_by, name, email, company, role, segment, status, health, tags, notes, last_contacted_at, created_at, updated_at, deleted_at, persona_id, persona_match_score, persona_match_reasoning, persona_matched_at'
 
 export async function getContactsForOrg(orgId: string): Promise<ContactRow[]> {
   const supabase = createUntypedServiceClient()
@@ -104,6 +108,35 @@ export async function updateContact(
 
   if (error || !data) return { contact: null, error: 'Failed to update contact' }
   return { contact: data as unknown as ContactRow, error: null }
+}
+
+export async function getPersonaMatchStats(
+  orgId: string,
+): Promise<Array<{ persona_id: string; count: number; avg_score: number }>> {
+  const supabase = createUntypedServiceClient()
+  const { data, error } = await supabase
+    .from('contacts')
+    .select('persona_id, persona_match_score')
+    .eq('organization_id', orgId)
+    .is('deleted_at', null)
+    .not('persona_id', 'is', null)
+
+  if (error || !data) return []
+
+  const stats: Record<string, { count: number; totalScore: number }> = {}
+  for (const row of data as Array<{ persona_id: string | null; persona_match_score: number | null }>) {
+    if (!row.persona_id) continue
+    const s = stats[row.persona_id] ?? { count: 0, totalScore: 0 }
+    s.count += 1
+    s.totalScore += row.persona_match_score ?? 0
+    stats[row.persona_id] = s
+  }
+
+  return Object.entries(stats).map(([persona_id, { count, totalScore }]) => ({
+    persona_id,
+    count,
+    avg_score: count > 0 ? Math.round(totalScore / count) : 0,
+  }))
 }
 
 export async function deleteContact(

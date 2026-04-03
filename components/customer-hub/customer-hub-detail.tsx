@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import type { ContactRow } from '@/lib/queries/contacts'
 import type { ContactCommunicationRow } from '@/lib/queries/contact-communications'
 import type { CustomerInsightRow } from '@/lib/queries/customer-insights'
+import type { PersonaRow } from '@/lib/queries/personas'
 import { ContactsList } from './contacts-list'
 import { ContactDetail } from './contact-detail'
 import { InboxView } from './inbox-view'
@@ -25,6 +26,7 @@ interface CustomerHubDetailProps {
   initialCommunications: ContactCommunicationRow[]
   initialInsights: CustomerInsightRow[]
   initialCohortDocuments: CohortDocumentRow[]
+  initialPersonas: PersonaRow[]
 }
 
 type HubTab = 'contacts' | 'inbox' | 'insights' | 'cohorts'
@@ -35,12 +37,14 @@ export function CustomerHubDetail({
   initialCommunications,
   initialInsights,
   initialCohortDocuments,
+  initialPersonas,
 }: CustomerHubDetailProps) {
   const router = useRouter()
   const [contacts, setContacts] = useState<ContactRow[]>(initialContacts)
   const [communications, setCommunications] = useState<ContactCommunicationRow[]>(initialCommunications)
   const [insights, setInsights] = useState<CustomerInsightRow[]>(initialInsights)
   const [cohortDocuments, setCohortDocuments] = useState<CohortDocumentRow[]>(initialCohortDocuments)
+  const [personas, setPersonas] = useState<PersonaRow[]>(initialPersonas)
   const [activeTab, setActiveTab] = useState<HubTab>('contacts')
   const [selectedContact, setSelectedContact] = useState<ContactRow | null>(null)
 
@@ -48,6 +52,7 @@ export function CustomerHubDetail({
   useEffect(() => { setCommunications(initialCommunications) }, [initialCommunications])
   useEffect(() => { setInsights(initialInsights) }, [initialInsights])
   useEffect(() => { setCohortDocuments(initialCohortDocuments) }, [initialCohortDocuments])
+  useEffect(() => { setPersonas(initialPersonas) }, [initialPersonas])
 
   const refresh = useCallback(() => router.refresh(), [router])
 
@@ -157,6 +162,7 @@ export function CustomerHubDetail({
                   contact={selectedContact}
                   communications={selectedContactComms}
                   insights={selectedContactInsights}
+                  personas={personas}
                   onCommunicationAdded={handleCommunicationAdded}
                   onCommunicationDeleted={handleCommunicationDeleted}
                   onInsightAdded={handleInsightAdded}

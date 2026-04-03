@@ -1536,3 +1536,118 @@ export function buildPatternConsolidationPrompt(params: {
 
   return lines.join('\n')
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Persona Matching
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface PersonaMatchResult {
+  matched_persona_id: string | null
+  score: number                    // 0–100
+  reasoning: string                // 2-4 sentences explaining the match
+  suggest_new_persona: boolean     // true when score < 45
+  new_persona_draft: {
+    name: string
+    tagline: string | null
+    job_title: string | null
+    industry: string | null
+    goals: string | null
+    frustrations: string | null
+    motivations: string | null
+    behaviors: string | null
+    buying_triggers: string | null
+    objections: string | null
+    quote: string | null
+  } | null
+}
+
+export function buildPersonaMatchPrompt(params: {
+  contactName: string
+  contactSegment: string | null
+  contactNotes: string | null
+  insights: Array<{ content: string; category: string; impact: string }>
+  recentComms: Array<{ direction: string; channel: string; content: string }>
+  personas: Array<{
+    id: string
+    name: string
+    tagline: string | null
+    job_title: string | null
+    industry: string | null
+    company_size: string | null
+    goals: string | null
+    frustrations: string | null
+    motivations: string | null
+    behaviors: string | null
+    buying_triggers: string | null
+    objections: string | null
+    quote: string | null
+  }>
+}): string {
+  const { contactName, contactSegment, contactNotes, insights, recentComms, personas } = params
+
+  const lines: string[] = []
+
+  lines.push('You are a world-class customer researcher. Your task is to match a customer contact to the best-fitting user persona from a predefined list.')
+  lines.push('')
+  lines.push('## Contact profile')
+  lines.push(`Name: ${contactName}`)
+  if (contactSegment) lines.push(`Segment: ${contactSegment.replace(/_/g, ' ')}`)
+  if (contactNotes) lines.push(`Notes: ${contactNotes}`)
+  lines.push('')
+
+  if (insights.length > 0) {
+    lines.push('### Insights from this contact')
+    insights.forEach((ins, i) => {
+      lines.push(`${i + 1}. [${ins.category} / ${ins.impact}] ${ins.content}`)
+    })
+    lines.push('')
+  }
+
+  if (recentComms.length > 0) {
+    lines.push('### Recent communications')
+    recentComms.forEach((comm, i) => {
+      lines.push(`${i + 1}. [${comm.direction} ${comm.channel}] ${comm.content.slice(0, 300)}${comm.content.length > 300 ? '…' : ''}`)
+    })
+    lines.push('')
+  }
+
+  lines.push('## Available personas')
+  personas.forEach((p) => {
+    lines.push(`### Persona ID: ${p.id}`)
+    lines.push(`Name: ${p.name}`)
+    if (p.tagline) lines.push(`Summary: ${p.tagline}`)
+    if (p.job_title) lines.push(`Role: ${p.job_title}`)
+    if (p.industry) lines.push(`Industry: ${p.industry}`)
+    if (p.goals) lines.push(`Goals: ${p.goals}`)
+    if (p.frustrations) lines.push(`Frustrations: ${p.frustrations}`)
+    if (p.motivations) lines.push(`Motivations: ${p.motivations}`)
+    if (p.behaviors) lines.push(`Behaviours: ${p.behaviors}`)
+    if (p.buying_triggers) lines.push(`Buying triggers: ${p.buying_triggers}`)
+    if (p.objections) lines.push(`Objections: ${p.objections}`)
+    if (p.quote) lines.push(`Quote: "${p.quote}"`)
+    lines.push('')
+  })
+
+  lines.push('## Instructions')
+  lines.push('1. Analyse the contact\'s insights, communications, and notes to understand who they really are.')
+  lines.push('2. Compare against each persona. Consider goals, frustrations, behaviours, job-to-be-done, and communication style.')
+  lines.push('3. Choose the single best-matching persona. Assign a score 0–100 where:')
+  lines.push('   - 80–100: Very strong match — contact clearly fits this persona')
+  lines.push('   - 60–79: Good match — most key attributes align')
+  lines.push('   - 45–59: Partial match — some overlap but notable differences')
+  lines.push('   - 0–44: Weak match — contact does not fit any existing persona well')
+  lines.push('4. If score < 45, set suggest_new_persona: true and fill in new_persona_draft with a new persona that fits this contact.')
+  lines.push('   The new persona should represent a broader archetype, not just this one person.')
+  lines.push('5. Write 2-4 sentences of reasoning explaining why you chose (or did not match) this persona.')
+  lines.push('')
+  lines.push('Return ONLY valid JSON matching this exact shape — no preamble, no markdown fence:')
+  lines.push('{')
+  lines.push('  "matched_persona_id": "<uuid or null>",')
+  lines.push('  "score": <0-100>,')
+  lines.push('  "reasoning": "<2-4 sentences>",')
+  lines.push('  "suggest_new_persona": <true|false>,')
+  lines.push('  "new_persona_draft": <object or null>')
+  lines.push('}')
+
+  return lines.join('\n')
+}

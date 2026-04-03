@@ -30,6 +30,7 @@ import type { ContactRow } from '@/lib/queries/contacts'
 import type { ContactCommunicationRow } from '@/lib/queries/contact-communications'
 import type { CustomerInsightRow } from '@/lib/queries/customer-insights'
 import type { CohortDocumentRow } from '@/lib/queries/cohort-documents'
+import type { PersonaRow } from '@/lib/queries/personas'
 import type { ProjectVisibility } from '@/lib/queries/projects'
 import type { ContentIdeaRow } from '@/lib/queries/content-ideas'
 import type { PublishedOutput } from '@/lib/queries/outputs'
@@ -155,6 +156,7 @@ interface ProjectDetailProps {
   hubCommunications?: ContactCommunicationRow[]
   hubInsights?: CustomerInsightRow[]
   hubCohortDocuments?: CohortDocumentRow[]
+  hubPersonas?: PersonaRow[]
 }
 
 export function ProjectDetail({
@@ -181,6 +183,7 @@ export function ProjectDetail({
   hubCommunications = [],
   hubInsights = [],
   hubCohortDocuments = [],
+  hubPersonas = [],
 }: ProjectDetailProps) {
   if (project.tool_key === 'customer_hub') {
     return (
@@ -190,6 +193,7 @@ export function ProjectDetail({
         initialCommunications={hubCommunications}
         initialInsights={hubInsights}
         initialCohortDocuments={hubCohortDocuments}
+        initialPersonas={hubPersonas}
       />
     )
   }

@@ -11,11 +11,16 @@ import {
   Loader2,
   X,
   ChevronDown,
+  Users,
+  CheckCircle2,
+  AlertCircle,
+  ExternalLink,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ContactRow, ContactSegment } from '@/lib/queries/contacts'
 import type { ContactCommunicationRow, CommunicationChannel } from '@/lib/queries/contact-communications'
 import type { CustomerInsightRow, InsightCategory, InsightImpact } from '@/lib/queries/customer-insights'
+import type { PersonaRow } from '@/lib/queries/personas'
 import { AddCommunicationDialog } from './add-communication-dialog'
 import { AddInsightDialog } from './add-insight-dialog'
 import { HubChatPanel } from './hub-chat-panel'
@@ -24,6 +29,7 @@ interface ContactDetailProps {
   contact: ContactRow
   communications: ContactCommunicationRow[]
   insights: CustomerInsightRow[]
+  personas: PersonaRow[]
   onCommunicationAdded: (comm: ContactCommunicationRow) => void
   onCommunicationDeleted: (id: string) => void
   onInsightAdded: (insight: CustomerInsightRow) => void
@@ -36,6 +42,14 @@ type GenerateState =
   | { status: 'generating' }
   | { status: 'reviewing'; subject: string; body: string }
   | { status: 'saving' }
+  | { status: 'error'; message: string }
+
+type MatchState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'done'; personaId: string | null; personaName: string | null; score: number; reasoning: string; suggestNew: boolean; newPersonaDraft: Record<string, string | null> | null }
+  | { status: 'creating_persona' }
+  | { status: 'persona_created'; name: string }
   | { status: 'error'; message: string }
 
 const SEGMENT_LABELS: Record<ContactSegment, string> = {
@@ -279,6 +293,7 @@ export function ContactDetail({
   contact,
   communications,
   insights,
+  personas,
   onCommunicationAdded,
   onCommunicationDeleted,
   onInsightAdded,
@@ -294,6 +309,7 @@ export function ContactDetail({
   const [additionalContext, setAdditionalContext] = useState('')
   const [draftSubject, setDraftSubject] = useState('')
   const [draftBody, setDraftBody] = useState('')
+  const [matchState, setMatchState] = useState<MatchState>({ status: 'idle' })
 
   async function handleGenerate() {
     if (!purpose.trim()) return
@@ -351,6 +367,48 @@ export function ContactDetail({
     setGenerateState({ status: 'idle' })
   }
 
+  async function handleAssessPersona() {
+    setMatchState({ status: 'loading' })
+    try {
+      const res = await fetch(`/api/contacts/${contact.id}/match-persona`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        setMatchState({ status: 'error', message: data.error ?? 'Assessment failed.' })
+        return
+      }
+      setMatchState({
+        status: 'done',
+        personaId: data.match.persona_id,
+        personaName: data.match.persona_name,
+        score: data.match.score,
+        reasoning: data.match.reasoning,
+        suggestNew: data.suggest_new_persona ?? false,
+        newPersonaDraft: data.new_persona_draft ?? null,
+      })
+    } catch {
+      setMatchState({ status: 'error', message: 'Something went wrong. Please try again.' })
+    }
+  }
+
+  async function handleCreateSuggestedPersona(draft: Record<string, string | null>) {
+    setMatchState((prev) => ({ ...prev, status: 'creating_persona' } as MatchState))
+    try {
+      const res = await fetch('/api/personas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...draft, include_in_ai: true }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setMatchState({ status: 'error', message: data.error ?? 'Failed to create persona.' })
+        return
+      }
+      setMatchState({ status: 'persona_created', name: data.data?.name ?? draft.name ?? 'New persona' })
+    } catch {
+      setMatchState({ status: 'error', message: 'Failed to create persona.' })
+    }
+  }
+
   async function handleDeleteComm(id: string) {
     setDeletingCommId(id)
     await fetch(`/api/contact-communications/${id}`, { method: 'DELETE' })
@@ -370,6 +428,17 @@ export function ContactDetail({
     const bDate = b.sent_at ?? b.created_at
     return new Date(bDate).getTime() - new Date(aDate).getTime()
   })
+
+  // Derive currently shown persona match — prefer fresh match result over stored contact fields
+  const currentPersonaId = matchState.status === 'done' ? matchState.personaId : contact.persona_id
+  const currentPersonaScore = matchState.status === 'done' ? matchState.score : contact.persona_match_score
+  const currentPersonaName =
+    matchState.status === 'done'
+      ? matchState.personaName
+      : personas.find((p) => p.id === contact.persona_id)?.name ?? null
+
+  const isAssessing = matchState.status === 'loading'
+  const isCreatingPersona = matchState.status === 'creating_persona'
 
   return (
     <div className="flex flex-1 flex-col min-h-0 overflow-hidden">
@@ -405,6 +474,13 @@ export function ContactDetail({
                   {HEALTH_LABELS[contact.health]}
                 </span>
               )}
+              {currentPersonaId && currentPersonaName && currentPersonaScore !== null && (
+                <span className="flex items-center gap-1.5 rounded border border-violet-200 bg-violet-500/10 px-2 py-0.5 text-[10px] font-medium text-violet-700 dark:border-violet-800 dark:text-violet-400">
+                  <Users className="h-3 w-3 shrink-0" />
+                  {currentPersonaName}
+                  <span className="opacity-70">• {currentPersonaScore}%</span>
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -435,7 +511,107 @@ export function ContactDetail({
         >
           Add insight
         </button>
+        <button
+          type="button"
+          onClick={handleAssessPersona}
+          disabled={isAssessing}
+          className="ml-auto flex items-center gap-1.5 rounded-md border border-violet-300 bg-violet-500/10 px-3 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-500/20 dark:border-violet-700 dark:text-violet-400 disabled:opacity-50 transition-colors"
+        >
+          {isAssessing ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Users className="h-3.5 w-3.5" />
+          )}
+          {isAssessing ? 'Assessing…' : currentPersonaId ? 'Re-assess persona' : 'Assess persona'}
+        </button>
       </div>
+
+      {/* Inline persona match result panel */}
+      {(matchState.status === 'done' || matchState.status === 'persona_created' || matchState.status === 'error') && (
+        <div className="shrink-0 border-b border-border bg-background">
+          <div className="flex items-start justify-between px-6 py-3">
+            <div className="flex items-start gap-2 min-w-0 flex-1">
+              {matchState.status === 'done' && (
+                <>
+                  <div className="flex-1 min-w-0">
+                    {matchState.personaId && matchState.personaName ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 shrink-0 text-violet-500" />
+                        <span className="text-sm font-medium text-foreground">
+                          Matched: <span className="text-violet-700 dark:text-violet-400">{matchState.personaName}</span>
+                        </span>
+                        <span className="text-xs text-muted-foreground">—</span>
+                        <span className="text-xs font-medium tabular-nums text-muted-foreground">{matchState.score}% confidence</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 shrink-0 text-amber-500" />
+                        <span className="text-sm font-medium text-foreground">No strong persona match</span>
+                        <span className="text-xs text-muted-foreground">({matchState.score}% — below threshold)</span>
+                      </div>
+                    )}
+                    {/* Score bar */}
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <div className="h-1 w-24 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className={cn(
+                            'h-full rounded-full transition-all',
+                            matchState.score >= 80 ? 'bg-violet-500' :
+                            matchState.score >= 60 ? 'bg-blue-500' :
+                            matchState.score >= 45 ? 'bg-amber-500' : 'bg-red-500',
+                          )}
+                          style={{ width: `${matchState.score}%` }}
+                        />
+                      </div>
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground leading-relaxed">{matchState.reasoning}</p>
+                    {matchState.suggestNew && matchState.newPersonaDraft && (
+                      <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20 p-3">
+                        <p className="text-xs font-medium text-amber-800 dark:text-amber-300 mb-1">
+                          New persona suggested: <span className="font-semibold">{String(matchState.newPersonaDraft.name ?? '')}</span>
+                        </p>
+                        {matchState.newPersonaDraft.tagline && (
+                          <p className="text-xs text-amber-700 dark:text-amber-400 mb-2">{String(matchState.newPersonaDraft.tagline)}</p>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleCreateSuggestedPersona(matchState.newPersonaDraft!)}
+                          className="flex items-center gap-1.5 rounded-md bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700 transition-colors"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          Create persona in Company
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+              {matchState.status === 'persona_created' && (
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span className="text-sm text-foreground">
+                    Persona <span className="font-medium">{matchState.name}</span> created in Company → Personas.
+                  </span>
+                </div>
+              )}
+              {matchState.status === 'error' && (
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-destructive" />
+                  <span className="text-sm text-destructive">{matchState.message}</span>
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setMatchState({ status: 'idle' })}
+              className="ml-3 shrink-0 rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Inline generate email panel */}
       {generateState.status !== 'idle' && (

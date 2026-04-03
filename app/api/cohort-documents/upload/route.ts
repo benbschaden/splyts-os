@@ -8,13 +8,17 @@ import { getContactsForOrg } from '@/lib/queries/contacts'
 import {
   buildCohortExtractionPrompt,
   buildPerRespondentExtractionPrompt,
+  buildPatternConsolidationPrompt,
   type ExtractedInsightDraft,
   type RespondentInsightResult,
+  type ConsolidatedInsightDraft,
+  type AttributedRespondent,
 } from '@/lib/ai/prompts'
 import { extractText } from '@/lib/company/extract-text'
 
 const BUCKET = 'cohort-files'
 const MAX_BYTES = 52_428_800 // 50 MiB
+const BATCH_SIZE = 12 // respondents per Opus call
 
 const VALID_SEGMENTS = new Set([
   'beta_user', 'free_user', 'customer', 'power_user', 'prospect', 'churned', 'other',
@@ -109,7 +113,6 @@ async function extractTextFromBuffer(buffer: Buffer, mime: string): Promise<stri
 
 const EMAIL_HEADER_PATTERNS = ['email', 'e-mail', 'email address', 'respondent email', 'mail']
 const NAME_HEADER_PATTERNS = ['name', 'full name', 'first name', 'respondent', 'username', 'contact name']
-const MAX_RESPONDENTS = 30
 
 interface SurveyRow {
   email: string | null
@@ -147,7 +150,7 @@ function tryParseSurvey(buffer: Buffer, mime: string): ParsedSurvey | null {
     const identitySet = new Set([emailCol, nameCol].filter(Boolean) as string[])
     const questionColumns = headers.filter((h) => !identitySet.has(h))
 
-    const rows: SurveyRow[] = rawRows.slice(0, MAX_RESPONDENTS).map((row) => {
+    const rows: SurveyRow[] = rawRows.map((row) => {
       const answers: Record<string, string> = {}
       for (const col of questionColumns) {
         const val = String(row[col] ?? '').trim()
@@ -168,81 +171,103 @@ function tryParseSurvey(buffer: Buffer, mime: string): ParsedSurvey | null {
   }
 }
 
-function formatRespondentsText(rows: SurveyRow[]): string {
+function formatRespondentsText(rows: SurveyRow[], startIndex = 0): string {
   return rows.map((r, i) => {
+    const key = `R${startIndex + i + 1}`
     const identity = [r.name, r.email].filter(Boolean).join(' <') + (r.email ? '>' : '')
-    const header = identity || `Respondent ${i + 1}`
+    const header = identity || `Respondent ${startIndex + i + 1}`
     const qa = Object.entries(r.answers)
       .map(([q, a]) => `Q: ${q}\nA: ${a}`)
       .join('\n\n')
-    return `RESPONDENT: ${header}\n${qa}`
+    return `${key} — ${header}\n${qa}`
   }).join('\n\n---\n\n')
 }
 
-async function runPerRespondentExtraction(
+function parseInsightJson(raw: string): RespondentInsightResult[] {
+  const jsonStart = raw.indexOf('[')
+  const jsonEnd = raw.lastIndexOf(']')
+  if (jsonStart === -1 || jsonEnd === -1) return []
+
+  const parsed = JSON.parse(raw.slice(jsonStart, jsonEnd + 1))
+  if (!Array.isArray(parsed)) return []
+
+  const validCategories = new Set(['pain_point', 'feature_request', 'praise', 'objection', 'churn_signal', 'usage_pattern', 'market_insight'])
+  const validImpact = new Set(['high', 'medium', 'low'])
+
+  return parsed
+    .filter((item) => item && typeof item === 'object')
+    .map((item): RespondentInsightResult => ({
+      email: typeof item.email === 'string' ? item.email : null,
+      name: typeof item.name === 'string' ? item.name : null,
+      insights: Array.isArray(item.insights)
+        ? item.insights.filter(
+            (ins: ExtractedInsightDraft) =>
+              ins &&
+              typeof ins.content === 'string' &&
+              ins.content.trim().length > 0 &&
+              validCategories.has(ins.category) &&
+              validImpact.has(ins.impact),
+          ).slice(0, 8)
+        : [],
+    }))
+    .filter((r) => r.insights.length > 0)
+}
+
+type RespondentWithContact = RespondentInsightResult & {
+  contact_id: string | null
+  contact_name: string | null
+  respondent_key: string
+}
+
+async function runPerRespondentExtractionBatched(
   survey: ParsedSurvey,
   orgId: string,
   segment: string,
   fileName: string,
-): Promise<RespondentInsightResult[]> {
+): Promise<RespondentWithContact[]> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) return []
 
-  // Match contacts by email/name
   const contacts = await getContactsForOrg(orgId)
   const byEmail = new Map(contacts.filter((c) => c.email).map((c) => [c.email!.toLowerCase(), c]))
   const byName = new Map(contacts.map((c) => [c.name.toLowerCase(), c]))
 
-  const respondentsText = formatRespondentsText(survey.rows)
-  const prompt = buildPerRespondentExtractionPrompt({ respondentsText, segment, fileName })
   const anthropic = new Anthropic({ apiKey })
+  const allParsed: RespondentInsightResult[] = []
 
-  let parsed: RespondentInsightResult[] = []
-
-  try {
-    const message = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 8192,
-      messages: [{ role: 'user', content: prompt }],
-    })
-
-    const textBlock = message.content.find((b) => b.type === 'text')
-    if (!textBlock || textBlock.type !== 'text') return []
-
-    const raw = textBlock.text.trim()
-    const jsonStart = raw.indexOf('[')
-    const jsonEnd = raw.lastIndexOf(']')
-    if (jsonStart === -1 || jsonEnd === -1) return []
-
-    const jsonParsed = JSON.parse(raw.slice(jsonStart, jsonEnd + 1))
-    if (!Array.isArray(jsonParsed)) return []
-
-    const validCategories = new Set(['pain_point', 'feature_request', 'praise', 'objection', 'churn_signal', 'usage_pattern', 'market_insight'])
-    const validImpact = new Set(['high', 'medium', 'low'])
-
-    parsed = jsonParsed
-      .filter((item) => item && typeof item === 'object')
-      .map((item): RespondentInsightResult => ({
-        email: typeof item.email === 'string' ? item.email : null,
-        name: typeof item.name === 'string' ? item.name : null,
-        insights: Array.isArray(item.insights)
-          ? item.insights.filter(
-              (ins: ExtractedInsightDraft) =>
-                ins &&
-                typeof ins.content === 'string' &&
-                ins.content.trim().length > 0 &&
-                validCategories.has(ins.category) &&
-                validImpact.has(ins.impact),
-            ).slice(0, 8)
-          : [],
-      }))
-      .filter((r) => r.insights.length > 0)
-  } catch {
-    return []
+  // Process in batches to stay within token limits
+  const batches: SurveyRow[][] = []
+  for (let i = 0; i < survey.rows.length; i += BATCH_SIZE) {
+    batches.push(survey.rows.slice(i, i + BATCH_SIZE))
   }
 
-  // Attach matched contact IDs
-  return parsed.map((r) => {
+  let globalOffset = 0
+  for (const batch of batches) {
+    const respondentsText = formatRespondentsText(batch, globalOffset)
+    const prompt = buildPerRespondentExtractionPrompt({ respondentsText, segment, fileName })
+
+    try {
+      const message = await anthropic.messages.create({
+        model: 'claude-opus-4-5',
+        max_tokens: 16000,
+        messages: [{ role: 'user', content: prompt }],
+      })
+
+      const textBlock = message.content.find((b) => b.type === 'text')
+      if (textBlock && textBlock.type === 'text') {
+        const batchResults = parseInsightJson(textBlock.text.trim())
+        allParsed.push(...batchResults)
+      }
+    } catch (err) {
+      console.error(`[cohort-documents/upload] Batch extraction error (offset ${globalOffset}):`, err)
+    }
+
+    globalOffset += batch.length
+  }
+
+  // Assign respondent keys and match contacts
+  return allParsed.map((r, i): RespondentWithContact => {
+    const key = `R${i + 1}`
     let contactId: string | null = null
     let contactName: string | null = null
 
@@ -255,8 +280,93 @@ async function runPerRespondentExtraction(
       if (match) { contactId = match.id; contactName = match.name }
     }
 
-    return { ...r, contact_id: contactId, contact_name: contactName } as RespondentInsightResult & { contact_id: string | null; contact_name: string | null }
+    return { ...r, contact_id: contactId, contact_name: contactName, respondent_key: key }
   })
+}
+
+async function runConsolidation(
+  respondents: RespondentWithContact[],
+  segment: string,
+): Promise<ConsolidatedInsightDraft[]> {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey || respondents.length === 0) return []
+
+  // Build a lookup map from respondent_key -> RespondentWithContact
+  const respondentMap = new Map(respondents.map((r) => [r.respondent_key, r]))
+
+  // Format all respondents' insights for the consolidation prompt
+  const insightsText = respondents.map((r) => {
+    const label = r.name ?? r.email ?? r.respondent_key
+    const insightLines = r.insights.map((ins) => `  [${ins.category} · ${ins.impact}] ${ins.content}`)
+    return `${r.respondent_key} (${label}):\n${insightLines.join('\n')}`
+  }).join('\n\n')
+
+  const prompt = buildPatternConsolidationPrompt({
+    insightsText,
+    segment,
+    totalRespondents: respondents.length,
+  })
+
+  try {
+    const anthropic = new Anthropic({ apiKey })
+    const message = await anthropic.messages.create({
+      model: 'claude-opus-4-5',
+      max_tokens: 16000,
+      messages: [{ role: 'user', content: prompt }],
+    })
+
+    const textBlock = message.content.find((b) => b.type === 'text')
+    if (!textBlock || textBlock.type !== 'text') return []
+
+    const raw = textBlock.text.trim()
+    const jsonStart = raw.indexOf('[')
+    const jsonEnd = raw.lastIndexOf(']')
+    if (jsonStart === -1 || jsonEnd === -1) return []
+
+    const parsed = JSON.parse(raw.slice(jsonStart, jsonEnd + 1))
+    if (!Array.isArray(parsed)) return []
+
+    const validCategories = new Set(['pain_point', 'feature_request', 'praise', 'objection', 'churn_signal', 'usage_pattern', 'market_insight'])
+    const validImpact = new Set(['high', 'medium', 'low'])
+
+    const consolidated: ConsolidatedInsightDraft[] = []
+
+    for (const item of parsed) {
+      if (!item || typeof item.content !== 'string' || !item.content.trim()) continue
+      if (!validCategories.has(item.category) || !validImpact.has(item.impact)) continue
+
+      const keys: string[] = Array.isArray(item.respondent_keys)
+        ? item.respondent_keys.filter((k: unknown) => typeof k === 'string')
+        : []
+
+      const attributed: AttributedRespondent[] = keys
+        .map((k) => {
+          const r = respondentMap.get(k)
+          if (!r) return null
+          return {
+            respondent_key: k,
+            name: r.name,
+            email: r.email,
+            contact_id: r.contact_id,
+            contact_name: r.contact_name,
+          } satisfies AttributedRespondent
+        })
+        .filter((a): a is AttributedRespondent => a !== null)
+
+      consolidated.push({
+        content: item.content.trim(),
+        category: item.category,
+        impact: item.impact,
+        respondent_keys: keys,
+        attributed_respondents: attributed,
+      })
+    }
+
+    return consolidated
+  } catch (err) {
+    console.error('[cohort-documents/upload] Consolidation error:', err)
+    return []
+  }
 }
 
 // ----------------------------------------------------------------
@@ -274,8 +384,8 @@ async function runAiExtraction(
 
   try {
     const message = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 4096,
+      model: 'claude-opus-4-5',
+      max_tokens: 8192,
       messages: [{ role: 'user', content: prompt }],
     })
 
@@ -392,12 +502,29 @@ export async function POST(request: Request) {
     }
 
     if (survey) {
-      // Per-respondent mode: extract insights per person
-      const respondents = await runPerRespondentExtraction(survey, org.id, segment, file.name)
+      // Pass 1: Per-respondent extraction in batches using Claude Opus
+      const respondents = await runPerRespondentExtractionBatched(survey, org.id, segment, file.name)
+
+      if (respondents.length === 0) {
+        await updateCohortDocument(doc.id, org.id, { status: 'failed' })
+        return Response.json({ document: doc, mode: 'per_respondent', consolidated: [], respondents: [] }, { status: 201 })
+      }
+
+      // Pass 2: Consolidate patterns across respondents using Claude Opus
+      const consolidated = await runConsolidation(respondents, segment)
+
       await updateCohortDocument(doc.id, org.id, {
-        status: respondents.length > 0 ? 'processed' : 'failed',
+        status: 'processed',
       })
-      return Response.json({ document: doc, mode: 'per_respondent', respondents }, { status: 201 })
+
+      return Response.json({
+        document: doc,
+        mode: 'per_respondent',
+        respondents,
+        consolidated,
+        total_respondents: survey.rows.length,
+        extracted_respondents: respondents.length,
+      }, { status: 201 })
     }
 
     // Thematic mode: extract insights from full text

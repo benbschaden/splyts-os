@@ -1302,6 +1302,22 @@ export interface RespondentInsightResult {
   insights: ExtractedInsightDraft[]
 }
 
+export interface AttributedRespondent {
+  respondent_key: string
+  name: string | null
+  email: string | null
+  contact_id: string | null
+  contact_name: string | null
+}
+
+export interface ConsolidatedInsightDraft {
+  content: string
+  category: ExtractedInsightDraft['category']
+  impact: ExtractedInsightDraft['impact']
+  respondent_keys: string[]
+  attributed_respondents: AttributedRespondent[]
+}
+
 const SEGMENT_DISPLAY: Record<string, string> = {
   beta_user: 'beta users',
   free_user: 'free users',
@@ -1472,6 +1488,47 @@ export function buildPerRespondentExtractionPrompt(params: {
   lines.push('')
   lines.push('[RESPONDENTS]')
   lines.push(respondentsText.slice(0, 40000))
+  lines.push('')
+  lines.push('JSON array:')
+
+  return lines.join('\n')
+}
+
+export function buildPatternConsolidationPrompt(params: {
+  insightsText: string
+  segment: string
+  totalRespondents: number
+}): string {
+  const { insightsText, segment, totalRespondents } = params
+  const segmentLabel = SEGMENT_DISPLAY[segment] ?? 'users'
+
+  const lines: string[] = []
+
+  lines.push('You are a senior product strategist consolidating customer insights across multiple survey respondents.')
+  lines.push('')
+  lines.push(`Below are insights extracted per-respondent from a ${segmentLabel} survey (${totalRespondents} respondents total).`)
+  lines.push('Your job is to group similar insights into consolidated patterns, eliminate duplication, and credit the right respondents.')
+  lines.push('')
+  lines.push('Return a JSON array of consolidated patterns. Each pattern must have:')
+  lines.push('  - content: A synthesised, specific, actionable insight representing the pattern (1-3 sentences).')
+  lines.push('             Make it more precise and generalised than any single respondent\'s insight.')
+  lines.push('  - category: one of "pain_point", "feature_request", "praise", "objection", "churn_signal", "usage_pattern", "market_insight"')
+  lines.push('  - impact: one of "high", "medium", "low"')
+  lines.push('  - respondent_keys: array of respondent IDs (e.g. ["R1", "R4", "R9"]) who expressed this pattern')
+  lines.push('')
+  lines.push('Rules:')
+  lines.push('  - Merge insights that express the same underlying problem or idea into one pattern')
+  lines.push('  - Keep genuinely distinct issues separate — do not over-merge')
+  lines.push('  - Every respondent who contributed to a pattern must appear in respondent_keys')
+  lines.push('  - A respondent can appear in multiple patterns')
+  lines.push('  - Aim for 5–15 consolidated patterns, ordered by frequency and impact')
+  lines.push('  - Assign "high" impact if seen by 3+ respondents OR clearly blocks core usage')
+  lines.push('  - Assign "medium" for 2 respondents or moderate friction')
+  lines.push('  - Assign "low" for single mentions of minor issues')
+  lines.push('  - Output ONLY valid JSON — no preamble, no explanation, no markdown code fence')
+  lines.push('')
+  lines.push('[RESPONDENT INSIGHTS]')
+  lines.push(insightsText.slice(0, 60000))
   lines.push('')
   lines.push('JSON array:')
 

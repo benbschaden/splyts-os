@@ -1,25 +1,35 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Upload, FileText, Trash2, CheckCircle, X, Loader2, User, AlertCircle, MessageSquare } from 'lucide-react'
+import { Upload, FileText, Trash2, CheckCircle, X, Loader2, Users, ChevronDown, ChevronUp, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { CohortDocumentRow, CohortDocumentSegment } from '@/lib/queries/cohort-documents'
 import type { CustomerInsightRow, InsightCategory, InsightImpact } from '@/lib/queries/customer-insights'
 import { HubChatPanel } from './hub-chat-panel'
 
+// Consolidated pattern: a synthesised insight shared by multiple respondents
+interface AttributedRespondent {
+  respondent_key: string
+  name: string | null
+  email: string | null
+  contact_id: string | null
+  contact_name: string | null
+}
+
+interface ConsolidatedDraft {
+  content: string
+  category: InsightCategory
+  impact: InsightImpact
+  respondent_keys: string[]
+  attributed_respondents: AttributedRespondent[]
+}
+
+// Thematic draft (generic document upload)
 interface DraftInsight {
   content: string
   category: InsightCategory
   impact: InsightImpact
   source_contact_id?: string | null
-}
-
-interface RespondentDraft {
-  email: string | null
-  name: string | null
-  contact_id: string | null
-  contact_name: string | null
-  insights: DraftInsight[]
 }
 
 type ExtractionMode = 'thematic' | 'per_respondent'
@@ -30,8 +40,12 @@ interface UploadState {
   error?: string
   documentId?: string
   mode: ExtractionMode
+  // thematic mode
   drafts: DraftInsight[]
-  respondents: RespondentDraft[]
+  // per_respondent mode — consolidated patterns
+  consolidated: ConsolidatedDraft[]
+  totalRespondents?: number
+  extractedRespondents?: number
   savedCount?: number
 }
 
@@ -81,9 +95,19 @@ const ACCEPTED_TYPES = '.csv,.xlsx,.pdf,.docx,.txt,.md,.json'
 
 type SegmentTab = 'chat' | 'documents'
 
-function totalInsightCount(state: UploadState): number {
-  if (state.mode === 'per_respondent') return state.respondents.reduce((sum, r) => sum + r.insights.length, 0)
+function totalConsolidatedInsightCount(state: UploadState): number {
+  if (state.mode === 'per_respondent') return state.consolidated.length
   return state.drafts.length
+}
+
+// Attribution summary: "Andrew Cowan, Linus Wu + 3 others"
+function attributionSummary(attributed: AttributedRespondent[], maxShown = 2): string {
+  if (attributed.length === 0) return ''
+  const labels = attributed.map((a) => a.contact_name ?? a.name ?? a.email ?? a.respondent_key)
+  if (labels.length <= maxShown) return labels.join(', ')
+  const shown = labels.slice(0, maxShown).join(', ')
+  const rest = labels.length - maxShown
+  return `${shown} + ${rest} other${rest !== 1 ? 's' : ''}`
 }
 
 export function CohortsView({ projectId, initialDocuments, contacts = [], onInsightsAdded }: CohortsViewProps) {
@@ -92,6 +116,7 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
   const [segmentTab, setSegmentTab] = useState<SegmentTab>('chat')
   const [uploadState, setUploadState] = useState<UploadState | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [expandedPatterns, setExpandedPatterns] = useState<Set<number>>(new Set())
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   function docsBySegment(seg: CohortDocumentSegment) {
@@ -107,7 +132,8 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
     e.target.value = ''
     if (!file) return
 
-    setUploadState({ segment: selectedSegment, status: 'uploading', mode: 'thematic', drafts: [], respondents: [] })
+    setUploadState({ segment: selectedSegment, status: 'uploading', mode: 'thematic', drafts: [], consolidated: [] })
+    setExpandedPatterns(new Set())
 
     const formData = new FormData()
     formData.append('file', file)
@@ -132,22 +158,28 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
       setDocuments((prev) => [newDoc, ...prev])
 
       if (mode === 'per_respondent') {
-        const respondents: RespondentDraft[] = (data.respondents ?? []).map(
-          (r: RespondentDraft & { contact_id?: string | null; contact_name?: string | null }) => ({
-            email: r.email ?? null,
-            name: r.name ?? null,
-            contact_id: r.contact_id ?? null,
-            contact_name: r.contact_name ?? null,
-            insights: r.insights ?? [],
-          }),
-        )
+        const consolidated: ConsolidatedDraft[] = data.consolidated ?? []
 
-        if (respondents.length === 0 || respondents.every((r) => r.insights.length === 0)) {
-          setUploadState((prev) => prev ? { ...prev, status: 'error', error: 'No insights could be extracted.', documentId: newDoc.id } : prev)
+        if (consolidated.length === 0) {
+          setUploadState((prev) => prev ? {
+            ...prev,
+            status: 'error',
+            error: `No patterns could be extracted. ${data.extracted_respondents ?? 0} of ${data.total_respondents ?? 0} respondents processed.`,
+            documentId: newDoc.id,
+          } : prev)
           return
         }
 
-        setUploadState({ segment: selectedSegment, status: 'reviewing', documentId: newDoc.id, mode: 'per_respondent', drafts: [], respondents })
+        setUploadState({
+          segment: selectedSegment,
+          status: 'reviewing',
+          documentId: newDoc.id,
+          mode: 'per_respondent',
+          drafts: [],
+          consolidated,
+          totalRespondents: data.total_respondents,
+          extractedRespondents: data.extracted_respondents,
+        })
         return
       }
 
@@ -157,7 +189,7 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
         return
       }
 
-      setUploadState({ segment: selectedSegment, status: 'reviewing', documentId: newDoc.id, mode: 'thematic', drafts, respondents: [] })
+      setUploadState({ segment: selectedSegment, status: 'reviewing', documentId: newDoc.id, mode: 'thematic', drafts, consolidated: [] })
     } catch {
       setUploadState((prev) => prev ? { ...prev, status: 'error', error: 'Something went wrong.' } : prev)
     }
@@ -179,52 +211,71 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
     })
   }
 
-  function updateRespondentContact(rIdx: number, contactId: string | null) {
+  function updateConsolidated(index: number, field: keyof ConsolidatedDraft, value: string) {
     setUploadState((prev) => {
       if (!prev) return prev
-      const respondents = [...prev.respondents]
-      const contact = contacts.find((c) => c.id === contactId) ?? null
-      respondents[rIdx] = { ...respondents[rIdx], contact_id: contactId, contact_name: contact?.name ?? null }
-      return { ...prev, respondents }
+      const consolidated = [...prev.consolidated]
+      consolidated[index] = { ...consolidated[index], [field]: value }
+      return { ...prev, consolidated }
     })
   }
 
-  function updateRespondentInsight(rIdx: number, iIdx: number, field: keyof DraftInsight, value: string | null) {
+  function removeConsolidated(index: number) {
     setUploadState((prev) => {
       if (!prev) return prev
-      const respondents = [...prev.respondents]
-      const insights = [...respondents[rIdx].insights]
-      insights[iIdx] = { ...insights[iIdx], [field]: value }
-      respondents[rIdx] = { ...respondents[rIdx], insights }
-      return { ...prev, respondents }
+      return { ...prev, consolidated: prev.consolidated.filter((_, i) => i !== index) }
     })
   }
 
-  function removeRespondentInsight(rIdx: number, iIdx: number) {
-    setUploadState((prev) => {
-      if (!prev) return prev
-      const respondents = [...prev.respondents]
-      respondents[rIdx] = { ...respondents[rIdx], insights: respondents[rIdx].insights.filter((_, i) => i !== iIdx) }
-      return { ...prev, respondents }
+  function togglePatternExpand(index: number) {
+    setExpandedPatterns((prev) => {
+      const next = new Set(prev)
+      if (next.has(index)) next.delete(index)
+      else next.add(index)
+      return next
     })
   }
 
   async function handleConfirm() {
     if (!uploadState || !uploadState.documentId) return
-    const count = totalInsightCount(uploadState)
+    const count = totalConsolidatedInsightCount(uploadState)
     if (count === 0) return
 
     setUploadState((prev) => prev ? { ...prev, status: 'saving' } : prev)
 
-    const insights: DraftInsight[] = uploadState.mode === 'per_respondent'
-      ? uploadState.respondents.flatMap((r) => r.insights.map((ins) => ({ ...ins, source_contact_id: r.contact_id ?? null })))
-      : uploadState.drafts
+    let insightsPayload: Array<{
+      content: string
+      category: InsightCategory
+      impact: InsightImpact
+      source_contact_id?: string | null
+      source_contact_ids?: string[]
+    }>
+
+    if (uploadState.mode === 'per_respondent') {
+      insightsPayload = uploadState.consolidated.map((c) => ({
+        content: c.content,
+        category: c.category,
+        impact: c.impact,
+        source_contact_id: c.attributed_respondents[0]?.contact_id ?? null,
+        source_contact_ids: c.attributed_respondents
+          .map((a) => a.contact_id)
+          .filter((id): id is string => id !== null),
+      }))
+    } else {
+      insightsPayload = uploadState.drafts.map((d) => ({
+        content: d.content,
+        category: d.category,
+        impact: d.impact,
+        source_contact_id: d.source_contact_id ?? null,
+        source_contact_ids: d.source_contact_id ? [d.source_contact_id] : [],
+      }))
+    }
 
     try {
       const res = await fetch(`/api/cohort-documents/${uploadState.documentId}/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ insights }),
+        body: JSON.stringify({ insights: insightsPayload }),
       })
 
       if (!res.ok) {
@@ -275,7 +326,7 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
             <button
               key={seg}
               type="button"
-              onClick={() => { setSelectedSegment(seg); setUploadState(null) }}
+              onClick={() => { setSelectedSegment(seg); setUploadState(null); setExpandedPatterns(new Set()) }}
               className={cn(
                 'w-full text-left px-4 py-3 border-b border-border/60 transition-colors',
                 isSelected ? 'bg-accent' : 'hover:bg-accent/50',
@@ -371,15 +422,17 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
                       )}
                       <span className="text-sm font-semibold text-foreground">
                         {uploadState.status === 'uploading' && 'Uploading…'}
-                        {uploadState.status === 'extracting' && 'AI reading file…'}
-                        {uploadState.status === 'reviewing' && uploadState.mode === 'per_respondent' && `Review ${uploadState.respondents.length} respondents`}
+                        {uploadState.status === 'extracting' && 'AI reading & analysing file…'}
+                        {uploadState.status === 'reviewing' && uploadState.mode === 'per_respondent' && `Review ${uploadState.consolidated.length} patterns`}
                         {uploadState.status === 'reviewing' && uploadState.mode === 'thematic' && `Review ${uploadState.drafts.length} insights`}
                         {uploadState.status === 'saving' && 'Saving…'}
                         {uploadState.status === 'done' && 'Insights saved'}
                         {uploadState.status === 'error' && 'Issue'}
                       </span>
                       {uploadState.status === 'reviewing' && uploadState.mode === 'per_respondent' && (
-                        <span className="rounded-full bg-blue-500/10 border border-blue-200 dark:border-blue-800 px-1.5 py-0.5 text-[10px] text-blue-700 dark:text-blue-400 font-medium">Per-person</span>
+                        <span className="rounded-full bg-blue-500/10 border border-blue-200 dark:border-blue-800 px-1.5 py-0.5 text-[10px] text-blue-700 dark:text-blue-400 font-medium">
+                          {uploadState.extractedRespondents ?? 0}/{uploadState.totalRespondents ?? 0} respondents
+                        </span>
                       )}
                     </div>
                     <button type="button" onClick={() => setUploadState(null)} className="rounded-md p-1 text-muted-foreground hover:bg-accent transition-colors">
@@ -441,68 +494,110 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
                     </>
                   )}
 
-                  {/* Per-respondent review */}
+                  {/* Consolidated pattern review */}
                   {uploadState.status === 'reviewing' && uploadState.mode === 'per_respondent' && (
                     <>
-                      <div className="max-h-[50vh] overflow-y-auto divide-y divide-border">
-                        {uploadState.respondents.map((r, rIdx) => {
-                          const identity = r.name ?? r.email ?? `Respondent ${rIdx + 1}`
+                      <div className="max-h-[55vh] overflow-y-auto divide-y divide-border">
+                        {uploadState.consolidated.map((pattern, i) => {
+                          const isExpanded = expandedPatterns.has(i)
+                          const summary = attributionSummary(pattern.attributed_respondents)
+                          const matchedCount = pattern.attributed_respondents.filter((a) => a.contact_id).length
+
                           return (
-                            <div key={rIdx} className="px-5 py-3 space-y-2">
-                              <div className="flex items-center gap-2">
-                                <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                                <span className="text-xs font-semibold text-foreground flex-1 min-w-0 truncate">{identity}</span>
-                                {r.contact_id ? (
-                                  <span className="flex items-center gap-1 text-[11px] text-green-700 dark:text-green-400 shrink-0">
-                                    <CheckCircle className="h-3 w-3" />{r.contact_name}
-                                  </span>
-                                ) : (
-                                  <div className="flex items-center gap-1 shrink-0">
-                                    <AlertCircle className="h-3 w-3 text-amber-500" />
-                                    <select value={r.contact_id ?? ''} onChange={(e) => updateRespondentContact(rIdx, e.target.value || null)} className="rounded border border-input bg-background px-1.5 py-0.5 text-[11px] focus:outline-none">
-                                      <option value="">Link…</option>
-                                      {contacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            <div key={i} className="px-5 py-3 space-y-2">
+                              {/* Pattern content (editable) */}
+                              <div className="flex gap-3">
+                                <div className="flex-1 space-y-1.5">
+                                  <textarea
+                                    value={pattern.content}
+                                    onChange={(e) => updateConsolidated(i, 'content', e.target.value)}
+                                    rows={2}
+                                    className="w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                                  />
+                                  <div className="flex flex-wrap gap-1.5">
+                                    <select
+                                      value={pattern.category}
+                                      onChange={(e) => updateConsolidated(i, 'category', e.target.value)}
+                                      className="rounded border border-input bg-background px-2 py-0.5 text-[11px] text-foreground focus:outline-none"
+                                    >
+                                      {Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                                    </select>
+                                    <select
+                                      value={pattern.impact}
+                                      onChange={(e) => updateConsolidated(i, 'impact', e.target.value)}
+                                      className={cn('rounded border px-2 py-0.5 text-[11px] font-medium focus:outline-none', IMPACT_BADGE[pattern.impact])}
+                                    >
+                                      <option value="high">High</option>
+                                      <option value="medium">Medium</option>
+                                      <option value="low">Low</option>
                                     </select>
                                   </div>
-                                )}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => removeConsolidated(i)}
+                                  className="mt-1 shrink-0 rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
                               </div>
-                              <div className="pl-5 space-y-1.5">
-                                {r.insights.map((ins, iIdx) => (
-                                  <div key={iIdx} className="flex gap-2">
-                                    <div className="flex-1 space-y-1">
-                                      <textarea value={ins.content} onChange={(e) => updateRespondentInsight(rIdx, iIdx, 'content', e.target.value)} rows={2} className="w-full resize-none rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
-                                      <div className="flex flex-wrap gap-1">
-                                        <select value={ins.category} onChange={(e) => updateRespondentInsight(rIdx, iIdx, 'category', e.target.value)} className="rounded border border-input bg-background px-1.5 py-0.5 text-[11px] focus:outline-none">
-                                          {Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                                        </select>
-                                        <select value={ins.impact} onChange={(e) => updateRespondentInsight(rIdx, iIdx, 'impact', e.target.value)} className={cn('rounded border px-1.5 py-0.5 text-[11px] font-medium focus:outline-none', IMPACT_BADGE[ins.impact])}>
-                                          <option value="high">High</option>
-                                          <option value="medium">Medium</option>
-                                          <option value="low">Low</option>
-                                        </select>
-                                      </div>
+
+                              {/* Attribution row */}
+                              {pattern.attributed_respondents.length > 0 && (
+                                <div className="pl-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => togglePatternExpand(i)}
+                                    className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                                  >
+                                    <Users className="h-3 w-3 shrink-0" />
+                                    <span>
+                                      {summary}
+                                      {matchedCount > 0 && matchedCount < pattern.attributed_respondents.length && (
+                                        <span className="ml-1 text-amber-600 dark:text-amber-400">
+                                          ({matchedCount} linked)
+                                        </span>
+                                      )}
+                                    </span>
+                                    {isExpanded ? <ChevronUp className="h-3 w-3 ml-0.5" /> : <ChevronDown className="h-3 w-3 ml-0.5" />}
+                                  </button>
+
+                                  {isExpanded && (
+                                    <div className="mt-1.5 pl-4 space-y-1">
+                                      {pattern.attributed_respondents.map((a, ai) => (
+                                        <div key={ai} className="flex items-center gap-1.5 text-[11px]">
+                                          {a.contact_id ? (
+                                            <span className="flex items-center gap-1 text-green-700 dark:text-green-400">
+                                              <CheckCircle className="h-2.5 w-2.5" />
+                                              {a.contact_name ?? a.name ?? a.email}
+                                            </span>
+                                          ) : (
+                                            <span className="text-muted-foreground">
+                                              {a.name ?? a.email ?? a.respondent_key}
+                                              <span className="ml-1 text-amber-500/70">(not linked)</span>
+                                            </span>
+                                          )}
+                                        </div>
+                                      ))}
                                     </div>
-                                    <button type="button" onClick={() => removeRespondentInsight(rIdx, iIdx)} className="mt-1 shrink-0 rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-                                      <Trash2 className="h-3 w-3" />
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           )
                         })}
                       </div>
                       <div className="flex items-center justify-between px-5 py-3 border-t border-border">
                         <p className="text-xs text-muted-foreground">
-                          {uploadState.respondents.filter((r) => !r.contact_id).length > 0 && (
-                            <span className="text-amber-600 dark:text-amber-400 mr-1">
-                              {uploadState.respondents.filter((r) => !r.contact_id).length} unmatched —
-                            </span>
-                          )}
-                          {totalInsightCount(uploadState)} insights total
+                          {uploadState.consolidated.length} pattern{uploadState.consolidated.length !== 1 ? 's' : ''} · tagged as <strong>{meta.label}</strong>
                         </p>
-                        <button type="button" onClick={handleConfirm} disabled={totalInsightCount(uploadState) === 0} className="rounded-md bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
-                          Save {totalInsightCount(uploadState)}
+                        <button
+                          type="button"
+                          onClick={handleConfirm}
+                          disabled={uploadState.consolidated.length === 0}
+                          className="rounded-md bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                        >
+                          Save {uploadState.consolidated.length}
                         </button>
                       </div>
                     </>

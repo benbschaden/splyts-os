@@ -21,6 +21,7 @@ export interface CustomerInsightRow {
   impact: InsightImpact
   status: InsightStatus
   source_contact_id: string | null
+  source_contact_ids: string[]
   source_communication_id: string | null
   source_segment: InsightSourceSegment | null
   tags: string[]
@@ -32,7 +33,7 @@ export interface CustomerInsightRow {
 }
 
 const SELECT_COLUMNS =
-  'id, organization_id, created_by, content, category, impact, status, source_contact_id, source_communication_id, source_segment, tags, include_in_ai, created_at, updated_at, deleted_at, contacts:source_contact_id(name)'
+  'id, organization_id, created_by, content, category, impact, status, source_contact_id, source_contact_ids, source_communication_id, source_segment, tags, include_in_ai, created_at, updated_at, deleted_at, contacts:source_contact_id(name)'
 
 function mapRow(row: Record<string, unknown>): CustomerInsightRow {
   return {
@@ -44,6 +45,7 @@ function mapRow(row: Record<string, unknown>): CustomerInsightRow {
     impact: row.impact as InsightImpact,
     status: row.status as InsightStatus,
     source_contact_id: (row.source_contact_id as string | null) ?? null,
+    source_contact_ids: (row.source_contact_ids as string[]) ?? [],
     source_communication_id: (row.source_communication_id as string | null) ?? null,
     source_segment: (row.source_segment as InsightSourceSegment | null) ?? null,
     tags: (row.tags as string[]) ?? [],
@@ -120,6 +122,7 @@ export async function createInsight(params: {
   impact?: InsightImpact
   status?: InsightStatus
   source_contact_id?: string | null
+  source_contact_ids?: string[]
   source_communication_id?: string | null
   source_segment?: InsightSourceSegment | null
   tags?: string[]
@@ -136,6 +139,7 @@ export async function createInsight(params: {
       impact: params.impact ?? 'medium',
       status: params.status ?? 'new',
       source_contact_id: params.source_contact_id ?? null,
+      source_contact_ids: params.source_contact_ids ?? [],
       source_communication_id: params.source_communication_id ?? null,
       source_segment: params.source_segment ?? null,
       tags: params.tags ?? [],

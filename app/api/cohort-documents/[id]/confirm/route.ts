@@ -14,8 +14,9 @@ const bodySchema = z.object({
       ]),
       impact: z.enum(['high', 'medium', 'low']),
       source_contact_id: z.string().uuid().nullable().optional(),
+      source_contact_ids: z.array(z.string().uuid()).optional(),
     }),
-  ).min(1).max(20),
+  ).min(1).max(50),
 })
 
 export async function POST(
@@ -42,6 +43,10 @@ export async function POST(
 
     const savedInsights = []
     for (const draft of parsed.data.insights) {
+      const contactIds = draft.source_contact_ids ?? []
+      // Use first contact as the primary source_contact_id if not explicitly set
+      const primaryContactId = draft.source_contact_id ?? (contactIds.length > 0 ? contactIds[0] : null)
+
       const { insight, error } = await createInsight({
         organizationId: org.id,
         userId: user.id,
@@ -49,7 +54,8 @@ export async function POST(
         category: draft.category,
         impact: draft.impact,
         source_segment: doc.segment,
-        source_contact_id: draft.source_contact_id ?? null,
+        source_contact_id: primaryContactId,
+        source_contact_ids: contactIds,
         include_in_ai: true,
       })
       if (insight) savedInsights.push(insight)

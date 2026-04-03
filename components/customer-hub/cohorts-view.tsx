@@ -59,6 +59,7 @@ interface CohortsViewProps {
   initialDocuments: CohortDocumentRow[]
   contacts?: ContactOption[]
   onInsightsAdded: (insights: CustomerInsightRow[]) => void
+  onDocumentDeleted?: (id: string) => void
 }
 
 const SEGMENT_META: Record<CohortDocumentSegment, { label: string; description: string; dot: string }> = {
@@ -110,7 +111,7 @@ function attributionSummary(attributed: AttributedRespondent[], maxShown = 2): s
   return `${shown} + ${rest} other${rest !== 1 ? 's' : ''}`
 }
 
-export function CohortsView({ projectId, initialDocuments, contacts = [], onInsightsAdded }: CohortsViewProps) {
+export function CohortsView({ projectId, initialDocuments, contacts = [], onInsightsAdded, onDocumentDeleted }: CohortsViewProps) {
   const [documents, setDocuments] = useState<CohortDocumentRow[]>(initialDocuments)
   const [selectedSegment, setSelectedSegment] = useState<CohortDocumentSegment>('beta_user')
   const [segmentTab, setSegmentTab] = useState<SegmentTab>('chat')
@@ -387,6 +388,7 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
     await fetch(`/api/cohort-documents/${doc.id}`, { method: 'DELETE' })
     setDeletingId(null)
     setDocuments((prev) => prev.filter((d) => d.id !== doc.id))
+    onDocumentDeleted?.(doc.id)
   }
 
   const segDocs = docsBySegment(selectedSegment)

@@ -216,6 +216,7 @@ export function CustomerHubDetail({
                   }),
                 )
               }}
+              onDocumentDeleted={(id) => setCohortDocuments((prev) => prev.filter((d) => d.id !== id))}
             />
           </div>
         )}

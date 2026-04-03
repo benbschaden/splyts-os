@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Trash2, Sparkles } from 'lucide-react'
+import { Plus, Trash2, Sparkles, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type {
   CustomerInsightRow,
@@ -100,6 +100,8 @@ export function InsightsBoard({
   const [cyclingId, setCyclingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [linkingId, setLinkingId] = useState<string | null>(null)
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false)
+  const [deletingAll, setDeletingAll] = useState(false)
 
   const filtered = insights.filter((i) => {
     if (categoryFilter !== 'all' && i.category !== categoryFilter) return false
@@ -143,6 +145,20 @@ export function InsightsBoard({
     if (!res.ok) return
     const data = await res.json()
     onInsightUpdated(data.data)
+  }
+
+  async function handleDeleteAll() {
+    setDeletingAll(true)
+    setConfirmDeleteAll(false)
+    // Delete all filtered insights in parallel
+    await Promise.all(
+      filtered.map((insight) =>
+        fetch(`/api/customer-insights/${insight.id}`, { method: 'DELETE' })
+          .then(() => onInsightDeleted(insight.id))
+          .catch(() => {}),
+      ),
+    )
+    setDeletingAll(false)
   }
 
   return (
@@ -208,14 +224,27 @@ export function InsightsBoard({
           </span>
         )}
 
-        <button
-          type="button"
-          onClick={() => setAddOpen(true)}
-          className="ml-auto flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Add insight
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          {filtered.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setConfirmDeleteAll(true)}
+              disabled={deletingAll}
+              className="flex items-center gap-1.5 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50 transition-colors"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {deletingAll ? 'Deleting…' : `Delete all (${filtered.length})`}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setAddOpen(true)}
+            className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add insight
+          </button>
+        </div>
       </div>
 
       {/* Grid */}
@@ -357,6 +386,44 @@ export function InsightsBoard({
           setAddOpen(false)
         }}
       />
+
+      {/* Delete all confirm dialog */}
+      {confirmDeleteAll && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-sm rounded-xl border border-border bg-background p-6 shadow-xl">
+            <div className="flex items-start gap-3">
+              <div className="shrink-0 rounded-full bg-destructive/10 p-2">
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Delete {filtered.length} insight{filtered.length !== 1 ? 's' : ''}?</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {isFiltered
+                    ? `This will permanently delete all ${filtered.length} insight${filtered.length !== 1 ? 's' : ''} matching your current filters. This cannot be undone.`
+                    : `This will permanently delete all ${filtered.length} insight${filtered.length !== 1 ? 's' : ''}. This cannot be undone.`
+                  }
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteAll(false)}
+                className="rounded-md border border-border px-3.5 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAll}
+                className="rounded-md bg-destructive px-3.5 py-2 text-xs font-medium text-destructive-foreground hover:bg-destructive/90 transition-colors"
+              >
+                Delete {filtered.length}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

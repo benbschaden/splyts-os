@@ -1297,6 +1297,7 @@ export interface ExtractedInsightDraft {
 }
 
 export interface RespondentInsightResult {
+  respondent_key?: string | null
   email: string | null
   name: string | null
   insights: ExtractedInsightDraft[]
@@ -1473,6 +1474,7 @@ export function buildPerRespondentExtractionPrompt(params: {
   lines.push('For each respondent, extract 1-5 specific, actionable insights from their answers.')
   lines.push('')
   lines.push('Return a JSON array. Each item represents one respondent:')
+  lines.push('  - respondent_key: the key shown at the start of their section (e.g. "R1", "R7") — copy it exactly')
   lines.push('  - email: their email address (string or null)')
   lines.push('  - name: their name (string or null)')
   lines.push('  - insights: array of insight objects, each with:')
@@ -1480,13 +1482,13 @@ export function buildPerRespondentExtractionPrompt(params: {
   lines.push('      - category: one of "pain_point", "feature_request", "praise", "objection", "churn_signal", "usage_pattern", "market_insight"')
   lines.push('      - impact: one of "high", "medium", "low"')
   lines.push('')
-  lines.push('Rules:')
-  lines.push('  - You MUST return an entry for EVERY respondent who answered at least one question — even if their answers are brief or terse.')
-  lines.push('  - The only rows you may skip are those where literally every answer field is empty.')
-  lines.push('  - For respondents with short or vague answers, still extract at least 1 insight — interpret what their response reveals about their experience, needs, or situation.')
-  lines.push('  - Write insights as specific learnings, not generic summaries')
-  lines.push('  - "high" impact = blocks usage or strong signal; "low" = minor or one-off')
-  lines.push('  - Output ONLY valid JSON — no preamble, no markdown code fence')
+  lines.push('CRITICAL rules — follow exactly:')
+  lines.push('  - You MUST include an entry for EVERY respondent key in the input (R1, R2, R3, etc.) — no skipping allowed.')
+  lines.push('  - If a respondent gave even one word of answer, extract at least 1 insight. Interpret what their response reveals.')
+  lines.push('  - Only use insights: [] for a respondent whose every answer field is literally blank or "N/A".')
+  lines.push('  - Write insights as specific learnings, not generic summaries.')
+  lines.push('  - "high" impact = blocks usage or strong signal; "low" = minor or one-off.')
+  lines.push('  - Output ONLY valid JSON — no preamble, no markdown code fence.')
   lines.push('')
   lines.push('[RESPONDENTS]')
   lines.push(respondentsText.slice(0, 40000))

@@ -18,7 +18,7 @@ import { extractText } from '@/lib/company/extract-text'
 
 const BUCKET = 'cohort-files'
 const MAX_BYTES = 52_428_800 // 50 MiB
-const BATCH_SIZE = 12 // respondents per Opus call
+const BATCH_SIZE = 6 // respondents per Opus call — smaller batches reduce per-respondent truncation
 
 const VALID_SEGMENTS = new Set([
   'beta_user', 'free_user', 'customer', 'power_user', 'prospect', 'churned', 'other',
@@ -112,7 +112,12 @@ async function extractTextFromBuffer(buffer: Buffer, mime: string): Promise<stri
 // ----------------------------------------------------------------
 
 const EMAIL_HEADER_PATTERNS = ['email', 'e-mail', 'email address', 'respondent email', 'mail']
-const NAME_HEADER_PATTERNS = ['name', 'full name', 'first name', 'respondent', 'username', 'contact name']
+
+// Patterns that exclusively indicate a first name column — "name" alone is kept for full-name fallback
+const FIRST_NAME_PATTERNS = ['first name', 'firstname', 'first_name', 'given name']
+const LAST_NAME_PATTERNS = ['last name', 'lastname', 'last_name', 'surname', 'family name']
+// Fallback full-name patterns (used only when no separate first/last cols found)
+const FULL_NAME_PATTERNS = ['name', 'full name', 'respondent', 'username', 'contact name', 'your name']
 
 interface SurveyRow {
   email: string | null
@@ -136,18 +141,29 @@ function tryParseSurvey(buffer: Buffer, mime: string): ParsedSurvey | null {
     if (rawRows.length < 2) return null
 
     const headers = Object.keys(rawRows[0])
+    const lc = (h: string) => h.toLowerCase()
 
     const emailCol = headers.find((h) =>
-      EMAIL_HEADER_PATTERNS.some((p) => h.toLowerCase().includes(p)),
+      EMAIL_HEADER_PATTERNS.some((p) => lc(h).includes(p)),
     ) ?? null
-    const nameCol = headers.find((h) =>
-      NAME_HEADER_PATTERNS.some((p) => h.toLowerCase().includes(p)),
+
+    // Detect separate first + last name columns (common in Google Forms)
+    const firstNameCol = headers.find((h) =>
+      FIRST_NAME_PATTERNS.some((p) => lc(h).includes(p)),
     ) ?? null
+    const lastNameCol = headers.find((h) =>
+      LAST_NAME_PATTERNS.some((p) => lc(h).includes(p)),
+    ) ?? null
+
+    // Fall back to a single full-name column only when no separate cols found
+    const fullNameCol = (firstNameCol || lastNameCol)
+      ? null
+      : (headers.find((h) => FULL_NAME_PATTERNS.some((p) => lc(h).includes(p))) ?? null)
 
     // Require at least one identity column to be considered a survey
-    if (!emailCol && !nameCol) return null
+    if (!emailCol && !firstNameCol && !lastNameCol && !fullNameCol) return null
 
-    const identitySet = new Set([emailCol, nameCol].filter(Boolean) as string[])
+    const identitySet = new Set([emailCol, firstNameCol, lastNameCol, fullNameCol].filter(Boolean) as string[])
     const questionColumns = headers.filter((h) => !identitySet.has(h))
 
     const rows: SurveyRow[] = rawRows.map((row) => {
@@ -156,12 +172,22 @@ function tryParseSurvey(buffer: Buffer, mime: string): ParsedSurvey | null {
         const val = String(row[col] ?? '').trim()
         if (val) answers[col] = val
       }
+
+      let name: string | null = null
+      if (firstNameCol || lastNameCol) {
+        const first = firstNameCol ? String(row[firstNameCol] ?? '').trim() : ''
+        const last = lastNameCol ? String(row[lastNameCol] ?? '').trim() : ''
+        name = [first, last].filter(Boolean).join(' ') || null
+      } else if (fullNameCol) {
+        name = String(row[fullNameCol] ?? '').trim() || null
+      }
+
       return {
         email: emailCol ? (String(row[emailCol] ?? '').trim() || null) : null,
-        name: nameCol ? (String(row[nameCol] ?? '').trim() || null) : null,
+        name,
         answers,
       }
-    }).filter((r) => Object.keys(r.answers).length > 0)
+    }).filter((r) => Object.keys(r.answers).length > 0 || r.email || r.name)
 
     if (rows.length === 0) return null
 
@@ -171,6 +197,8 @@ function tryParseSurvey(buffer: Buffer, mime: string): ParsedSurvey | null {
   }
 }
 
+const MAX_CHARS_PER_RESPONDENT = 3000 // prevent any single respondent from eating the whole context
+
 function formatRespondentsText(rows: SurveyRow[], startIndex = 0): string {
   return rows.map((r, i) => {
     const key = `R${startIndex + i + 1}`
@@ -179,16 +207,26 @@ function formatRespondentsText(rows: SurveyRow[], startIndex = 0): string {
     const qa = Object.entries(r.answers)
       .map(([q, a]) => `Q: ${q}\nA: ${a}`)
       .join('\n\n')
+      .slice(0, MAX_CHARS_PER_RESPONDENT)
     return `${key} — ${header}\n${qa}`
   }).join('\n\n---\n\n')
 }
 
-function parseInsightJson(raw: string): RespondentInsightResult[] {
+interface ParsedRespondentResult extends RespondentInsightResult {
+  respondent_key: string | null
+}
+
+function parseInsightJson(raw: string): ParsedRespondentResult[] {
   const jsonStart = raw.indexOf('[')
   const jsonEnd = raw.lastIndexOf(']')
   if (jsonStart === -1 || jsonEnd === -1) return []
 
-  const parsed = JSON.parse(raw.slice(jsonStart, jsonEnd + 1))
+  let parsed: unknown[]
+  try {
+    parsed = JSON.parse(raw.slice(jsonStart, jsonEnd + 1))
+  } catch {
+    return []
+  }
   if (!Array.isArray(parsed)) return []
 
   const validCategories = new Set(['pain_point', 'feature_request', 'praise', 'objection', 'churn_signal', 'usage_pattern', 'market_insight'])
@@ -196,12 +234,13 @@ function parseInsightJson(raw: string): RespondentInsightResult[] {
 
   return parsed
     .filter((item) => item && typeof item === 'object')
-    .map((item): RespondentInsightResult => ({
-      email: typeof item.email === 'string' ? item.email : null,
-      name: typeof item.name === 'string' ? item.name : null,
-      insights: Array.isArray(item.insights)
-        ? item.insights.filter(
-            (ins: ExtractedInsightDraft) =>
+    .map((item): ParsedRespondentResult => ({
+      respondent_key: typeof (item as Record<string, unknown>).respondent_key === 'string' ? (item as Record<string, unknown>).respondent_key as string : null,
+      email: typeof (item as Record<string, unknown>).email === 'string' ? (item as Record<string, unknown>).email as string : null,
+      name: typeof (item as Record<string, unknown>).name === 'string' ? (item as Record<string, unknown>).name as string : null,
+      insights: Array.isArray((item as Record<string, unknown>).insights)
+        ? ((item as Record<string, unknown>).insights as ExtractedInsightDraft[]).filter(
+            (ins) =>
               ins &&
               typeof ins.content === 'string' &&
               ins.content.trim().length > 0 &&
@@ -210,7 +249,7 @@ function parseInsightJson(raw: string): RespondentInsightResult[] {
           ).slice(0, 8)
         : [],
     }))
-    .filter((r) => r.email || r.name)
+    .filter((r) => r.respondent_key || r.email || r.name)
 }
 
 type RespondentWithContact = RespondentInsightResult & {
@@ -250,19 +289,28 @@ async function runPerRespondentExtractionBatched(
   if (!apiKey) return []
 
   const anthropic = new Anthropic({ apiKey })
-  const allParsed: RespondentInsightResult[] = []
 
-  // Process in batches to stay within token limits
-  const batches: SurveyRow[][] = []
-  for (let i = 0; i < survey.rows.length; i += BATCH_SIZE) {
-    batches.push(survey.rows.slice(i, i + BATCH_SIZE))
+  // Build the global key → original survey row map upfront
+  const globalRows: Array<{ key: string; row: SurveyRow }> = survey.rows.map((row, i) => ({
+    key: `R${i + 1}`,
+    row,
+  }))
+
+  // keyed by respondent_key → final result
+  const resultsByKey = new Map<string, RespondentWithContact>()
+
+  // Process in batches
+  const batches: Array<{ key: string; row: SurveyRow }[]> = []
+  for (let i = 0; i < globalRows.length; i += BATCH_SIZE) {
+    batches.push(globalRows.slice(i, i + BATCH_SIZE))
   }
 
-  let globalOffset = 0
   for (const batch of batches) {
-    const respondentsText = formatRespondentsText(batch, globalOffset)
+    const batchOffset = parseInt(batch[0].key.slice(1)) - 1 // e.g. "R7" → offset 6
+    const respondentsText = formatRespondentsText(batch.map((b) => b.row), batchOffset)
     const prompt = buildPerRespondentExtractionPrompt({ respondentsText, segment, fileName })
 
+    let batchResults: ParsedRespondentResult[] = []
     try {
       const message = await anthropic.messages.create({
         model: 'claude-opus-4-5',
@@ -272,22 +320,39 @@ async function runPerRespondentExtractionBatched(
 
       const textBlock = message.content.find((b) => b.type === 'text')
       if (textBlock && textBlock.type === 'text') {
-        const batchResults = parseInsightJson(textBlock.text.trim())
-        allParsed.push(...batchResults)
+        batchResults = parseInsightJson(textBlock.text.trim())
       }
     } catch (err) {
-      console.error(`[cohort-documents/upload] Batch extraction error (offset ${globalOffset}):`, err)
+      console.error(`[cohort-documents/upload] Batch extraction error (batch starting ${batch[0].key}):`, err)
     }
 
-    globalOffset += batch.length
+    // Index AI results by respondent_key for lookup
+    const aiByKey = new Map<string, ParsedRespondentResult>()
+    for (const r of batchResults) {
+      if (r.respondent_key) aiByKey.set(r.respondent_key, r)
+    }
+
+    // Ensure EVERY respondent in this batch has an entry — fill gaps with empty insights
+    for (const { key, row } of batch) {
+      const aiResult = aiByKey.get(key)
+      const { contact_id, contact_name } = matchContact(
+        aiResult?.email ?? row.email,
+        aiResult?.name ?? row.name,
+        lookup,
+      )
+      resultsByKey.set(key, {
+        respondent_key: key,
+        email: aiResult?.email ?? row.email,
+        name: aiResult?.name ?? row.name,
+        insights: aiResult?.insights ?? [],
+        contact_id,
+        contact_name,
+      })
+    }
   }
 
-  // Assign respondent keys and match contacts
-  return allParsed.map((r, i): RespondentWithContact => {
-    const key = `R${i + 1}`
-    const { contact_id, contact_name } = matchContact(r.email, r.name, lookup)
-    return { ...r, contact_id, contact_name, respondent_key: key }
-  })
+  // Return in original order
+  return globalRows.map(({ key }) => resultsByKey.get(key)!).filter(Boolean)
 }
 
 async function runConsolidation(

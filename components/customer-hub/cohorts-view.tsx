@@ -265,10 +265,21 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
 
     setCreatingContacts(true)
 
-    // Also fix names on already-matched contacts where the CSV has a real name
-    // but the contact was created with an email prefix
+    // Fix names on already-matched contacts where the CSV has a real full name
+    // but the contact was created with an email prefix, bare email, or single-word placeholder
+    const isNamePlaceholder = (s: string) => {
+      const t = s.trim()
+      return !t.includes(' ') || t.includes('@') // single word or an email address
+    }
     const matchedWithBetterNames = uploadState.allRespondents.filter(
-      (r) => r.contact_id && r.name?.trim() && r.contact_name && !r.contact_name.includes(' ') && r.name.trim() !== r.contact_name,
+      (r) => {
+        if (!r.contact_id) return false
+        const newName = r.name?.trim()
+        if (!newName || !newName.includes(' ')) return false // new name must be a real full name
+        const oldName = r.contact_name
+        if (!oldName) return true // no name at all → update
+        return isNamePlaceholder(oldName) && newName !== oldName
+      },
     )
     for (const r of matchedWithBetterNames) {
       try {

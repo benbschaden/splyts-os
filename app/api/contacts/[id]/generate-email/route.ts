@@ -9,7 +9,7 @@ import { buildEmailDraftPrompt, type EmailDraftResult } from '@/lib/ai/prompts'
 
 const schema = z.object({
   purpose: z.string().min(1).max(1000),
-  additional_context: z.string().max(2000).optional().default(''),
+  additional_context: z.string().max(10000).optional().default(''),
 })
 
 export async function POST(

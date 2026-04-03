@@ -666,14 +666,13 @@ export function ContactDetail({
                 <label className="block text-xs font-medium text-foreground mb-1">
                   What's the purpose of this email? <span className="text-destructive">*</span>
                 </label>
-                <input
-                  type="text"
-                  autoComplete="new-password"
+                <textarea
                   maxLength={1000}
+                  rows={2}
                   value={purpose}
                   onChange={(e) => setPurpose(e.target.value)}
                   placeholder="e.g. Follow up on their onboarding question, share new feature announcement…"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   autoFocus
                 />
               </div>
@@ -687,7 +686,7 @@ export function ContactDetail({
                   onChange={(e) => setAdditionalContext(e.target.value)}
                   placeholder="e.g. They asked about CSV export last week — mention it's now live in v2.3…"
                   rows={3}
-                  maxLength={2000}
+                  maxLength={10000}
                   className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>

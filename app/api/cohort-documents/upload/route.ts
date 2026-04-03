@@ -219,18 +219,35 @@ type RespondentWithContact = RespondentInsightResult & {
   respondent_key: string
 }
 
+type ContactLookup = {
+  byEmail: Map<string, { id: string; name: string }>
+  byName: Map<string, { id: string; name: string }>
+}
+
+function matchContact(
+  email: string | null,
+  name: string | null,
+  lookup: ContactLookup,
+): { contact_id: string | null; contact_name: string | null } {
+  if (email) {
+    const match = lookup.byEmail.get(email.toLowerCase())
+    if (match) return { contact_id: match.id, contact_name: match.name }
+  }
+  if (name) {
+    const match = lookup.byName.get(name.toLowerCase())
+    if (match) return { contact_id: match.id, contact_name: match.name }
+  }
+  return { contact_id: null, contact_name: null }
+}
+
 async function runPerRespondentExtractionBatched(
   survey: ParsedSurvey,
-  orgId: string,
+  lookup: ContactLookup,
   segment: string,
   fileName: string,
 ): Promise<RespondentWithContact[]> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) return []
-
-  const contacts = await getContactsForOrg(orgId)
-  const byEmail = new Map(contacts.filter((c) => c.email).map((c) => [c.email!.toLowerCase(), c]))
-  const byName = new Map(contacts.map((c) => [c.name.toLowerCase(), c]))
 
   const anthropic = new Anthropic({ apiKey })
   const allParsed: RespondentInsightResult[] = []
@@ -268,19 +285,8 @@ async function runPerRespondentExtractionBatched(
   // Assign respondent keys and match contacts
   return allParsed.map((r, i): RespondentWithContact => {
     const key = `R${i + 1}`
-    let contactId: string | null = null
-    let contactName: string | null = null
-
-    if (r.email) {
-      const match = byEmail.get(r.email.toLowerCase())
-      if (match) { contactId = match.id; contactName = match.name }
-    }
-    if (!contactId && r.name) {
-      const match = byName.get(r.name.toLowerCase())
-      if (match) { contactId = match.id; contactName = match.name }
-    }
-
-    return { ...r, contact_id: contactId, contact_name: contactName, respondent_key: key }
+    const { contact_id, contact_name } = matchContact(r.email, r.name, lookup)
+    return { ...r, contact_id, contact_name, respondent_key: key }
   })
 }
 
@@ -502,26 +508,47 @@ export async function POST(request: Request) {
     }
 
     if (survey) {
+      // Build contact lookup maps once — reused for both extraction and all_survey_respondents
+      const orgContacts = await getContactsForOrg(org.id)
+      const lookup: ContactLookup = {
+        byEmail: new Map(orgContacts.filter((c) => c.email).map((c) => [c.email!.toLowerCase(), { id: c.id, name: c.name }])),
+        byName: new Map(orgContacts.map((c) => [c.name.toLowerCase(), { id: c.id, name: c.name }])),
+      }
+
+      // Build the full list of every CSV row with contact matching — used for "Create contacts"
+      // This covers ALL respondents regardless of whether Opus extracted insights for them
+      const allSurveyRespondents = survey.rows.map((row) => {
+        const { contact_id, contact_name } = matchContact(row.email, row.name, lookup)
+        return { name: row.name, email: row.email, contact_id, contact_name }
+      })
+
       // Pass 1: Per-respondent extraction in batches using Claude Opus
-      const respondents = await runPerRespondentExtractionBatched(survey, org.id, segment, file.name)
+      const respondents = await runPerRespondentExtractionBatched(survey, lookup, segment, file.name)
 
       if (respondents.length === 0) {
         await updateCohortDocument(doc.id, org.id, { status: 'failed' })
-        return Response.json({ document: doc, mode: 'per_respondent', consolidated: [], respondents: [] }, { status: 201 })
+        return Response.json({
+          document: doc,
+          mode: 'per_respondent',
+          consolidated: [],
+          respondents: [],
+          all_survey_respondents: allSurveyRespondents,
+          total_respondents: survey.rows.length,
+          extracted_respondents: 0,
+        }, { status: 201 })
       }
 
       // Pass 2: Consolidate patterns across respondents using Claude Opus
       const consolidated = await runConsolidation(respondents, segment)
 
-      await updateCohortDocument(doc.id, org.id, {
-        status: 'processed',
-      })
+      await updateCohortDocument(doc.id, org.id, { status: 'processed' })
 
       return Response.json({
         document: doc,
         mode: 'per_respondent',
         respondents,
         consolidated,
+        all_survey_respondents: allSurveyRespondents,
         total_respondents: survey.rows.length,
         extracted_respondents: respondents.length,
       }, { status: 201 })

@@ -34,6 +34,14 @@ interface DraftInsight {
 
 type ExtractionMode = 'thematic' | 'per_respondent'
 
+// Every CSV row — used for "Create contacts" so we never miss a respondent
+interface SurveyRespondent {
+  name: string | null
+  email: string | null
+  contact_id: string | null
+  contact_name: string | null
+}
+
 interface UploadState {
   segment: CohortDocumentSegment
   status: 'uploading' | 'extracting' | 'reviewing' | 'saving' | 'done' | 'error'
@@ -44,6 +52,8 @@ interface UploadState {
   drafts: DraftInsight[]
   // per_respondent mode — consolidated patterns
   consolidated: ConsolidatedDraft[]
+  // every respondent row from the CSV (regardless of insight extraction)
+  allRespondents: SurveyRespondent[]
   totalRespondents?: number
   extractedRespondents?: number
   savedCount?: number
@@ -134,7 +144,7 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
     e.target.value = ''
     if (!file) return
 
-    setUploadState({ segment: selectedSegment, status: 'uploading', mode: 'thematic', drafts: [], consolidated: [] })
+    setUploadState({ segment: selectedSegment, status: 'uploading', mode: 'thematic', drafts: [], consolidated: [], allRespondents: [] })
     setExpandedPatterns(new Set())
 
     const formData = new FormData()
@@ -161,6 +171,7 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
 
       if (mode === 'per_respondent') {
         const consolidated: ConsolidatedDraft[] = data.consolidated ?? []
+        const allRespondents: SurveyRespondent[] = data.all_survey_respondents ?? []
 
         if (consolidated.length === 0) {
           setUploadState((prev) => prev ? {
@@ -179,6 +190,7 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
           mode: 'per_respondent',
           drafts: [],
           consolidated,
+          allRespondents,
           totalRespondents: data.total_respondents,
           extractedRespondents: data.extracted_respondents,
         })
@@ -191,7 +203,7 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
         return
       }
 
-      setUploadState({ segment: selectedSegment, status: 'reviewing', documentId: newDoc.id, mode: 'thematic', drafts, consolidated: [] })
+      setUploadState({ segment: selectedSegment, status: 'reviewing', documentId: newDoc.id, mode: 'thematic', drafts, consolidated: [], allRespondents: [] })
     } catch {
       setUploadState((prev) => prev ? { ...prev, status: 'error', error: 'Something went wrong.' } : prev)
     }
@@ -238,23 +250,12 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
     })
   }
 
-  // Collect unique unmatched respondents across all consolidated patterns
-  function getUnmatchedRespondents(): AttributedRespondent[] {
+  // All unmatched respondents from the full CSV list (not just those in patterns)
+  function getUnmatchedRespondents(): SurveyRespondent[] {
     if (!uploadState || uploadState.mode !== 'per_respondent') return []
-    const seen = new Set<string>()
-    const unmatched: AttributedRespondent[] = []
-    for (const pattern of uploadState.consolidated) {
-      for (const a of pattern.attributed_respondents) {
-        if (!a.contact_id && !seen.has(a.respondent_key)) {
-          // Only create contacts that have at least a name or email
-          if (a.name || a.email) {
-            seen.add(a.respondent_key)
-            unmatched.push(a)
-          }
-        }
-      }
-    }
-    return unmatched
+    return uploadState.allRespondents.filter(
+      (r) => !r.contact_id && (r.name || r.email),
+    )
   }
 
   async function handleCreateUnmatched() {
@@ -264,11 +265,12 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
 
     setCreatingContacts(true)
 
-    // Map from respondent_key -> newly created contact id + name
-    const created = new Map<string, { id: string; name: string }>()
+    // Track newly created contacts: keyed by the unique identifier we used to create them
+    type CreatedContact = { id: string; name: string; email: string | null }
+    const createdByEmail = new Map<string, CreatedContact>()
+    const createdByName = new Map<string, CreatedContact>()
 
     for (const respondent of toCreate) {
-      // Derive best display name: prefer explicit name, fall back to email local part
       const displayName = respondent.name?.trim()
         || (respondent.email ? respondent.email.split('@')[0] : null)
       if (!displayName) continue
@@ -286,31 +288,51 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
 
         if (res.ok) {
           const data = await res.json()
-          const newContact = data.data
-          created.set(respondent.respondent_key, { id: newContact.id, name: newContact.name })
+          const newContact: CreatedContact = { id: data.data.id, name: data.data.name, email: data.data.email }
+          if (respondent.email) createdByEmail.set(respondent.email.toLowerCase(), newContact)
+          if (respondent.name) createdByName.set(respondent.name.toLowerCase(), newContact)
         }
       } catch {
-        // Log but continue creating the rest
-        console.error(`[cohorts-view] Failed to create contact for ${respondent.respondent_key}`)
+        console.error(`[cohorts-view] Failed to create contact for ${respondent.name ?? respondent.email}`)
       }
     }
 
-    if (created.size === 0) {
+    if (createdByEmail.size === 0 && createdByName.size === 0) {
       setCreatingContacts(false)
       return
     }
 
-    // Patch all consolidated patterns — update contact_id and contact_name for newly created contacts
+    function resolveCreated(email: string | null, name: string | null): CreatedContact | null {
+      if (email) {
+        const c = createdByEmail.get(email.toLowerCase())
+        if (c) return c
+      }
+      if (name) {
+        const c = createdByName.get(name.toLowerCase())
+        if (c) return c
+      }
+      return null
+    }
+
     setUploadState((prev) => {
       if (!prev) return prev
       return {
         ...prev,
+        // Patch allRespondents so the unmatched count updates immediately
+        allRespondents: prev.allRespondents.map((r) => {
+          if (r.contact_id) return r
+          const created = resolveCreated(r.email, r.name)
+          if (!created) return r
+          return { ...r, contact_id: created.id, contact_name: created.name }
+        }),
+        // Patch consolidated patterns so attribution checkmarks update
         consolidated: prev.consolidated.map((pattern) => ({
           ...pattern,
           attributed_respondents: pattern.attributed_respondents.map((a) => {
-            const newContact = created.get(a.respondent_key)
-            if (!newContact) return a
-            return { ...a, contact_id: newContact.id, contact_name: newContact.name }
+            if (a.contact_id) return a
+            const created = resolveCreated(a.email, a.name)
+            if (!created) return a
+            return { ...a, contact_id: created.id, contact_name: created.name }
           }),
         })),
       }

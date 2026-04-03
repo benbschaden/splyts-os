@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Upload, FileText, Trash2, CheckCircle, X, Loader2, Users, ChevronDown, ChevronUp, MessageSquare } from 'lucide-react'
+import { Upload, FileText, Trash2, CheckCircle, X, Loader2, Users, ChevronDown, ChevronUp, MessageSquare, UserPlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { CohortDocumentRow, CohortDocumentSegment } from '@/lib/queries/cohort-documents'
 import type { CustomerInsightRow, InsightCategory, InsightImpact } from '@/lib/queries/customer-insights'
@@ -117,6 +117,7 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
   const [uploadState, setUploadState] = useState<UploadState | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [expandedPatterns, setExpandedPatterns] = useState<Set<number>>(new Set())
+  const [creatingContacts, setCreatingContacts] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   function docsBySegment(seg: CohortDocumentSegment) {
@@ -234,6 +235,87 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
       else next.add(index)
       return next
     })
+  }
+
+  // Collect unique unmatched respondents across all consolidated patterns
+  function getUnmatchedRespondents(): AttributedRespondent[] {
+    if (!uploadState || uploadState.mode !== 'per_respondent') return []
+    const seen = new Set<string>()
+    const unmatched: AttributedRespondent[] = []
+    for (const pattern of uploadState.consolidated) {
+      for (const a of pattern.attributed_respondents) {
+        if (!a.contact_id && !seen.has(a.respondent_key)) {
+          // Only create contacts that have at least a name or email
+          if (a.name || a.email) {
+            seen.add(a.respondent_key)
+            unmatched.push(a)
+          }
+        }
+      }
+    }
+    return unmatched
+  }
+
+  async function handleCreateUnmatched() {
+    if (!uploadState) return
+    const toCreate = getUnmatchedRespondents()
+    if (toCreate.length === 0) return
+
+    setCreatingContacts(true)
+
+    // Map from respondent_key -> newly created contact id + name
+    const created = new Map<string, { id: string; name: string }>()
+
+    for (const respondent of toCreate) {
+      // Derive best display name: prefer explicit name, fall back to email local part
+      const displayName = respondent.name?.trim()
+        || (respondent.email ? respondent.email.split('@')[0] : null)
+      if (!displayName) continue
+
+      try {
+        const res = await fetch('/api/contacts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: displayName,
+            email: respondent.email ?? null,
+            segment: uploadState.segment,
+          }),
+        })
+
+        if (res.ok) {
+          const data = await res.json()
+          const newContact = data.data
+          created.set(respondent.respondent_key, { id: newContact.id, name: newContact.name })
+        }
+      } catch {
+        // Log but continue creating the rest
+        console.error(`[cohorts-view] Failed to create contact for ${respondent.respondent_key}`)
+      }
+    }
+
+    if (created.size === 0) {
+      setCreatingContacts(false)
+      return
+    }
+
+    // Patch all consolidated patterns — update contact_id and contact_name for newly created contacts
+    setUploadState((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        consolidated: prev.consolidated.map((pattern) => ({
+          ...pattern,
+          attributed_respondents: pattern.attributed_respondents.map((a) => {
+            const newContact = created.get(a.respondent_key)
+            if (!newContact) return a
+            return { ...a, contact_id: newContact.id, contact_name: newContact.name }
+          }),
+        })),
+      }
+    })
+
+    setCreatingContacts(false)
   }
 
   async function handleConfirm() {
@@ -587,19 +669,43 @@ export function CohortsView({ projectId, initialDocuments, contacts = [], onInsi
                           )
                         })}
                       </div>
-                      <div className="flex items-center justify-between px-5 py-3 border-t border-border">
-                        <p className="text-xs text-muted-foreground">
-                          {uploadState.consolidated.length} pattern{uploadState.consolidated.length !== 1 ? 's' : ''} · tagged as <strong>{meta.label}</strong>
-                        </p>
-                        <button
-                          type="button"
-                          onClick={handleConfirm}
-                          disabled={uploadState.consolidated.length === 0}
-                          className="rounded-md bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                        >
-                          Save {uploadState.consolidated.length}
-                        </button>
-                      </div>
+                      {(() => {
+                        const unmatched = getUnmatchedRespondents()
+                        return (
+                          <div className="flex items-center justify-between gap-3 px-5 py-3 border-t border-border">
+                            <p className="text-xs text-muted-foreground shrink-0">
+                              {uploadState.consolidated.length} pattern{uploadState.consolidated.length !== 1 ? 's' : ''} · <strong>{meta.label}</strong>
+                            </p>
+                            <div className="flex items-center gap-2">
+                              {unmatched.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={handleCreateUnmatched}
+                                  disabled={creatingContacts}
+                                  className="flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent disabled:opacity-50 transition-colors"
+                                >
+                                  {creatingContacts
+                                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    : <UserPlus className="h-3.5 w-3.5" />
+                                  }
+                                  {creatingContacts
+                                    ? 'Creating…'
+                                    : `Create ${unmatched.length} contact${unmatched.length !== 1 ? 's' : ''}`
+                                  }
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={handleConfirm}
+                                disabled={uploadState.consolidated.length === 0 || creatingContacts}
+                                className="rounded-md bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                              >
+                                Save {uploadState.consolidated.length}
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })()}
                     </>
                   )}
                 </div>

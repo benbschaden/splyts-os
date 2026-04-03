@@ -117,7 +117,11 @@ const EMAIL_HEADER_PATTERNS = ['email', 'e-mail', 'email address', 'respondent e
 const FIRST_NAME_PATTERNS = ['first name', 'firstname', 'first_name', 'given name']
 const LAST_NAME_PATTERNS = ['last name', 'lastname', 'last_name', 'surname', 'family name']
 // Fallback full-name patterns (used only when no separate first/last cols found)
-const FULL_NAME_PATTERNS = ['name', 'full name', 'respondent', 'username', 'contact name', 'your name']
+const FULL_NAME_PATTERNS = [
+  'full name', 'your name', 'contact name', 'username', 'respondent',
+  'first and last', 'first & last', 'first & last name',
+  'name',  // intentionally last — "name" is a short substring, keep more specific patterns first
+]
 
 interface SurveyRow {
   email: string | null
@@ -269,11 +273,11 @@ function matchContact(
   lookup: ContactLookup,
 ): { contact_id: string | null; contact_name: string | null } {
   if (email) {
-    const match = lookup.byEmail.get(email.toLowerCase())
+    const match = lookup.byEmail.get(email.trim().toLowerCase())
     if (match) return { contact_id: match.id, contact_name: match.name }
   }
   if (name) {
-    const match = lookup.byName.get(name.toLowerCase())
+    const match = lookup.byName.get(name.trim().toLowerCase())
     if (match) return { contact_id: match.id, contact_name: match.name }
   }
   return { contact_id: null, contact_name: null }

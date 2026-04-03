@@ -83,6 +83,10 @@ export function CustomerHubDetail({
     setCommunications((prev) => prev.filter((c) => c.id !== id))
   }
 
+  function handleCommunicationUpdated(comm: ContactCommunicationRow) {
+    setCommunications((prev) => prev.map((c) => (c.id === comm.id ? comm : c)))
+  }
+
   function handleInsightAdded(insight: CustomerInsightRow) {
     setInsights((prev) => [insight, ...prev])
   }
@@ -165,6 +169,7 @@ export function CustomerHubDetail({
                   personas={personas}
                   onCommunicationAdded={handleCommunicationAdded}
                   onCommunicationDeleted={handleCommunicationDeleted}
+                  onCommunicationUpdated={handleCommunicationUpdated}
                   onInsightAdded={handleInsightAdded}
                   onInsightDeleted={handleInsightDeleted}
                 />

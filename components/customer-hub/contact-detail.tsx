@@ -32,6 +32,7 @@ interface ContactDetailProps {
   personas: PersonaRow[]
   onCommunicationAdded: (comm: ContactCommunicationRow) => void
   onCommunicationDeleted: (id: string) => void
+  onCommunicationUpdated: (comm: ContactCommunicationRow) => void
   onInsightAdded: (insight: CustomerInsightRow) => void
   onInsightDeleted: (id: string) => void
 }
@@ -138,13 +139,40 @@ function formatDate(dateStr: string | null): string {
 function CommunicationCard({
   comm,
   onDelete,
+  onUpdated,
 }: {
   comm: ContactCommunicationRow
   onDelete: (id: string) => void
+  onUpdated: (comm: ContactCommunicationRow) => void
 }) {
   const [expanded, setExpanded] = useState(false)
+  const [markingAsSent, setMarkingAsSent] = useState(false)
+  const [sentAtValue, setSentAtValue] = useState(() => {
+    const now = new Date()
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
+    return now.toISOString().slice(0, 16)
+  })
+  const [isSavingMarkSent, setIsSavingMarkSent] = useState(false)
   const isLong = comm.content.length > 200
   const displayContent = expanded || !isLong ? comm.content : comm.content.slice(0, 200) + '…'
+
+  async function confirmMarkSent() {
+    setIsSavingMarkSent(true)
+    try {
+      const res = await fetch(`/api/contact-communications/${comm.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_draft: false, sent_at: new Date(sentAtValue).toISOString() }),
+      })
+      const data = await res.json()
+      if (res.ok && data.data) {
+        onUpdated(data.data)
+      }
+    } finally {
+      setIsSavingMarkSent(false)
+      setMarkingAsSent(false)
+    }
+  }
 
   const DirectionIcon =
     comm.direction === 'inbound'
@@ -176,7 +204,7 @@ function CommunicationCard({
           </span>
           {comm.is_draft && (
             <span className="rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800">
-              Draft
+              Pending
             </span>
           )}
         </div>
@@ -210,7 +238,41 @@ function CommunicationCard({
               {tag}
             </span>
           ))}
+          {comm.is_draft && !markingAsSent && (
+            <button
+              type="button"
+              onClick={() => setMarkingAsSent(true)}
+              className="text-[11px] font-medium text-primary hover:underline"
+            >
+              Mark as sent
+            </button>
+          )}
         </div>
+        {comm.is_draft && markingAsSent && (
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              type="datetime-local"
+              value={sentAtValue}
+              onChange={(e) => setSentAtValue(e.target.value)}
+              className="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            <button
+              type="button"
+              onClick={confirmMarkSent}
+              disabled={isSavingMarkSent}
+              className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {isSavingMarkSent ? 'Saving…' : 'Confirm sent'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMarkingAsSent(false)}
+              className="text-xs text-muted-foreground hover:underline"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
       </div>
       <button
         type="button"
@@ -296,6 +358,7 @@ export function ContactDetail({
   personas,
   onCommunicationAdded,
   onCommunicationDeleted,
+  onCommunicationUpdated,
   onInsightAdded,
   onInsightDeleted,
 }: ContactDetailProps) {
@@ -309,6 +372,8 @@ export function ContactDetail({
   const [additionalContext, setAdditionalContext] = useState('')
   const [draftSubject, setDraftSubject] = useState('')
   const [draftBody, setDraftBody] = useState('')
+  const [refineInstruction, setRefineInstruction] = useState('')
+  const [isRefining, setIsRefining] = useState(false)
   const [matchState, setMatchState] = useState<MatchState>({ status: 'idle' })
 
   useEffect(() => {
@@ -358,13 +423,41 @@ export function ContactDetail({
         setGenerateState({ status: 'error', message: data.error ?? 'Failed to save draft.' })
         return
       }
-      onCommunicationAdded(data.communication)
+      onCommunicationAdded(data.data)
       setGenerateState({ status: 'idle' })
       setPurpose('')
       setAdditionalContext('')
       setActiveTab('communications')
     } catch {
       setGenerateState({ status: 'error', message: 'Failed to save draft.' })
+    }
+  }
+
+  async function handleRefine() {
+    if (!refineInstruction.trim() || isRefining) return
+    setIsRefining(true)
+    try {
+      const res = await fetch(`/api/contacts/${contact.id}/refine-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          current_subject: draftSubject,
+          current_body: draftBody,
+          instruction: refineInstruction.trim(),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setGenerateState({ status: 'error', message: data.error ?? 'Refinement failed.' })
+        return
+      }
+      setDraftSubject(data.subject)
+      setDraftBody(data.body)
+      setRefineInstruction('')
+    } catch {
+      setGenerateState({ status: 'error', message: 'Something went wrong. Please try again.' })
+    } finally {
+      setIsRefining(false)
     }
   }
 
@@ -632,8 +725,8 @@ export function ContactDetail({
               <span className="text-sm font-semibold text-foreground">
                 {generateState.status === 'form' && 'Generate email draft'}
                 {generateState.status === 'generating' && 'Generating…'}
-                {generateState.status === 'reviewing' && 'Review draft'}
-                {generateState.status === 'saving' && 'Saving draft…'}
+                {(generateState.status === 'reviewing' || generateState.status === 'saving') && (isRefining ? 'Refining…' : 'Review & refine')}
+                {generateState.status === 'saving' && !isRefining && 'Saving…'}
                 {generateState.status === 'error' && 'Generation failed'}
               </span>
             </div>
@@ -719,7 +812,8 @@ export function ContactDetail({
                   type="text"
                   value={draftSubject}
                   onChange={(e) => setDraftSubject(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  disabled={isRefining || generateState.status === 'saving'}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
                 />
               </div>
               <div>
@@ -728,34 +822,66 @@ export function ContactDetail({
                   value={draftBody}
                   onChange={(e) => setDraftBody(e.target.value)}
                   rows={10}
-                  className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground whitespace-pre-wrap focus:outline-none focus:ring-2 focus:ring-ring"
+                  disabled={isRefining || generateState.status === 'saving'}
+                  className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground whitespace-pre-wrap focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
                 />
               </div>
               <div className="flex items-center gap-2 pt-1">
                 <button
                   type="button"
                   onClick={handleSaveDraft}
-                  disabled={generateState.status === 'saving' || !draftSubject.trim() || !draftBody.trim()}
+                  disabled={generateState.status === 'saving' || isRefining || !draftSubject.trim() || !draftBody.trim()}
                   className="rounded-md bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
                 >
-                  {generateState.status === 'saving' ? 'Saving…' : 'Save as draft'}
+                  {generateState.status === 'saving' ? 'Saving…' : 'Save as pending'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setGenerateState({ status: 'form' })}
-                  disabled={generateState.status === 'saving'}
+                  disabled={generateState.status === 'saving' || isRefining}
                   className="flex items-center gap-1 rounded-md border border-border px-4 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent transition-colors disabled:opacity-50"
                 >
                   <ChevronDown className="h-3 w-3 -rotate-90" />
-                  Regenerate
+                  Start over
                 </button>
                 <button
                   type="button"
                   onClick={dismissGenerate}
-                  disabled={generateState.status === 'saving'}
+                  disabled={generateState.status === 'saving' || isRefining}
                   className="rounded-md border border-border px-4 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent transition-colors disabled:opacity-50"
                 >
                   Discard
+                </button>
+              </div>
+              <div className="border-t border-border pt-3 space-y-2">
+                <label className="block text-xs font-medium text-foreground">Refine with AI</label>
+                <textarea
+                  value={refineInstruction}
+                  onChange={(e) => setRefineInstruction(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleRefine() }}
+                  placeholder="e.g. Make it sound stronger, add a point about their onboarding, shorten it…"
+                  rows={2}
+                  maxLength={5000}
+                  disabled={isRefining || generateState.status === 'saving'}
+                  className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
+                />
+                <button
+                  type="button"
+                  onClick={handleRefine}
+                  disabled={!refineInstruction.trim() || isRefining || generateState.status === 'saving'}
+                  className="flex items-center gap-1.5 rounded-md bg-muted px-4 py-1.5 text-xs font-medium text-foreground hover:bg-muted/80 transition-colors disabled:opacity-50"
+                >
+                  {isRefining ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Refining…
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Refine
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -804,7 +930,7 @@ export function ContactDetail({
             )}
             {sortedComms.map((comm) => (
               <div key={comm.id} className={cn(deletingCommId === comm.id && 'opacity-50 pointer-events-none')}>
-                <CommunicationCard comm={comm} onDelete={handleDeleteComm} />
+                <CommunicationCard comm={comm} onDelete={handleDeleteComm} onUpdated={onCommunicationUpdated} />
               </div>
             ))}
           </div>

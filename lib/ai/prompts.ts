@@ -1456,6 +1456,51 @@ export function buildEmailDraftPrompt(params: {
   return lines.join('\n')
 }
 
+// ----------------------------------------------------------------
+// Email refinement (iterative AI editing)
+// ----------------------------------------------------------------
+
+export function buildEmailRefinePrompt(params: {
+  contactName: string
+  currentSubject: string
+  currentBody: string
+  instruction: string
+  brandVoice: string
+  brandTone: string
+  companyName: string
+}): string {
+  const { contactName, currentSubject, currentBody, instruction, brandVoice, brandTone, companyName } = params
+  const lines: string[] = []
+
+  lines.push(`You are refining an outbound email from ${companyName} to their customer ${contactName}.`)
+  lines.push('')
+
+  if (brandVoice || brandTone) {
+    lines.push('[BRAND VOICE]')
+    if (brandVoice) lines.push(`Voice: ${brandVoice}`)
+    if (brandTone) lines.push(`Tone: ${brandTone}`)
+    lines.push('')
+  }
+
+  lines.push('[CURRENT EMAIL DRAFT]')
+  lines.push(`Subject: ${currentSubject}`)
+  lines.push('')
+  lines.push(currentBody)
+  lines.push('')
+
+  lines.push('[REFINEMENT INSTRUCTION]')
+  lines.push(instruction)
+  lines.push('')
+
+  lines.push('Rewrite the complete email incorporating the refinement instruction above.')
+  lines.push('Preserve the original intent and structure unless explicitly instructed otherwise.')
+  lines.push('Maintain the brand voice and tone throughout.')
+  lines.push('Return ONLY valid JSON with these two fields, no preamble:')
+  lines.push('{ "subject": "...", "body": "..." }')
+
+  return lines.join('\n')
+}
+
 export function buildPerRespondentExtractionPrompt(params: {
   respondentsText: string
   segment: string

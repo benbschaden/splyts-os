@@ -1538,6 +1538,84 @@ export function buildPatternConsolidationPrompt(params: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Persona Generation from Knowledge
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface GeneratedPersona {
+  name: string
+  tagline: string | null
+  age_range: string | null
+  job_title: string | null
+  industry: string | null
+  company_size: string | null
+  location: string | null
+  goals: string | null
+  frustrations: string | null
+  motivations: string | null
+  behaviors: string | null
+  values: string | null
+  channels: string | null
+  buying_triggers: string | null
+  objections: string | null
+  quote: string | null
+}
+
+export function buildGeneratePersonaPrompt(params: {
+  knowledgeDocs: KnowledgeDoc[]
+  existingPersonaNames: string[]
+}): string {
+  const { knowledgeDocs, existingPersonaNames } = params
+
+  const docsBlock =
+    knowledgeDocs.length > 0
+      ? knowledgeDocs
+          .map((d) => `--- ${d.fileName} ---\n${d.text.slice(0, 10000)}`)
+          .join('\n\n')
+      : '(No documents uploaded yet.)'
+
+  const existingNote =
+    existingPersonaNames.length > 0
+      ? `Already-defined personas (do NOT duplicate): ${existingPersonaNames.join(', ')}`
+      : ''
+
+  return `You are a world-class product strategist and customer researcher. Your task is to generate a richly detailed user persona based on the company's uploaded knowledge documents.
+
+Read the documents carefully. Look for evidence of:
+- Who the customers or target users are (job titles, industries, company sizes, locations)
+- What goals and outcomes they're trying to achieve
+- What frustrations, blockers, or pain points they have
+- What motivates their decisions and buying behaviour
+- What objections or hesitations come up
+- How they behave, what channels they use, what triggers them to buy
+
+${existingNote}
+
+Generate ONE persona that represents a distinct, real archetype of this company's target customer — not a generic placeholder, but a specific, vivid portrait grounded in the documents.
+
+${docsBlock}
+
+Return ONLY valid JSON — no preamble, no markdown fence — matching this exact shape:
+{
+  "name": "Short archetype name, e.g. 'The Scaling Operator'",
+  "tagline": "One-line summary of who they are and what they're trying to do",
+  "age_range": "e.g. '28–40' or null",
+  "job_title": "e.g. 'Head of Operations' or null",
+  "industry": "e.g. 'B2B SaaS' or null",
+  "company_size": "e.g. '50–200 employees' or null",
+  "location": "e.g. 'US / UK' or null",
+  "goals": "2–4 sentences describing what success looks like for them",
+  "frustrations": "2–4 sentences on their biggest pain points and blockers",
+  "motivations": "1–3 sentences on what drives their decisions",
+  "behaviors": "1–3 sentences on how they research, evaluate, and work",
+  "values": "1–2 sentences on what they care most about",
+  "channels": "comma-separated list of channels they use, or null",
+  "buying_triggers": "1–2 sentences on what causes them to seek a solution",
+  "objections": "1–2 sentences on their typical hesitations",
+  "quote": "A single first-person quote in their voice (1–2 sentences)"
+}`
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Persona Matching
 // ─────────────────────────────────────────────────────────────────────────────
 

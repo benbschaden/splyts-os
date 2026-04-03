@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Mail,
   ArrowDown,
@@ -310,6 +310,10 @@ export function ContactDetail({
   const [draftSubject, setDraftSubject] = useState('')
   const [draftBody, setDraftBody] = useState('')
   const [matchState, setMatchState] = useState<MatchState>({ status: 'idle' })
+
+  useEffect(() => {
+    setMatchState({ status: 'idle' })
+  }, [contact.id])
 
   async function handleGenerate() {
     if (!purpose.trim()) return

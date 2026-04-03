@@ -12,6 +12,8 @@ export type OutputWithCreator = {
   created_at: string
   updated_at: string
   published_at: string | null
+  status: 'draft' | 'published'
+  draft_messages: Array<{ role: 'user' | 'assistant'; content: string }> | null
   reach: number | null
   reach_metric: string | null
   engagement: number | null
@@ -57,6 +59,8 @@ async function attachCreatorNames(rows: OutputRow[] | null): Promise<OutputWithC
   const names = await getUserDisplayNamesByIds(ids)
   return rows.map((r) => ({
     ...r,
+    status: (r.status ?? 'published') as 'draft' | 'published',
+    draft_messages: r.draft_messages ?? null,
     metadata: null,
     creator_full_name: names[r.created_by] ?? null,
   }))
@@ -121,18 +125,29 @@ export async function getPublishedOutputsForOrg(
 export async function getOutputsForProject(
   projectId: string,
   organizationId: string,
+  /** When provided, includes the user's own drafts. When omitted, returns published only. */
+  userId?: string,
 ): Promise<OutputWithCreator[]> {
   const supabase = createServiceClient()
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('outputs')
     .select(
-      'id, brief, content, content_type_id, model_id, project_id, created_by, created_at, updated_at, published_at, reach, reach_metric, engagement, performance_notes, content_types(name), projects(name)',
+      'id, brief, content, content_type_id, model_id, project_id, created_by, created_at, updated_at, published_at, status, draft_messages, reach, reach_metric, engagement, performance_notes, content_types(name), projects(name)',
     )
     .eq('project_id', projectId)
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
-    .order('created_at', { ascending: false })
+
+  if (userId) {
+    // Show published outputs to everyone + this user's own drafts
+    query = query.or(`status.eq.published,and(status.eq.draft,created_by.eq.${userId})`)
+  } else {
+    query = query.eq('status', 'published')
+  }
+
+  // Drafts first (most recently updated), then published by created_at
+  const { data, error } = await query.order('updated_at', { ascending: false })
 
   if (error) return []
   return await attachCreatorNames((data ?? []) as unknown as OutputRow[])
@@ -147,6 +162,7 @@ export async function createOutput(params: {
   summary?: string | null
   userId: string
   modelId: string
+  status?: 'draft' | 'published'
 }) {
   const supabase = createServiceClient()
 
@@ -161,8 +177,9 @@ export async function createOutput(params: {
       summary: params.summary ?? null,
       created_by: params.userId,
       model_id: params.modelId,
+      status: params.status ?? 'published',
     })
-    .select('id, brief, content, summary, content_type_id, model_id, created_by, created_at, updated_at, published_at, reach, reach_metric, engagement, performance_notes')
+    .select('id, brief, content, summary, content_type_id, model_id, created_by, created_at, updated_at, published_at, status, reach, reach_metric, engagement, performance_notes')
     .single()
 
   if (error) return { output: null, error: 'Failed to save output' }
@@ -174,6 +191,71 @@ export async function createOutput(params: {
     output: { ...data, creator_full_name },
     error: null,
   }
+}
+
+type ChatMessage = { role: 'user' | 'assistant'; content: string }
+
+/** Create a new draft output during a generation session. */
+export async function createDraftOutput(params: {
+  organizationId: string
+  projectId: string
+  contentTypeId: string | null
+  outputType: string
+  brief: string
+  content: string
+  messages: ChatMessage[]
+  userId: string
+  modelId: string
+}) {
+  const supabase = createServiceClient()
+
+  const { data, error } = await supabase
+    .from('outputs')
+    .insert({
+      organization_id: params.organizationId,
+      project_id: params.projectId,
+      content_type_id: params.contentTypeId ?? null,
+      brief: params.brief,
+      content: params.content,
+      created_by: params.userId,
+      model_id: params.modelId,
+      status: 'draft',
+      draft_messages: params.messages,
+    })
+    .select('id, brief, content, content_type_id, model_id, created_by, created_at, updated_at, published_at, status')
+    .single()
+
+  if (error) return { draftId: null, error: 'Failed to auto-save draft' }
+  return { draftId: data.id, error: null }
+}
+
+/** Update an existing draft with the latest content and chat history. */
+export async function updateDraftOutput(params: {
+  id: string
+  organizationId: string
+  userId: string
+  brief: string
+  content: string
+  messages: ChatMessage[]
+}) {
+  const supabase = createServiceClient()
+
+  const { error } = await supabase
+    .from('outputs')
+    .update({
+      brief: params.brief,
+      content: params.content,
+      draft_messages: params.messages,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', params.id)
+    .eq('organization_id', params.organizationId)
+    .eq('created_by', params.userId)
+    .eq('status', 'draft')
+    .is('deleted_at', null)
+
+  if (error) return { error: 'Failed to update draft' }
+  return { error: null }
 }
 
 export async function updateOutput(
@@ -201,11 +283,16 @@ export async function publishOutput(id: string, organizationId: string, userId: 
 
   const { data, error } = await supabase
     .from('outputs')
-    .update({ published_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .update({
+      status: 'published',
+      draft_messages: null,
+      published_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', id)
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
-    .select('id, published_at, updated_at')
+    .select('id, published_at, updated_at, status')
     .single()
 
   if (error) return { output: null, error: 'Failed to mark as published' }

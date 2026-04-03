@@ -610,6 +610,7 @@ export function ProjectDetail({
                   contentTypes={contentTypes}
                   hasBrandContext={hasBrandContext}
                   showPublish={false}
+                  currentUserId={currentUserId}
                 />
               )}
 

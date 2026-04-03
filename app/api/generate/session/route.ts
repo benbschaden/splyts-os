@@ -14,7 +14,7 @@ import { getAiVisibleNarratives } from '@/lib/queries/brand-narratives'
 import { getTerminologyForAi } from '@/lib/queries/terminology'
 import { getKpiDefinitions } from '@/lib/queries/kpi-definitions'
 import { getLatestSnapshot } from '@/lib/queries/kpi-snapshots'
-import { getTopPerformingOutputs } from '@/lib/queries/outputs'
+import { getTopPerformingOutputs, createDraftOutput, updateDraftOutput } from '@/lib/queries/outputs'
 import { getProjectMaterials } from '@/lib/queries/project-materials'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getModelById, DEFAULT_MODEL } from '@/lib/ai/models'
@@ -26,6 +26,7 @@ const schema = z.object({
   contentTypeId: z.string().uuid(),
   authorId: z.string(),
   modelId: z.string().optional(),
+  draftId: z.string().uuid().optional(),
   // Full conversation history sent with every request (stateless)
   messages: z.array(
     z.object({
@@ -50,7 +51,7 @@ export async function POST(request: Request): Promise<Response> {
       return Response.json({ error: parsed.error.errors[0].message }, { status: 400 })
     }
 
-    const { projectId, contentTypeId, authorId, modelId, messages } = parsed.data
+    const { projectId, contentTypeId, authorId, modelId, draftId, messages } = parsed.data
 
     const model = (modelId ? getModelById(modelId) : null) ?? DEFAULT_MODEL
     if (model.provider !== 'anthropic') {
@@ -196,7 +197,40 @@ export async function POST(request: Request): Promise<Response> {
       return Response.json({ error: 'Generation failed. Please try again.' }, { status: 500 })
     }
 
-    return Response.json({ assistantMessage: assistantContent })
+    // Auto-save draft after every AI response
+    const updatedMessages = [
+      ...messages,
+      { role: 'assistant' as const, content: assistantContent },
+    ]
+    const brief = messages.find((m) => m.role === 'user')?.content ?? ''
+    const content = assistantContent.replace(/^Here's your (?:updated )?draft:\n?/i, '').trim()
+
+    let resolvedDraftId = draftId ?? null
+    if (draftId) {
+      await updateDraftOutput({
+        id: draftId,
+        organizationId: org.id,
+        userId: user.id,
+        brief,
+        content,
+        messages: updatedMessages,
+      })
+    } else {
+      const { draftId: newId } = await createDraftOutput({
+        organizationId: org.id,
+        projectId,
+        contentTypeId,
+        outputType: contentType.name,
+        brief,
+        content,
+        messages: updatedMessages,
+        userId: user.id,
+        modelId: model.id,
+      })
+      resolvedDraftId = newId
+    }
+
+    return Response.json({ assistantMessage: assistantContent, draftId: resolvedDraftId })
   } catch {
     return Response.json({ error: 'Internal error' }, { status: 500 })
   }

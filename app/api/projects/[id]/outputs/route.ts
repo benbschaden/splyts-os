@@ -32,7 +32,7 @@ export async function GET(
 
     if (!project) return Response.json({ error: 'Not found' }, { status: 404 })
 
-    const outputs = await getOutputsForProject(projectId, org.id)
+    const outputs = await getOutputsForProject(projectId, org.id, user.id)
     return Response.json(
       { outputs },
       {

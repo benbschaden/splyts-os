@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, Sparkles, Loader2, Send, Save, ChevronLeft } from 'lucide-react'
+import { X, Sparkles, Loader2, Send, Check, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -38,13 +38,7 @@ interface GeneratedOutput {
   engagement: number | null
   performance_notes: string | null
   creator_full_name: string | null
-}
-
-interface ProjectOutputDialogProps {
-  open: boolean
-  projectId: string
-  onClose: () => void
-  onGenerated: (output: GeneratedOutput) => void
+  status: 'draft' | 'published'
 }
 
 interface ChatMessage {
@@ -52,13 +46,31 @@ interface ChatMessage {
   content: string
 }
 
-type Phase = 'setup' | 'chat' | 'save'
+export interface ResumeDraft {
+  id: string
+  outputType: string
+  modelId: string
+  messages: ChatMessage[]
+}
+
+interface ProjectOutputDialogProps {
+  open: boolean
+  projectId: string
+  onClose: () => void
+  onGenerated: (output: GeneratedOutput) => void
+  onDraftDiscarded?: (id: string) => void
+  resumeDraft?: ResumeDraft | null
+}
+
+type Phase = 'setup' | 'chat'
 
 export function ProjectOutputDialog({
   open,
   projectId,
   onClose,
   onGenerated,
+  onDraftDiscarded,
+  resumeDraft,
 }: ProjectOutputDialogProps) {
   const router = useRouter()
   const [phase, setPhase] = useState<Phase>('setup')
@@ -68,35 +80,43 @@ export function ProjectOutputDialog({
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [chatError, setChatError] = useState<string | null>(null)
-  const [brief, setBrief] = useState('')
-  const [saveContent, setSaveContent] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
+  const [draftId, setDraftId] = useState<string | null>(null)
+  const [publishing, setPublishing] = useState(false)
+  const [publishError, setPublishError] = useState<string | null>(null)
+  const [discarding, setDiscarding] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     if (open) {
-      setPhase('setup')
-      setOutputType('Brief')
-      setModelId(DEFAULT_MODEL.id)
-      setMessages([])
+      if (resumeDraft) {
+        setPhase('chat')
+        setOutputType(resumeDraft.outputType)
+        setModelId(resumeDraft.modelId)
+        setMessages(resumeDraft.messages)
+        setDraftId(resumeDraft.id)
+      } else {
+        setPhase('setup')
+        setOutputType('Brief')
+        setModelId(DEFAULT_MODEL.id)
+        setMessages([])
+        setDraftId(null)
+      }
       setInput('')
       setSending(false)
       setChatError(null)
-      setBrief('')
-      setSaveContent('')
-      setSaveError(null)
+      setPublishError(null)
+      setDiscarding(false)
     }
-  }, [open])
+  }, [open, resumeDraft])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
   async function callSession(newMessages: ChatMessage[]): Promise<
-    { ok: true; text: string } | { ok: false; error?: string }
+    { ok: true; text: string; draftId: string | null } | { ok: false; error?: string }
   > {
     const res = await fetch(`/api/projects/${projectId}/generate/session`, {
       method: 'POST',
@@ -104,6 +124,7 @@ export function ProjectOutputDialog({
       body: JSON.stringify({
         outputType,
         modelId,
+        draftId,
         messages: newMessages,
       }),
     })
@@ -113,8 +134,9 @@ export function ProjectOutputDialog({
       return { ok: false, error: msg }
     }
     const text = data.assistantMessage as string | undefined
+    const newDraftId = typeof data.draftId === 'string' ? data.draftId : null
     if (typeof text !== 'string') return { ok: false }
-    return { ok: true, text }
+    return { ok: true, text, draftId: newDraftId }
   }
 
   function handleStart() {
@@ -142,6 +164,9 @@ export function ProjectOutputDialog({
     }
 
     setMessages((prev) => [...prev, { role: 'assistant', content: result.text }])
+    if (result.draftId && !draftId) {
+      setDraftId(result.draftId)
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -151,62 +176,59 @@ export function ProjectOutputDialog({
     }
   }
 
-  function openSave() {
-    const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant')
-    const rawContent = lastAssistant?.content ?? ''
-    const stripped = rawContent.replace(/^Here's your (?:updated )?draft:\n?/i, '').trim()
-    const firstUser = messages.find((m) => m.role === 'user')
-    setBrief(firstUser?.content ?? '')
-    setSaveContent(stripped)
-    setSaveError(null)
-    setPhase('save')
-  }
+  async function handlePublish() {
+    if (!draftId || publishing) return
+    setPublishing(true)
+    setPublishError(null)
 
-  async function handleConfirmSave() {
-    if (!brief.trim() || !saveContent.trim()) return
-    setSaving(true)
-    setSaveError(null)
-
-    const res = await fetch(`/api/projects/${projectId}/generate/save`, {
-      method: 'POST',
+    const res = await fetch(`/api/outputs/${draftId}`, {
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        brief: brief.trim(),
-        content: saveContent.trim(),
-        outputType,
-        modelId,
-      }),
+      body: JSON.stringify({ publish: true }),
     })
 
     const data = await res.json().catch(() => ({}))
-    setSaving(false)
+    setPublishing(false)
 
     if (!res.ok) {
-      setSaveError(typeof data.error === 'string' ? data.error : 'Failed to save. Please try again.')
+      setPublishError(typeof data.error === 'string' ? data.error : 'Failed to publish. Please try again.')
       return
     }
 
     if (!data.output) {
-      setSaveError('Failed to save. Please try again.')
+      setPublishError('Failed to publish. Please try again.')
       return
     }
 
-    onGenerated({ ...data.output, project_id: projectId } as GeneratedOutput)
+    onGenerated({ ...data.output, project_id: projectId, status: 'published' } as GeneratedOutput)
+    router.refresh()
+    onClose()
+  }
+
+  async function handleDiscard() {
+    if (!draftId || discarding) return
+    setDiscarding(true)
+
+    const res = await fetch(`/api/outputs/${draftId}`, { method: 'DELETE' })
+    setDiscarding(false)
+
+    if (!res.ok) return
+
+    onDraftDiscarded?.(draftId)
     router.refresh()
     onClose()
   }
 
   function handleDialogClose() {
-    if (sending || saving) return
+    if (sending || publishing || discarding) return
+    // Close without discarding — draft is auto-saved and can be resumed
     onClose()
   }
 
   if (!open) return null
 
   const hasMessages = messages.length > 0
-  const hasDraft = messages.some(
-    (m) => m.role === 'assistant' && /here's your (?:updated )?draft:/i.test(m.content),
-  )
+  const hasAiResponse = messages.some((m) => m.role === 'assistant')
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto py-8">
@@ -218,30 +240,24 @@ export function ProjectOutputDialog({
       <div
         className={cn(
           'relative w-full rounded-lg border border-border bg-background shadow-lg flex flex-col',
-          phase === 'chat' || phase === 'save' ? 'max-w-2xl' : 'max-w-lg',
+          phase === 'chat' ? 'max-w-2xl' : 'max-w-lg',
         )}
         style={phase === 'chat' ? { maxHeight: '85vh' } : undefined}
       >
+        {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-5 py-4 shrink-0">
           <div className="flex items-center gap-2">
-            {phase === 'save' && (
-              <button
-                type="button"
-                onClick={() => setPhase('chat')}
-                className="rounded-md p-1 text-muted-foreground hover:bg-accent transition-colors"
-                aria-label="Back to chat"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-            )}
             <h2 className="text-sm font-semibold text-foreground">
-              {phase === 'setup' && 'Create a project output'}
-              {phase === 'chat' && 'Project output'}
-              {phase === 'save' && 'Save to project'}
+              {phase === 'setup' ? 'Create a project output' : 'Project output'}
             </h2>
             {phase === 'chat' && (
               <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                 {outputType}
+              </span>
+            )}
+            {phase === 'chat' && draftId && (
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                Draft
               </span>
             )}
           </div>
@@ -262,15 +278,40 @@ export function ProjectOutputDialog({
                     <option key={m.id} value={m.id}>{m.label}</option>
                   ))}
                 </select>
-                {hasDraft && (
+                {draftId && (
                   <button
                     type="button"
-                    onClick={openSave}
-                    disabled={sending}
+                    onClick={handleDiscard}
+                    disabled={discarding || publishing || sending}
+                    aria-label="Discard draft"
+                    className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors disabled:opacity-40"
+                    title="Discard draft"
+                  >
+                    {discarding ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                )}
+                {hasAiResponse && draftId && (
+                  <button
+                    type="button"
+                    onClick={handlePublish}
+                    disabled={publishing || sending || discarding}
                     className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background hover:opacity-80 transition-opacity disabled:opacity-40"
                   >
-                    <Save className="h-3 w-3" />
-                    Save to project
+                    {publishing ? (
+                      <>
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Publishing…
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-3 w-3" />
+                        Publish
+                      </>
+                    )}
                   </button>
                 )}
               </>
@@ -278,7 +319,7 @@ export function ProjectOutputDialog({
             <button
               type="button"
               onClick={handleDialogClose}
-              disabled={saving || (phase === 'chat' && sending)}
+              disabled={publishing || discarding || (phase === 'chat' && sending)}
               className="rounded-md p-1 text-muted-foreground hover:bg-accent transition-colors disabled:opacity-50"
               aria-label="Close"
             >
@@ -287,10 +328,11 @@ export function ProjectOutputDialog({
           </div>
         </div>
 
+        {/* Setup phase */}
         {phase === 'setup' && (
           <div className="p-5 space-y-4">
             <p className="text-xs text-muted-foreground">
-              Choose a deliverable type, then chat with the AI until you are ready to save. The AI may ask questions before drafting.
+              Choose a deliverable type, then chat with the AI. Your draft is saved automatically — close at any time and resume later.
             </p>
             <div className="space-y-1.5">
               <label htmlFor="project-output-type" className="text-xs font-medium text-foreground">
@@ -346,6 +388,7 @@ export function ProjectOutputDialog({
           </div>
         )}
 
+        {/* Chat phase */}
         {phase === 'chat' && (
           <>
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 min-h-0">
@@ -401,20 +444,24 @@ export function ProjectOutputDialog({
             </div>
 
             <div className="border-t border-border px-5 py-3 shrink-0">
-              {!hasDraft && hasMessages && (
+              {publishError && (
+                <p className="mb-2 text-xs text-destructive">{publishError}</p>
+              )}
+              {!hasAiResponse && hasMessages && !sending && (
                 <p className="mb-2 text-xs text-muted-foreground">
                   Keep going — the AI will produce a draft once it has what it needs.
                 </p>
               )}
-              {hasDraft && (
+              {hasAiResponse && !publishError && (
                 <p className="mb-2 text-xs text-muted-foreground">
-                  Draft ready. Keep refining or{' '}
+                  Draft saved automatically. Close any time and resume later, or{' '}
                   <button
                     type="button"
-                    onClick={openSave}
-                    className="font-medium text-foreground underline underline-offset-2 hover:no-underline"
+                    onClick={handlePublish}
+                    disabled={publishing || sending}
+                    className="font-medium text-foreground underline underline-offset-2 hover:no-underline disabled:opacity-50"
                   >
-                    save to project
+                    publish now
                   </button>
                   .
                 </p>
@@ -425,7 +472,7 @@ export function ProjectOutputDialog({
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  disabled={sending}
+                  disabled={sending || publishing || discarding}
                   rows={2}
                   placeholder={hasMessages ? 'Reply… (Enter to send, Shift+Enter for new line)' : 'Describe what you need…'}
                   aria-label="Your message"
@@ -437,7 +484,7 @@ export function ProjectOutputDialog({
                 <button
                   type="button"
                   onClick={handleSend}
-                  disabled={!input.trim() || sending}
+                  disabled={!input.trim() || sending || publishing || discarding}
                   aria-label="Send message"
                   className="self-end rounded-md bg-foreground p-2 text-background hover:opacity-80 transition-opacity disabled:opacity-40"
                 >
@@ -446,82 +493,6 @@ export function ProjectOutputDialog({
               </div>
             </div>
           </>
-        )}
-
-        {phase === 'save' && (
-          <div className="p-5 space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Review the brief and content, then save as a project deliverable.
-            </p>
-
-            <div className="space-y-1.5">
-              <label htmlFor="project-save-brief" className="text-sm font-medium text-foreground">
-                Brief
-              </label>
-              <p className="text-xs text-muted-foreground">
-                Short description of what you asked for (editable).
-              </p>
-              <textarea
-                id="project-save-brief"
-                value={brief}
-                onChange={(e) => { setBrief(e.target.value); setSaveError(null) }}
-                rows={2}
-                className={cn(
-                  'w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground resize-none',
-                  'focus:outline-none focus:ring-2 focus:ring-ring',
-                  saveError ? 'border-destructive' : 'border-input',
-                )}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label htmlFor="project-save-content" className="text-sm font-medium text-foreground">
-                Content
-              </label>
-              <textarea
-                id="project-save-content"
-                value={saveContent}
-                onChange={(e) => { setSaveContent(e.target.value); setSaveError(null) }}
-                rows={10}
-                className={cn(
-                  'w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground resize-none',
-                  'focus:outline-none focus:ring-2 focus:ring-ring',
-                  saveError ? 'border-destructive' : 'border-input',
-                )}
-              />
-            </div>
-
-            {saveError && <p className="text-xs text-destructive">{saveError}</p>}
-
-            <div className="flex justify-end gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => setPhase('chat')}
-                disabled={saving}
-                className="rounded-md px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-accent transition-colors disabled:opacity-50"
-              >
-                Back to chat
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmSave}
-                disabled={saving || !brief.trim() || !saveContent.trim()}
-                className="inline-flex items-center gap-2 rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background hover:opacity-80 transition-opacity disabled:opacity-40"
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Saving…
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-3.5 w-3.5" />
-                    Confirm save
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
         )}
       </div>
     </div>

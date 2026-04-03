@@ -3,13 +3,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Sparkles, Copy, Pencil, Trash2, Check, X, FileText, BarChart2, Send, File } from 'lucide-react'
+import { Sparkles, Copy, Pencil, Trash2, Check, X, FileText, BarChart2, Send, File, RotateCcw, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   GenerationSessionDialog,
   type GeneratedOutputPayload,
+  type ResumeDraft as GenerationResumeDraft,
 } from '@/components/marketing/generation-session-dialog'
-import { ProjectOutputDialog } from '@/components/projects/project-output-dialog'
+import { ProjectOutputDialog, type ResumeDraft as ProjectResumeDraft } from '@/components/projects/project-output-dialog'
 import { getModelById } from '@/lib/ai/models'
 
 interface Output {
@@ -26,6 +27,8 @@ interface Output {
   projects: { name: string } | null
   creator_full_name: string | null
   published_at: string | null
+  status?: 'draft' | 'published'
+  draft_messages?: Array<{ role: 'user' | 'assistant'; content: string }> | null
   reach: number | null
   reach_metric: string | null
   engagement: number | null
@@ -60,6 +63,7 @@ interface OutputsListProps {
   hasBrandContext: boolean
   showPublish?: boolean
   pendingOutput?: Output | null
+  currentUserId?: string
 }
 
 function formatDateTime(iso: string) {
@@ -543,9 +547,12 @@ export function OutputsList({
   hasBrandContext,
   showPublish = false,
   pendingOutput,
+  currentUserId,
 }: OutputsListProps) {
   const [outputs, setOutputs] = useState<Output[]>(initialOutputs)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [resumeProjectDraft, setResumeProjectDraft] = useState<ProjectResumeDraft | null>(null)
+  const [resumeGenerationDraft, setResumeGenerationDraft] = useState<GenerationResumeDraft | null>(null)
 
   // Server props and client cache can be stale after tab switch, bfcache, or router cache.
   const loadOutputs = useCallback(async () => {
@@ -601,13 +608,28 @@ export function OutputsList({
       projects: null,
       creator_full_name: newOutput.creator_full_name,
       published_at: null,
+      status: 'published',
+      draft_messages: null,
       reach: null,
       reach_metric: null,
       engagement: null,
       performance_notes: null,
       metadata: null,
     }
-    setOutputs((prev) => [full, ...prev])
+    // Replace the draft row if it exists, otherwise prepend
+    setOutputs((prev) => {
+      const existing = prev.find((o) => o.id === newOutput.id)
+      if (existing) return prev.map((o) => (o.id === newOutput.id ? full : o))
+      return [full, ...prev]
+    })
+    setResumeProjectDraft(null)
+    setResumeGenerationDraft(null)
+  }
+
+  function handleDraftDiscarded(id: string) {
+    setOutputs((prev) => prev.filter((o) => o.id !== id))
+    setResumeProjectDraft(null)
+    setResumeGenerationDraft(null)
   }
 
   function handleProjectOutputGenerated(newOutput: {
@@ -644,19 +666,55 @@ export function OutputsList({
     setOutputs((prev) => prev.filter((o) => o.id !== id))
   }
 
+  const myDrafts = outputs.filter(
+    (o) => o.status === 'draft' && o.created_by === currentUserId,
+  )
+  const publishedOutputs = outputs.filter((o) => o.status !== 'draft')
+
+  function openResume(draft: Output) {
+    const messages = draft.draft_messages ?? []
+    if (showPublish) {
+      const rd: GenerationResumeDraft = {
+        id: draft.id,
+        contentTypeId: draft.content_type_id ?? '',
+        authorId: 'company',
+        modelId: draft.model_id,
+        messages,
+      }
+      setResumeGenerationDraft(rd)
+    } else {
+      const outputType = draft.brief.startsWith('Brief:') ? 'Brief'
+        : draft.brief.split(':')[0] ?? 'Brief'
+      const rd: ProjectResumeDraft = {
+        id: draft.id,
+        outputType,
+        modelId: draft.model_id,
+        messages,
+      }
+      setResumeProjectDraft(rd)
+    }
+    setDialogOpen(true)
+  }
+
+  function closeDraftDialog() {
+    setDialogOpen(false)
+    setResumeProjectDraft(null)
+    setResumeGenerationDraft(null)
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div className="space-y-0.5">
           <h2 className="text-sm font-semibold text-foreground">{showPublish ? 'Content' : 'Outputs'}</h2>
           <p className="text-sm text-muted-foreground">
-            {outputs.length === 0
+            {publishedOutputs.length === 0
               ? showPublish ? 'No content yet.' : 'No outputs yet.'
-              : `${outputs.length} ${showPublish ? `piece${outputs.length === 1 ? '' : 's'}` : `output${outputs.length === 1 ? '' : 's'}`} generated.`}
+              : `${publishedOutputs.length} ${showPublish ? `piece${publishedOutputs.length === 1 ? '' : 's'}` : `output${publishedOutputs.length === 1 ? '' : 's'}`} generated.`}
           </p>
         </div>
         <button
-          onClick={() => setDialogOpen(true)}
+          onClick={() => { setResumeProjectDraft(null); setResumeGenerationDraft(null); setDialogOpen(true) }}
           className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background transition-opacity hover:opacity-80"
         >
           <Sparkles className="h-3.5 w-3.5" />
@@ -664,7 +722,24 @@ export function OutputsList({
         </button>
       </div>
 
-      {outputs.length === 0 ? (
+      {/* In-progress drafts — only visible to their creator */}
+      {myDrafts.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            In progress
+          </p>
+          {myDrafts.map((draft) => (
+            <DraftCard
+              key={draft.id}
+              draft={draft}
+              onResume={openResume}
+              onDiscarded={handleDraftDiscarded}
+            />
+          ))}
+        </div>
+      )}
+
+      {publishedOutputs.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border py-16 text-center">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
             <FileText className="h-5 w-5 text-muted-foreground" />
@@ -678,7 +753,7 @@ export function OutputsList({
             </p>
           </div>
           <button
-            onClick={() => setDialogOpen(true)}
+            onClick={() => { setResumeProjectDraft(null); setResumeGenerationDraft(null); setDialogOpen(true) }}
             className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
             <Sparkles className="h-3.5 w-3.5" />
@@ -687,7 +762,7 @@ export function OutputsList({
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {outputs.map((output) => (
+          {publishedOutputs.map((output) => (
             <OutputCard
               key={output.id}
               output={output}
@@ -703,21 +778,87 @@ export function OutputsList({
       {showPublish ? (
         <GenerationSessionDialog
           open={dialogOpen}
-          onClose={() => setDialogOpen(false)}
+          onClose={closeDraftDialog}
           onGenerated={handleGenerated}
+          onDraftDiscarded={handleDraftDiscarded}
           projectId={projectId}
           authors={authors}
           contentTypes={contentTypes}
           hasBrandContext={hasBrandContext}
+          resumeDraft={resumeGenerationDraft}
         />
       ) : (
         <ProjectOutputDialog
           open={dialogOpen}
           projectId={projectId}
-          onClose={() => setDialogOpen(false)}
+          onClose={closeDraftDialog}
           onGenerated={handleProjectOutputGenerated}
+          onDraftDiscarded={handleDraftDiscarded}
+          resumeDraft={resumeProjectDraft}
         />
       )}
+    </div>
+  )
+}
+
+function DraftCard({
+  draft,
+  onResume,
+  onDiscarded,
+}: {
+  draft: Output
+  onResume: (draft: Output) => void
+  onDiscarded: (id: string) => void
+}) {
+  const [discarding, setDiscarding] = useState(false)
+
+  async function handleDiscard() {
+    setDiscarding(true)
+    const res = await fetch(`/api/outputs/${draft.id}`, { method: 'DELETE' })
+    setDiscarding(false)
+    if (res.ok) onDiscarded(draft.id)
+  }
+
+  const label = draft.brief.trim() || 'Untitled draft'
+  const messageCount = draft.draft_messages?.length ?? 0
+  const lastUpdated = new Date(draft.updated_at).toLocaleString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2.5 dark:border-amber-800/50 dark:bg-amber-950/20">
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <p className="truncate text-sm font-medium text-foreground">{label}</p>
+        <p className="text-xs text-muted-foreground">
+          {messageCount > 0 ? `${messageCount} message${messageCount === 1 ? '' : 's'}` : 'Not started'} · {lastUpdated}
+        </p>
+      </div>
+      <div className="flex shrink-0 items-center gap-1">
+        <button
+          type="button"
+          onClick={() => onResume(draft)}
+          className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+        >
+          <RotateCcw className="h-3 w-3" />
+          Resume
+        </button>
+        <button
+          type="button"
+          onClick={handleDiscard}
+          disabled={discarding}
+          aria-label="Discard draft"
+          className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors disabled:opacity-40"
+        >
+          {discarding ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Trash2 className="h-3.5 w-3.5" />
+          )}
+        </button>
+      </div>
     </div>
   )
 }

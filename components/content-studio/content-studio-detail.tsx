@@ -66,6 +66,7 @@ interface ContentStudioDetailProps {
 
 export function ContentStudioDetail({
   project,
+  currentUserId,
   contentIdeas,
   publishedOutputs,
   outputs: initialOutputs,
@@ -177,6 +178,7 @@ export function ContentStudioDetail({
               hasBrandContext={hasBrandContext}
               showPublish
               pendingOutput={pendingOutput}
+              currentUserId={currentUserId}
             />
           </div>
         )}

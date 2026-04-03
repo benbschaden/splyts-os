@@ -53,7 +53,7 @@ export default async function ProjectPage({ params }: PageProps) {
     discoveryStudies,
   ] = await Promise.all([
     getProjectById(id, org.id, user.id),
-    getOutputsForProject(id, org.id),
+    getOutputsForProject(id, org.id, user.id),
     getActiveContentTypes(org.id),
     getAuthorProfiles(org.id),
     getBrandContext(org.id),

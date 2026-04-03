@@ -688,6 +688,8 @@ export type Database = {
           project_id: string
           updated_at: string
           published_at: string | null
+          status: string
+          draft_messages: Json | null
           reach: number | null
           reach_metric: string | null
           engagement: number | null
@@ -714,6 +716,8 @@ export type Database = {
           project_id: string
           updated_at?: string
           published_at?: string | null
+          status?: string
+          draft_messages?: Json | null
           reach?: number | null
           reach_metric?: string | null
           engagement?: number | null
@@ -740,6 +744,8 @@ export type Database = {
           project_id?: string
           updated_at?: string
           published_at?: string | null
+          status?: string
+          draft_messages?: Json | null
           reach?: number | null
           reach_metric?: string | null
           engagement?: number | null

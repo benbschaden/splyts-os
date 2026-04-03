@@ -13,6 +13,7 @@ const bodySchema = z.object({
         'churn_signal', 'usage_pattern', 'market_insight',
       ]),
       impact: z.enum(['high', 'medium', 'low']),
+      source_contact_id: z.string().uuid().nullable().optional(),
     }),
   ).min(1).max(20),
 })
@@ -48,6 +49,7 @@ export async function POST(
         category: draft.category,
         impact: draft.impact,
         source_segment: doc.segment,
+        source_contact_id: draft.source_contact_id ?? null,
         include_in_ai: true,
       })
       if (insight) savedInsights.push(insight)

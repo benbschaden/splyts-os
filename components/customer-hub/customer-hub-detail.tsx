@@ -231,6 +231,7 @@ export function CustomerHubDetail({
           <div className="flex-1 overflow-y-auto px-6 py-4">
             <InsightsBoard
               insights={insights}
+              contacts={contacts.map((c) => ({ id: c.id, name: c.name }))}
               onInsightAdded={handleInsightAdded}
               onInsightUpdated={handleInsightUpdated}
               onInsightDeleted={handleInsightDeleted}
@@ -243,6 +244,7 @@ export function CustomerHubDetail({
             <CohortsView
               projectId={project.id}
               initialDocuments={cohortDocuments}
+              contacts={contacts.map((c) => ({ id: c.id, name: c.name }))}
               onInsightsAdded={(newInsights) => {
                 newInsights.forEach(handleInsightAdded)
                 setCohortDocuments((prev) =>

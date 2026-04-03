@@ -10,6 +10,7 @@ interface DraftInsight {
   content: string
   category: InsightCategory
   impact: InsightImpact
+  source_contact_id?: string | null
 }
 
 interface UploadState {
@@ -20,9 +21,15 @@ interface UploadState {
   drafts: DraftInsight[]
 }
 
+interface ContactOption {
+  id: string
+  name: string
+}
+
 interface CohortsViewProps {
   projectId: string
   initialDocuments: CohortDocumentRow[]
+  contacts?: ContactOption[]
   onInsightsAdded: (insights: CustomerInsightRow[]) => void
 }
 
@@ -86,7 +93,7 @@ const IMPACT_BADGE: Record<InsightImpact, string> = {
 
 const ACCEPTED_TYPES = '.csv,.xlsx,.pdf,.docx,.txt,.md,.json'
 
-export function CohortsView({ projectId, initialDocuments, onInsightsAdded }: CohortsViewProps) {
+export function CohortsView({ projectId, initialDocuments, contacts = [], onInsightsAdded }: CohortsViewProps) {
   const [documents, setDocuments] = useState<CohortDocumentRow[]>(initialDocuments)
   const [uploadState, setUploadState] = useState<UploadState | null>(null)
   const [expandedSegment, setExpandedSegment] = useState<CohortDocumentSegment | null>(null)
@@ -166,7 +173,7 @@ export function CohortsView({ projectId, initialDocuments, onInsightsAdded }: Co
     }
   }
 
-  function updateDraft(index: number, field: keyof DraftInsight, value: string) {
+  function updateDraft(index: number, field: keyof DraftInsight, value: string | null) {
     setUploadState((prev) => {
       if (!prev) return prev
       const drafts = [...prev.drafts]
@@ -333,6 +340,19 @@ export function CohortsView({ projectId, initialDocuments, onInsightsAdded }: Co
                           <option value="medium">Medium impact</option>
                           <option value="low">Low impact</option>
                         </select>
+                        {contacts.length > 0 && (
+                          <select
+                            value={draft.source_contact_id ?? ''}
+                            onChange={(e) => updateDraft(i, 'source_contact_id', e.target.value || null)}
+                            className="rounded border border-input bg-background px-2 py-0.5 text-[11px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                            title="Link to a specific contact"
+                          >
+                            <option value="">No contact</option>
+                            {contacts.map((c) => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                        )}
                       </div>
                     </div>
                     <button

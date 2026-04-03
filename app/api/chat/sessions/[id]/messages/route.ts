@@ -20,7 +20,7 @@ import { getKpiDefinitions } from '@/lib/queries/kpi-definitions'
 import { getLatestSnapshot } from '@/lib/queries/kpi-snapshots'
 import { getProjectMaterials } from '@/lib/queries/project-materials'
 import { getAiVisibleDiscoveryEntries, getParticipantDiscoveryEntries } from '@/lib/queries/discovery-entries'
-import { getAiVisibleInsights } from '@/lib/queries/customer-insights'
+import { getAiVisibleInsights, getInsightsForContact } from '@/lib/queries/customer-insights'
 import { getCommunicationsForContact } from '@/lib/queries/contact-communications'
 import { buildChatSystemPrompt } from '@/lib/ai/prompts'
 import { DEFAULT_MODEL, getModelById } from '@/lib/ai/models'
@@ -163,6 +163,7 @@ export async function POST(
       discoveryEntries,
       customerInsightsData,
       contactCommsData,
+      contactInsightsData,
       existingMessages,
       retrievedContext,
     ] = await Promise.all([
@@ -189,6 +190,7 @@ export async function POST(
         : Promise.resolve([]),
       includeCustomerInsights ? getAiVisibleInsights(org.id) : Promise.resolve([]),
       customerHubContactId ? getCommunicationsForContact(customerHubContactId, org.id) : Promise.resolve([]),
+      customerHubContactId ? getInsightsForContact(customerHubContactId, org.id) : Promise.resolve([]),
       getChatMessages(id),
       retrieveRelevantDocuments({
         query: content,
@@ -266,6 +268,7 @@ export async function POST(
       includeCustomerInsights,
       customerHubContactComms: customerHubContactId ? contactCommsData : undefined,
       includeCustomerHubContact: !!customerHubContactId,
+      contactInsights: customerHubContactId && contactInsightsData.length > 0 ? contactInsightsData : undefined,
       retrievedContext: retrievedContext.length > 0 ? retrievedContext : undefined,
     })
 

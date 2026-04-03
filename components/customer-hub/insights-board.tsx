@@ -12,8 +12,14 @@ import type {
 } from '@/lib/queries/customer-insights'
 import { AddInsightDialog } from './add-insight-dialog'
 
+interface ContactOption {
+  id: string
+  name: string
+}
+
 interface InsightsBoardProps {
   insights: CustomerInsightRow[]
+  contacts?: ContactOption[]
   onInsightAdded: (insight: CustomerInsightRow) => void
   onInsightUpdated: (insight: CustomerInsightRow) => void
   onInsightDeleted: (id: string) => void
@@ -81,6 +87,7 @@ const SELECT_CLASS =
 
 export function InsightsBoard({
   insights,
+  contacts = [],
   onInsightAdded,
   onInsightUpdated,
   onInsightDeleted,
@@ -92,6 +99,7 @@ export function InsightsBoard({
   const [segmentFilter, setSegmentFilter] = useState<InsightSourceSegment | 'all'>('all')
   const [cyclingId, setCyclingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [linkingId, setLinkingId] = useState<string | null>(null)
 
   const filtered = insights.filter((i) => {
     if (categoryFilter !== 'all' && i.category !== categoryFilter) return false
@@ -122,6 +130,19 @@ export function InsightsBoard({
     await fetch(`/api/customer-insights/${id}`, { method: 'DELETE' })
     setDeletingId(null)
     onInsightDeleted(id)
+  }
+
+  async function handleLinkContact(insight: CustomerInsightRow, contactId: string | null) {
+    setLinkingId(insight.id)
+    const res = await fetch(`/api/customer-insights/${insight.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source_contact_id: contactId }),
+    })
+    setLinkingId(null)
+    if (!res.ok) return
+    const data = await res.json()
+    onInsightUpdated(data.data)
   }
 
   return (
@@ -288,7 +309,22 @@ export function InsightsBoard({
                       {SEGMENT_LABELS[insight.source_segment]}
                     </span>
                   )}
-                  {insight.source_contact_name && (
+                  {contacts.length > 0 && (
+                    <select
+                      value={insight.source_contact_id ?? ''}
+                      onChange={(e) => handleLinkContact(insight, e.target.value || null)}
+                      disabled={linkingId === insight.id}
+                      className="ml-auto rounded border border-input bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+                      aria-label="Link to contact"
+                      title="Link to contact"
+                    >
+                      <option value="">No contact</option>
+                      {contacts.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  )}
+                  {!contacts.length && insight.source_contact_name && (
                     <span className="text-[11px] text-muted-foreground/60 ml-auto">
                       From: {insight.source_contact_name}
                     </span>

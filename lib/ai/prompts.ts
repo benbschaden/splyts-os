@@ -270,6 +270,7 @@ export function buildChatSystemPrompt(params: {
   includeCustomerInsights?: boolean
   customerHubContactComms?: ContactCommunicationRow[]
   includeCustomerHubContact?: boolean
+  contactInsights?: CustomerInsightRow[]
   retrievedContext?: RetrievedContext[]
 }): string {
   const {
@@ -281,7 +282,7 @@ export function buildChatSystemPrompt(params: {
     includeKpis, projectMaterials, includeProjectMaterials,
     discoveryEntries, includeDiscoveryEntries, discoveryParticipant,
     customerInsights, includeCustomerInsights,
-    customerHubContactComms, includeCustomerHubContact,
+    customerHubContactComms, includeCustomerHubContact, contactInsights,
     retrievedContext,
   } = params
 
@@ -463,18 +464,32 @@ export function buildChatSystemPrompt(params: {
     lines.push('')
   }
 
-  if (includeCustomerHubContact && customerHubContactComms && customerHubContactComms.length > 0) {
-    const contactName = customerHubContactComms[0]?.contact_name ?? 'this contact'
+  if (includeCustomerHubContact && (customerHubContactComms?.length || contactInsights?.length)) {
+    const contactName = customerHubContactComms?.[0]?.contact_name ?? 'this contact'
     lines.push(`[CONTACT FILE — ${contactName}]`)
-    lines.push(`All of the following are recorded communications with ${contactName}.`)
-    lines.push('Use this context to help draft replies, understand their needs, and summarise their journey.')
-    customerHubContactComms.slice(0, 20).forEach((comm) => {
-      const date = comm.sent_at ? ` (${comm.sent_at.slice(0, 10)})` : ''
-      const subject = comm.subject ? ` · ${comm.subject}` : ''
-      const dir = comm.direction === 'inbound' ? '→ Received' : comm.direction === 'outbound' ? '← Sent' : '📝 Note'
-      lines.push(`- [${dir} · ${comm.channel}${subject}${date}] ${comm.content.slice(0, 600)}`)
-    })
+    lines.push(`Everything below is specific to ${contactName}. Use it to draft replies, understand their needs, and build a complete picture of their journey.`)
     lines.push('')
+
+    if (customerHubContactComms && customerHubContactComms.length > 0) {
+      lines.push('Communications:')
+      customerHubContactComms.slice(0, 20).forEach((comm) => {
+        const date = comm.sent_at ? ` (${comm.sent_at.slice(0, 10)})` : ''
+        const subject = comm.subject ? ` · ${comm.subject}` : ''
+        const dir = comm.direction === 'inbound' ? '→ Received' : comm.direction === 'outbound' ? '← Sent' : '📝 Note'
+        lines.push(`- [${dir} · ${comm.channel}${subject}${date}] ${comm.content.slice(0, 600)}`)
+      })
+      lines.push('')
+    }
+
+    if (contactInsights && contactInsights.length > 0) {
+      lines.push('Insights linked to this contact:')
+      contactInsights.slice(0, 15).forEach((insight) => {
+        const category = insight.category.replace(/_/g, ' ')
+        const seg = insight.source_segment ? ` · from ${insight.source_segment.replace(/_/g, ' ')} cohort` : ''
+        lines.push(`- [${category} · ${insight.impact} impact${seg}] ${insight.content}`)
+      })
+      lines.push('')
+    }
   }
 
   lines.push('Use the company context above to give grounded, relevant answers.')

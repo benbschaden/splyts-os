@@ -29,7 +29,8 @@ export async function POST(
     const body = await request.json()
     const parsed = schema.safeParse(body)
     if (!parsed.success) {
-      return Response.json({ error: 'Invalid input' }, { status: 400 })
+      console.error('[contacts/generate-email] Validation failed:', JSON.stringify(parsed.error.flatten().fieldErrors))
+      return Response.json({ error: 'Invalid input', details: parsed.error.flatten().fieldErrors }, { status: 400 })
     }
 
     const apiKey = process.env.ANTHROPIC_API_KEY

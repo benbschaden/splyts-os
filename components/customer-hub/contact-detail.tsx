@@ -326,7 +326,8 @@ export function ContactDetail({
       })
       const data = await res.json()
       if (!res.ok) {
-        setGenerateState({ status: 'error', message: data.error ?? 'Generation failed.' })
+        const details = data.details ? Object.entries(data.details).map(([f, errs]) => `${f}: ${(errs as string[]).join(', ')}`).join('; ') : null
+        setGenerateState({ status: 'error', message: details ?? data.error ?? 'Generation failed.' })
         return
       }
       setDraftSubject(data.subject)
@@ -668,6 +669,7 @@ export function ContactDetail({
                 <input
                   type="text"
                   autoComplete="new-password"
+                  maxLength={1000}
                   value={purpose}
                   onChange={(e) => setPurpose(e.target.value)}
                   placeholder="e.g. Follow up on their onboarding question, share new feature announcement…"
@@ -685,6 +687,7 @@ export function ContactDetail({
                   onChange={(e) => setAdditionalContext(e.target.value)}
                   placeholder="e.g. They asked about CSV export last week — mention it's now live in v2.3…"
                   rows={3}
+                  maxLength={2000}
                   className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>

@@ -107,7 +107,7 @@ export async function createOrganization(name: string, userId: string) {
       'case-study':         'Lead with the outcome in the headline. Use real numbers. Keep it under 600 words.',
     }
 
-    await supabase.from('content_types').insert(
+    const { error: contentTypesError } = await supabase.from('content_types').insert(
       templates.map((t) => ({
         organization_id: org.id,
         template_id: t.id,
@@ -117,6 +117,9 @@ export async function createOrganization(name: string, userId: string) {
         created_by: userId,
       })),
     )
+    if (contentTypesError) {
+      console.error('[createOrganization] Failed to seed content types:', contentTypesError)
+    }
   }
 
   return { organization: org, error: null }

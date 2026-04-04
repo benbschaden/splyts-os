@@ -559,11 +559,6 @@ export function ContactDetail({
                   {contact.email}
                 </span>
               )}
-              {(contact.company || contact.role) && (
-                <span className="text-xs text-muted-foreground">
-                  {[contact.role, contact.company].filter(Boolean).join(' · ')}
-                </span>
-              )}
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               {contact.segment && (

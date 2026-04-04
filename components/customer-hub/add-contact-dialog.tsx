@@ -15,8 +15,6 @@ interface AddContactDialogProps {
 interface FormData {
   name: string
   email: string
-  company: string
-  role: string
   segment: ContactSegment | ''
   health: ContactHealth | ''
   tags: string
@@ -26,8 +24,6 @@ interface FormData {
 const EMPTY: FormData = {
   name: '',
   email: '',
-  company: '',
-  role: '',
   segment: '',
   health: '',
   tags: '',
@@ -65,8 +61,6 @@ export function AddContactDialog({ open, onClose, onSaved, initialContact }: Add
         setForm({
           name: initialContact.name,
           email: initialContact.email ?? '',
-          company: initialContact.company ?? '',
-          role: initialContact.role ?? '',
           segment: initialContact.segment ?? '',
           health: initialContact.health ?? '',
           tags: initialContact.tags.join(', '),
@@ -103,8 +97,6 @@ export function AddContactDialog({ open, onClose, onSaved, initialContact }: Add
     const payload = {
       name: form.name.trim(),
       email: form.email.trim() || null,
-      company: form.company.trim() || null,
-      role: form.role.trim() || null,
       segment: form.segment || null,
       health: form.health || null,
       tags: form.tags
@@ -187,35 +179,6 @@ export function AddContactDialog({ open, onClose, onSaved, initialContact }: Add
                 placeholder="email@example.com"
                 className={INPUT_CLASS}
               />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label htmlFor="contact-company" className="block text-xs font-medium text-foreground mb-1">
-                  Company
-                </label>
-                <input
-                  id="contact-company"
-                  type="text"
-                  value={form.company}
-                  onChange={(e) => set('company', e.target.value)}
-                  placeholder="Acme Inc."
-                  className={INPUT_CLASS}
-                />
-              </div>
-              <div>
-                <label htmlFor="contact-role" className="block text-xs font-medium text-foreground mb-1">
-                  Role
-                </label>
-                <input
-                  id="contact-role"
-                  type="text"
-                  value={form.role}
-                  onChange={(e) => set('role', e.target.value)}
-                  placeholder="Founder"
-                  className={INPUT_CLASS}
-                />
-              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">

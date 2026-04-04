@@ -78,6 +78,7 @@ export function ContentStudioDetail({
   const [generateOpen, setGenerateOpen] = useState(false)
   const [generateSectionOpen, setGenerateSectionOpen] = useState(true)
   const [initialMessage, setInitialMessage] = useState('')
+  const [initialAuthorId, setInitialAuthorId] = useState<string>('company')
   const [pendingOutput, setPendingOutput] = useState<StudioOutput | null>(null)
   const generateRef = useRef<HTMLDivElement>(null)
 
@@ -86,13 +87,22 @@ export function ContentStudioDetail({
       ? (contentTypes.find((ct) => ct.id === idea.content_type_id)?.name ?? 'content')
       : (idea.platform ?? 'content')
 
+    const matchedAuthor = idea.author_user_id
+      ? authors.find((a) => a.id === idea.author_user_id)
+      : null
+
+    const authorLabel = matchedAuthor
+      ? `${matchedAuthor.name}'s personal page`
+      : 'the company page'
+
     const parts = [
-      `Write ${contentTypeName} content for the ${idea.platform_owner === 'company' ? 'company page' : "author's page"}.`,
+      `Write ${contentTypeName} content for ${authorLabel}.`,
       `Idea: ${idea.title}`,
       idea.description ? `Context: ${idea.description}` : '',
     ].filter(Boolean)
 
     setInitialMessage(parts.join('\n'))
+    setInitialAuthorId(idea.author_user_id ?? 'company')
     setGenerateSectionOpen(true)
     setGenerateOpen(true)
 
@@ -147,6 +157,7 @@ export function ContentStudioDetail({
         projectId={project.id}
         initialIdeas={contentIdeas}
         contentTypes={contentTypes}
+        authors={authors}
         onBuildIdea={handleBuildIdea}
       />
 
@@ -202,6 +213,7 @@ export function ContentStudioDetail({
         contentTypes={contentTypes}
         hasBrandContext={hasBrandContext}
         initialUserMessage={initialMessage}
+        initialAuthorId={initialAuthorId}
       />
     </div>
   )

@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { DEFAULT_MODEL } from '@/lib/ai/models'
 
 export async function generateDocumentSummary(content: string, title: string): Promise<string> {
   const apiKey = process.env.ANTHROPIC_API_KEY
@@ -14,7 +15,7 @@ export async function generateDocumentSummary(content: string, title: string): P
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5',
+      model: DEFAULT_MODEL.id,
       max_tokens: 200,
       messages: [
         {

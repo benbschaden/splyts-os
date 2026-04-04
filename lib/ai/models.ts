@@ -11,9 +11,9 @@ export interface AIModel {
 
 export const AI_MODELS: AIModel[] = [
   {
-    id: 'claude-opus-4-5',
+    id: 'claude-opus-4-6',
     provider: 'anthropic',
-    label: 'Claude Opus',
+    label: 'Claude Opus 4.6',
     description: 'Most capable — best for polished, high-stakes content',
     default: true,
   },

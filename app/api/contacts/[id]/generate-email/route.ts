@@ -6,6 +6,7 @@ import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getCommunicationsForContact } from '@/lib/queries/contact-communications'
 import { getBrandContext } from '@/lib/queries/brand-context'
 import { buildEmailDraftPrompt, type EmailDraftResult } from '@/lib/ai/prompts'
+import { DEFAULT_MODEL } from '@/lib/ai/models'
 
 const schema = z.object({
   purpose: z.string().min(1).max(1000),
@@ -73,7 +74,7 @@ export async function POST(
 
     const anthropic = new Anthropic({ apiKey })
     const message = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: DEFAULT_MODEL.id,
       max_tokens: 2048,
       messages: [{ role: 'user', content: prompt }],
     })

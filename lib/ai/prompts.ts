@@ -1468,8 +1468,9 @@ export function buildEmailRefinePrompt(params: {
   brandVoice: string
   brandTone: string
   companyName: string
+  chatContext?: Array<{ role: string; content: string; created_at: string }>
 }): string {
-  const { contactName, currentSubject, currentBody, instruction, brandVoice, brandTone, companyName } = params
+  const { contactName, currentSubject, currentBody, instruction, brandVoice, brandTone, companyName, chatContext } = params
   const lines: string[] = []
 
   lines.push(`You are refining an outbound email from ${companyName} to their customer ${contactName}.`)
@@ -1479,6 +1480,19 @@ export function buildEmailRefinePrompt(params: {
     lines.push('[BRAND VOICE]')
     if (brandVoice) lines.push(`Voice: ${brandVoice}`)
     if (brandTone) lines.push(`Tone: ${brandTone}`)
+    lines.push('')
+  }
+
+  if (chatContext && chatContext.length > 0) {
+    lines.push('[RECENT AI CHAT CONTEXT]')
+    lines.push('The user had the following AI chat conversation about this contact. Use it as background if relevant to the refinement instruction.')
+    lines.push('')
+    for (const msg of chatContext) {
+      const when = new Date(msg.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+      const speaker = msg.role === 'user' ? 'User' : 'AI'
+      lines.push(`[${when}] ${speaker}: ${msg.content}`)
+      lines.push('---')
+    }
     lines.push('')
   }
 

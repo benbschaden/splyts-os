@@ -374,6 +374,7 @@ export function ContactDetail({
   const [draftBody, setDraftBody] = useState('')
   const [refineInstruction, setRefineInstruction] = useState('')
   const [isRefining, setIsRefining] = useState(false)
+  const [includeChatContext, setIncludeChatContext] = useState(false)
   const [matchState, setMatchState] = useState<MatchState>({ status: 'idle' })
 
   useEffect(() => {
@@ -444,6 +445,7 @@ export function ContactDetail({
           current_subject: draftSubject,
           current_body: draftBody,
           instruction: refineInstruction.trim(),
+          include_chat_context: includeChatContext,
         }),
       })
       const data = await res.json()
@@ -865,24 +867,36 @@ export function ContactDetail({
                   disabled={isRefining || generateState.status === 'saving'}
                   className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
                 />
-                <button
-                  type="button"
-                  onClick={handleRefine}
-                  disabled={!refineInstruction.trim() || isRefining || generateState.status === 'saving'}
-                  className="flex items-center gap-1.5 rounded-md bg-muted px-4 py-1.5 text-xs font-medium text-foreground hover:bg-muted/80 transition-colors disabled:opacity-50"
-                >
-                  {isRefining ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Refining…
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-3.5 w-3.5" />
-                      Refine
-                    </>
-                  )}
-                </button>
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground select-none cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={includeChatContext}
+                      onChange={(e) => setIncludeChatContext(e.target.checked)}
+                      disabled={isRefining || generateState.status === 'saving'}
+                      className="h-3.5 w-3.5 rounded border-input accent-primary"
+                    />
+                    Include AI chat context
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleRefine}
+                    disabled={!refineInstruction.trim() || isRefining || generateState.status === 'saving'}
+                    className="flex items-center gap-1.5 rounded-md bg-muted px-4 py-1.5 text-xs font-medium text-foreground hover:bg-muted/80 transition-colors disabled:opacity-50"
+                  >
+                    {isRefining ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Refining…
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Refine
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           )}

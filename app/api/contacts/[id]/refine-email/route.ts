@@ -4,12 +4,15 @@ import { createClient } from '@/lib/supabase/server'
 import { createUntypedServiceClient } from '@/lib/supabase/service'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getBrandContext } from '@/lib/queries/brand-context'
+import { findChatSessionForContact, getChatMessages } from '@/lib/queries/chat'
 import { buildEmailRefinePrompt, type EmailDraftResult } from '@/lib/ai/prompts'
+import { DEFAULT_MODEL } from '@/lib/ai/models'
 
 const schema = z.object({
   current_subject: z.string().max(1000),
   current_body: z.string().max(100000),
   instruction: z.string().min(1).max(5000),
+  include_chat_context: z.boolean().optional().default(false),
 })
 
 export async function POST(
@@ -48,6 +51,19 @@ export async function POST(
 
     const brandContext = await getBrandContext(org.id)
 
+    let chatContext: Array<{ role: string; content: string; created_at: string }> | undefined
+    if (parsed.data.include_chat_context) {
+      const session = await findChatSessionForContact(contactId, user.id)
+      if (session) {
+        const messages = await getChatMessages(session.id)
+        chatContext = messages.slice(-20).map((m) => ({
+          role: m.role,
+          content: m.content.slice(0, 500),
+          created_at: m.created_at,
+        }))
+      }
+    }
+
     const prompt = buildEmailRefinePrompt({
       contactName: contact.name,
       currentSubject: parsed.data.current_subject,
@@ -56,11 +72,12 @@ export async function POST(
       brandVoice: brandContext?.voice ?? '',
       brandTone: brandContext?.tone ?? '',
       companyName: brandContext?.company_name ?? org.name ?? 'the company',
+      chatContext,
     })
 
     const anthropic = new Anthropic({ apiKey })
     const message = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: DEFAULT_MODEL.id,
       max_tokens: 2048,
       messages: [{ role: 'user', content: prompt }],
     })

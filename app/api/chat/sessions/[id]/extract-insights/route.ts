@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { DEFAULT_MODEL } from '@/lib/ai/models'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getChatSessionById, getChatMessages } from '@/lib/queries/chat'
@@ -48,7 +49,7 @@ export async function POST(
     const anthropic = new Anthropic({ apiKey })
 
     const message = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: DEFAULT_MODEL.id,
       max_tokens: 2048,
       messages: [{ role: 'user', content: prompt }],
     })

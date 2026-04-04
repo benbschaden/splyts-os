@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { DEFAULT_MODEL } from '@/lib/ai/models'
 import { createClient } from '@/lib/supabase/server'
 import { createUntypedServiceClient } from '@/lib/supabase/service'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
@@ -74,7 +75,7 @@ export async function POST(
 
     const anthropic = new Anthropic({ apiKey })
     const message = await anthropic.messages.create({
-      model: 'claude-opus-4-5',
+      model: DEFAULT_MODEL.id,
       max_tokens: 2048,
       messages: [{ role: 'user', content: prompt }],
     })

@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto'
 import Anthropic from '@anthropic-ai/sdk'
+import { DEFAULT_MODEL } from '@/lib/ai/models'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient, createUntypedServiceClient } from '@/lib/supabase/service'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
@@ -317,7 +318,7 @@ async function runPerRespondentExtractionBatched(
     let batchResults: ParsedRespondentResult[] = []
     try {
       const message = await anthropic.messages.create({
-        model: 'claude-opus-4-5',
+        model: DEFAULT_MODEL.id,
         max_tokens: 16000,
         messages: [{ role: 'user', content: prompt }],
       })
@@ -385,7 +386,7 @@ async function runConsolidation(
   try {
     const anthropic = new Anthropic({ apiKey })
     const message = await anthropic.messages.create({
-      model: 'claude-opus-4-5',
+      model: DEFAULT_MODEL.id,
       max_tokens: 16000,
       messages: [{ role: 'user', content: prompt }],
     })
@@ -459,7 +460,7 @@ async function runAiExtraction(
 
   try {
     const message = await anthropic.messages.create({
-      model: 'claude-opus-4-5',
+      model: DEFAULT_MODEL.id,
       max_tokens: 8192,
       messages: [{ role: 'user', content: prompt }],
     })

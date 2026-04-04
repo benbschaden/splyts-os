@@ -14,69 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      author_profiles: {
-        Row: {
-          created_at: string
-          created_by: string
-          deleted_at: string | null
-          id: string
-          name: string
-          organization_id: string
-          personal_pillars: string | null
-          platform_notes: string | null
-          role: string | null
-          tone: string | null
-          updated_at: string
-          voice: string | null
-          writing_style: string | null
-        }
-        Insert: {
-          created_at?: string
-          created_by: string
-          deleted_at?: string | null
-          id?: string
-          name: string
-          organization_id: string
-          personal_pillars?: string | null
-          platform_notes?: string | null
-          role?: string | null
-          tone?: string | null
-          updated_at?: string
-          voice?: string | null
-          writing_style?: string | null
-        }
-        Update: {
-          created_at?: string
-          created_by?: string
-          deleted_at?: string | null
-          id?: string
-          name?: string
-          organization_id?: string
-          personal_pillars?: string | null
-          platform_notes?: string | null
-          role?: string | null
-          tone?: string | null
-          updated_at?: string
-          voice?: string | null
-          writing_style?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "author_profiles_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "author_profiles_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       personas: {
         Row: {
           id: string
@@ -384,6 +321,11 @@ export type Database = {
           id: string
           role: string | null
           updated_at: string
+          voice: string | null
+          tone: string | null
+          writing_style: string | null
+          personal_pillars: string | null
+          platform_notes: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -392,6 +334,11 @@ export type Database = {
           id: string
           role?: string | null
           updated_at?: string
+          voice?: string | null
+          tone?: string | null
+          writing_style?: string | null
+          personal_pillars?: string | null
+          platform_notes?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -400,6 +347,11 @@ export type Database = {
           id?: string
           role?: string | null
           updated_at?: string
+          voice?: string | null
+          tone?: string | null
+          writing_style?: string | null
+          personal_pillars?: string | null
+          platform_notes?: string | null
         }
         Relationships: [
           {
@@ -2045,7 +1997,7 @@ export type Database = {
           title: string
           description: string | null
           platform: string | null
-          platform_owner: string
+          author_user_id: string | null
           content_type_id: string | null
           status: string
           created_by: string
@@ -2060,7 +2012,7 @@ export type Database = {
           title: string
           description?: string | null
           platform?: string | null
-          platform_owner: string
+          author_user_id?: string | null
           content_type_id?: string | null
           status?: string
           created_by: string
@@ -2075,7 +2027,7 @@ export type Database = {
           title?: string
           description?: string | null
           platform?: string | null
-          platform_owner?: string
+          author_user_id?: string | null
           content_type_id?: string | null
           status?: string
           created_by?: string

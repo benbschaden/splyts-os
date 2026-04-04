@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-import { getUserProfile, upsertUserProfile } from '@/lib/queries/user-profile'
+import { getUserProfileWithVoice, upsertUserProfile } from '@/lib/queries/user-profile'
 
 const updateProfileSchema = z.object({
   full_name: z.string().max(200).nullable().optional(),
@@ -19,7 +19,7 @@ export async function GET() {
 
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const profile = await getUserProfile(user.id)
+  const profile = await getUserProfileWithVoice(user.id)
   return NextResponse.json({
     data: {
       ...profile,
@@ -41,7 +41,7 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 })
   }
 
-  const existing = await getUserProfile(user.id)
+  const existing = await getUserProfileWithVoice(user.id)
 
   const { profile, error } = await upsertUserProfile(user.id, {
     full_name: parsed.data.full_name ?? existing?.full_name ?? null,

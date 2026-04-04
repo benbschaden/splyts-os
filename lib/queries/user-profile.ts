@@ -11,9 +11,27 @@ export interface UserProfileData {
   platform_notes: string | null
 }
 
+const CORE_COLUMNS = 'id, full_name, role, avatar_url, updated_at'
 const VOICE_COLUMNS = 'id, full_name, role, avatar_url, voice, tone, writing_style, personal_pillars, platform_notes, updated_at'
 
+/** Core profile fetch — only selects columns that have always existed.
+ *  Safe to call in layout/auth flows even before the voice migration is applied. */
 export async function getUserProfile(userId: string) {
+  const supabase = createServiceClient()
+
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select(CORE_COLUMNS)
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (error) return null
+  return data
+}
+
+/** Full profile fetch including voice fields added by the author migration.
+ *  Only call this after the migration has been applied to the database. */
+export async function getUserProfileWithVoice(userId: string) {
   const supabase = createServiceClient()
 
   const { data, error } = await supabase

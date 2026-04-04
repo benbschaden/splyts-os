@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { getUserProfile } from '@/lib/queries/user-profile'
+import { getUserProfileWithVoice } from '@/lib/queries/user-profile'
 import { ProfileForm } from '@/components/settings/profile-form'
 
 export default async function ProfileSettingsPage() {
@@ -11,7 +11,7 @@ export default async function ProfileSettingsPage() {
 
   if (!user) redirect('/login')
 
-  const profile = await getUserProfile(user.id)
+  const profile = await getUserProfileWithVoice(user.id)
 
   return (
     <div className="space-y-6">

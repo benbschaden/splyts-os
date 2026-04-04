@@ -923,24 +923,41 @@ export function buildPlaybookPolishPrompt(params: {
   category: string
   content: string
   brandVoice: string | null
+  /** Optional user instructions (e.g. "shorten", "add a checklist", "more formal"). */
+  instruction?: string | null
 }): string {
-  const { title, category, content, brandVoice } = params
+  const { title, category, content, brandVoice, instruction } = params
+  const userInstruction = instruction?.trim() ?? ''
 
   const lines: string[] = []
 
-  lines.push(`You are a world-class technical writer. You are polishing a team playbook titled "${title}" in the "${category}" category.`)
+  lines.push(`You are a world-class technical writer. You are editing a team playbook titled "${title}" in the "${category}" category.`)
   if (brandVoice) lines.push(`Write in a voice that is: ${brandVoice}`)
   lines.push('')
-  lines.push('Your job is to improve the writing without changing the meaning or removing any steps.')
-  lines.push('')
-  lines.push('[RULES]')
+
+  if (userInstruction) {
+    lines.push('[USER INSTRUCTIONS — follow these first]')
+    lines.push(userInstruction)
+    lines.push('')
+    lines.push('Apply the user instructions above. Where they conflict with the generic rules below, prioritise the user instructions.')
+    lines.push('')
+  } else {
+    lines.push('Your job is to polish the writing without changing the meaning or removing any steps.')
+    lines.push('')
+  }
+
+  lines.push('[GENERAL RULES]')
   lines.push('- Fix grammar, spelling, and awkward phrasing')
   lines.push('- Make instructions clearer and more specific')
   lines.push('- Use active voice wherever possible')
-  lines.push('- Keep step-by-step structure intact — do not reorganise or add new sections')
-  lines.push('- Do not add steps that were not already implied')
-  lines.push('- Preserve all markdown formatting (headings, bullets, numbered lists)')
-  lines.push('- Output ONLY the polished content — no preamble, no explanation')
+  if (!userInstruction) {
+    lines.push('- Keep step-by-step structure intact — do not reorganise or add new sections unless the user asked')
+    lines.push('- Do not add steps that were not already implied')
+  } else {
+    lines.push('- Restructure or expand only when the user instructions require it')
+  }
+  lines.push('- Preserve markdown where sensible (headings, bullets, numbered lists)')
+  lines.push('- Output ONLY the revised content — no preamble, no explanation')
   lines.push('')
   lines.push('[CURRENT CONTENT]')
   lines.push(content.slice(0, 20000))

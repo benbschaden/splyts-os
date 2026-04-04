@@ -14,9 +14,15 @@ Feature: Playbooks
 
   Scenario: Team member uses AI to polish playbook writing
     Given I am editing a playbook with content
-    When I click Polish with AI
+    When I choose a model and click Run AI edit without extra instructions
     Then the AI rewrites the content with improved clarity and structure
     And I can accept or discard the suggestion
+
+  Scenario: Team member gives custom instructions for AI edit
+    Given I am editing a playbook with content
+    When I enter instructions for how to edit and choose a model
+    And I click Run AI edit
+    Then the AI revises the content following those instructions
 
   Scenario: Team member browses all playbooks by category
     Given there are multiple playbooks across different categories

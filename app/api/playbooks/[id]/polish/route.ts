@@ -5,10 +5,12 @@ import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getPlaybookById, canEditPlaybook } from '@/lib/queries/playbooks'
 import { getBrandContext } from '@/lib/queries/brand-context'
 import { buildPlaybookPolishPrompt } from '@/lib/ai/prompts'
-import { DEFAULT_MODEL } from '@/lib/ai/models'
+import { DEFAULT_MODEL, getModelById } from '@/lib/ai/models'
 
 const polishSchema = z.object({
   content: z.string().min(1).max(50000),
+  instruction: z.string().max(5000).optional(),
+  modelId: z.string().optional(),
 })
 
 export async function POST(
@@ -45,16 +47,19 @@ export async function POST(
     const brandContext = await getBrandContext(org.id)
     const brandVoice = brandContext?.voice ?? null
 
+    const model = (parsed.data.modelId ? getModelById(parsed.data.modelId) : null) ?? DEFAULT_MODEL
+
     const prompt = buildPlaybookPolishPrompt({
       title: playbook.title,
       category: playbook.category,
       content: parsed.data.content,
       brandVoice,
+      instruction: parsed.data.instruction,
     })
 
     const anthropic = new Anthropic({ apiKey })
     const response = await anthropic.messages.create({
-      model: DEFAULT_MODEL.id,
+      model: model.id,
       max_tokens: 4096,
       messages: [{ role: 'user', content: prompt }],
     })

@@ -9,6 +9,7 @@ import {
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { PlaybookWithOwner } from '@/lib/queries/playbooks'
+import { AI_MODELS, DEFAULT_MODEL } from '@/lib/ai/models'
 
 interface PlaybookEditorProps {
   playbook: PlaybookWithOwner
@@ -26,6 +27,8 @@ export function PlaybookEditor({ playbook: initialPlaybook, canEdit }: PlaybookE
   const [isPolishing, setIsPolishing] = useState(false)
   const [polishedSuggestion, setPolishedSuggestion] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [polishModelId, setPolishModelId] = useState(DEFAULT_MODEL.id)
+  const [polishInstruction, setPolishInstruction] = useState('')
 
   async function patch(updates: Partial<Pick<PlaybookWithOwner, 'title' | 'category' | 'content'>>) {
     setIsSaving(true)
@@ -79,7 +82,11 @@ export function PlaybookEditor({ playbook: initialPlaybook, canEdit }: PlaybookE
       const res = await fetch(`/api/playbooks/${playbook.id}/polish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: editContent }),
+        body: JSON.stringify({
+          content: editContent,
+          ...(polishInstruction.trim() ? { instruction: polishInstruction.trim() } : {}),
+          modelId: polishModelId,
+        }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -236,23 +243,58 @@ export function PlaybookEditor({ playbook: initialPlaybook, canEdit }: PlaybookE
           {/* Content */}
           {isEditingContent ? (
             <div className="space-y-3">
-              <div className="flex items-center gap-2">
+              <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-3">
+                <p className="text-xs font-medium text-foreground">Edit with AI</p>
+                <div>
+                  <label htmlFor="playbook-ai-model" className="mb-1 block text-xs text-muted-foreground">
+                    Model
+                  </label>
+                  <select
+                    id="playbook-ai-model"
+                    value={polishModelId}
+                    onChange={(e) => setPolishModelId(e.target.value)}
+                    disabled={isPolishing}
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-foreground/30 disabled:opacity-50"
+                  >
+                    {AI_MODELS.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {AI_MODELS.find((m) => m.id === polishModelId)?.description}
+                  </p>
+                </div>
+                <div>
+                  <label htmlFor="playbook-ai-instruction" className="mb-1 block text-xs text-muted-foreground">
+                    How to edit <span className="font-normal">(optional)</span>
+                  </label>
+                  <textarea
+                    id="playbook-ai-instruction"
+                    value={polishInstruction}
+                    onChange={(e) => setPolishInstruction(e.target.value)}
+                    disabled={isPolishing}
+                    rows={3}
+                    placeholder='Leave empty for a standard polish. Or describe changes, e.g. "Make it shorter", "Add a checklist at the end", "More formal tone".'
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-foreground/30 disabled:opacity-50"
+                  />
+                </div>
                 <button
+                  type="button"
                   onClick={handlePolish}
                   disabled={isPolishing || !editContent.trim()}
-                  className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+                  className="flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
                 >
                   {isPolishing ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
                     <Sparkles className="h-3.5 w-3.5" />
                   )}
-                  {isPolishing ? 'Polishing…' : 'Polish with AI'}
+                  {isPolishing ? 'Running…' : 'Run AI edit'}
                 </button>
-                <span className="text-xs text-muted-foreground">
-                  Markdown supported
-                </span>
               </div>
+              <p className="text-xs text-muted-foreground">Markdown supported in the body below.</p>
               <textarea
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}

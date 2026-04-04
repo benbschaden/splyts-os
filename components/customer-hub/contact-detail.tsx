@@ -581,6 +581,18 @@ export function ContactDetail({
                   {HEALTH_LABELS[contact.health]}
                 </span>
               )}
+              {contact.status !== 'active' && (
+                <span
+                  className={cn(
+                    'rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider',
+                    contact.status === 'inactive'
+                      ? 'border-muted-foreground/20 bg-muted text-muted-foreground'
+                      : 'border-destructive/20 bg-destructive/5 text-destructive/70',
+                  )}
+                >
+                  {contact.status}
+                </span>
+              )}
               {currentPersonaId && currentPersonaName && currentPersonaScore !== null && (
                 <span className="flex items-center gap-1.5 rounded border border-violet-200 bg-violet-500/10 px-2 py-0.5 text-[10px] font-medium text-violet-700 dark:border-violet-800 dark:text-violet-400">
                   <Users className="h-3 w-3 shrink-0" />

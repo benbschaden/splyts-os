@@ -87,6 +87,29 @@ export function CustomerHubDetail({
     refresh()
   }
 
+  async function handleDeleteTag(tag: string) {
+    const affected = contacts.filter((c) => c.tags.includes(tag))
+    await Promise.all(
+      affected.map((c) =>
+        fetch(`/api/contacts/${c.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tags: c.tags.filter((t) => t !== tag) }),
+        }),
+      ),
+    )
+    setContacts((prev) =>
+      prev.map((c) =>
+        c.tags.includes(tag) ? { ...c, tags: c.tags.filter((t) => t !== tag) } : c,
+      ),
+    )
+    if (selectedContact?.tags.includes(tag)) {
+      setSelectedContact((prev) =>
+        prev ? { ...prev, tags: prev.tags.filter((t) => t !== tag) } : null,
+      )
+    }
+  }
+
   function handleCommunicationAdded(comm: ContactCommunicationRow) {
     setCommunications((prev) => [comm, ...prev])
   }
@@ -169,6 +192,7 @@ export function CustomerHubDetail({
                 onContactCreated={handleContactCreated}
                 onContactDeleted={handleContactDeleted}
                 allTags={allTags}
+                onDeleteTag={handleDeleteTag}
               />
             </div>
 

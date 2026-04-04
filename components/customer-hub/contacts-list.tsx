@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { ContactRow, ContactSegment } from '@/lib/queries/contacts'
+import type { ContactRow, ContactSegment, ContactStatus } from '@/lib/queries/contacts'
 import { AddContactDialog } from './add-contact-dialog'
 
 interface ContactsListProps {
@@ -13,6 +13,7 @@ interface ContactsListProps {
   onContactCreated: (contact: ContactRow) => void
   onContactDeleted: (id: string) => void
   allTags?: string[]
+  onDeleteTag?: (tag: string) => void
 }
 
 const SEGMENT_LABELS: Record<ContactSegment, string> = {
@@ -52,6 +53,13 @@ const SEGMENT_FILTER_OPTIONS: Array<{ value: ContactSegment | 'all'; label: stri
   { value: 'other', label: 'Other' },
 ]
 
+const STATUS_FILTER_OPTIONS: Array<{ value: ContactStatus | 'all'; label: string }> = [
+  { value: 'all', label: 'All statuses' },
+  { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Inactive' },
+  { value: 'archived', label: 'Archived' },
+]
+
 export function ContactsList({
   contacts,
   selectedId,
@@ -59,10 +67,12 @@ export function ContactsList({
   onContactCreated,
   onContactDeleted,
   allTags = [],
+  onDeleteTag,
 }: ContactsListProps) {
   const [addOpen, setAddOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [segmentFilter, setSegmentFilter] = useState<ContactSegment | 'all'>('all')
+  const [statusFilter, setStatusFilter] = useState<ContactStatus | 'all'>('all')
   const [tagFilter, setTagFilter] = useState<string | 'all'>('all')
 
   const filtered = contacts.filter((c) => {
@@ -72,13 +82,13 @@ export function ContactsList({
       (c.email ?? '').toLowerCase().includes(search.toLowerCase())
 
     const matchesSegment = segmentFilter === 'all' || c.segment === segmentFilter
-
+    const matchesStatus = statusFilter === 'all' || c.status === statusFilter
     const matchesTag = tagFilter === 'all' || c.tags.includes(tagFilter)
 
-    return matchesSearch && matchesSegment && matchesTag
+    return matchesSearch && matchesSegment && matchesStatus && matchesTag
   })
 
-  const isFiltering = search.trim() !== '' || segmentFilter !== 'all' || tagFilter !== 'all'
+  const isFiltering = search.trim() !== '' || segmentFilter !== 'all' || statusFilter !== 'all' || tagFilter !== 'all'
 
   return (
     <div className="flex h-full w-[260px] shrink-0 flex-col border-r border-border bg-background">
@@ -121,19 +131,58 @@ export function ContactsList({
             </option>
           ))}
         </select>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as ContactStatus | 'all')}
+          className="w-full rounded-md border border-input bg-muted/40 px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          {STATUS_FILTER_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+
+        {/* Tag filter chips */}
         {allTags.length > 0 && (
-          <select
-            value={tagFilter}
-            onChange={(e) => setTagFilter(e.target.value)}
-            className="w-full rounded-md border border-input bg-muted/40 px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            <option value="all">All tags</option>
-            {allTags.map((tag) => (
-              <option key={tag} value={tag}>
-                {tag}
-              </option>
-            ))}
-          </select>
+          <div>
+            <p className="text-[10px] font-medium text-muted-foreground mb-1">Tags</p>
+            <div className="flex flex-wrap gap-1">
+              {allTags.map((tag) => {
+                const isActive = tagFilter === tag
+                return (
+                  <div key={tag} className="flex items-center">
+                    <button
+                      type="button"
+                      onClick={() => setTagFilter(isActive ? 'all' : tag)}
+                      className={cn(
+                        'rounded-l border px-1.5 py-0.5 text-[10px] font-medium transition-colors',
+                        isActive
+                          ? 'border-primary/40 bg-primary/10 text-primary'
+                          : 'border-border bg-muted text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-primary',
+                      )}
+                    >
+                      {tag}
+                    </button>
+                    {onDeleteTag && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (tagFilter === tag) setTagFilter('all')
+                          onDeleteTag(tag)
+                        }}
+                        className="rounded-r border border-l-0 border-border bg-muted px-1 py-0.5 text-muted-foreground/50 hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive transition-colors"
+                        aria-label={`Delete tag ${tag} from all contacts`}
+                        title="Remove this tag from all contacts"
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         )}
       </div>
 
@@ -160,6 +209,7 @@ export function ContactsList({
 
         {filtered.map((contact) => {
           const isSelected = contact.id === selectedId
+          const isInactive = contact.status === 'inactive' || contact.status === 'archived'
           return (
             <button
               key={contact.id}
@@ -168,6 +218,7 @@ export function ContactsList({
               className={cn(
                 'group w-full text-left px-3 py-3 border-b border-border/60 transition-colors hover:bg-muted/30',
                 isSelected && 'bg-primary/5 border-l-2 border-l-primary/60',
+                isInactive && 'opacity-50',
               )}
             >
               <div className="flex items-start justify-between gap-2">
@@ -180,12 +231,12 @@ export function ContactsList({
                         title={contact.health}
                       />
                     )}
+                    {isInactive && (
+                      <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wide">
+                        {contact.status}
+                      </span>
+                    )}
                   </div>
-                  {(contact.company || contact.role) && (
-                    <p className="text-[11px] text-muted-foreground truncate mt-0.5">
-                      {[contact.role, contact.company].filter(Boolean).join(' · ')}
-                    </p>
-                  )}
                   {contact.email && (
                     <p className="text-[11px] text-muted-foreground/70 truncate mt-0.5">{contact.email}</p>
                   )}

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { ContactRow, ContactSegment, ContactHealth } from '@/lib/queries/contacts'
+import type { ContactRow, ContactSegment, ContactHealth, ContactStatus } from '@/lib/queries/contacts'
 
 interface AddContactDialogProps {
   open: boolean
@@ -18,6 +18,7 @@ interface FormData {
   email: string
   segment: ContactSegment | ''
   health: ContactHealth | ''
+  status: ContactStatus
   notes: string
 }
 
@@ -26,7 +27,14 @@ const EMPTY: FormData = {
   email: '',
   segment: '',
   health: '',
+  status: 'active',
   notes: '',
+}
+
+const STATUS_LABELS: Record<ContactStatus, string> = {
+  active: 'Active',
+  inactive: 'Inactive',
+  archived: 'Archived',
 }
 
 const SEGMENT_LABELS: Record<ContactSegment, string> = {
@@ -65,6 +73,7 @@ export function AddContactDialog({ open, onClose, onSaved, initialContact, avail
           email: initialContact.email ?? '',
           segment: initialContact.segment ?? '',
           health: initialContact.health ?? '',
+          status: initialContact.status,
           notes: initialContact.notes ?? '',
         })
         setSelectedTags(initialContact.tags)
@@ -90,7 +99,7 @@ export function AddContactDialog({ open, onClose, onSaved, initialContact, avail
   }
 
   function addTag(tag: string) {
-    const trimmed = tag.trim().toLowerCase().replace(/\s+/g, '_')
+    const trimmed = tag.trim().toLowerCase().replace(/\s+/g, '-')
     if (!trimmed || selectedTags.includes(trimmed)) return
     setSelectedTags((prev) => [...prev, trimmed])
   }
@@ -120,7 +129,7 @@ export function AddContactDialog({ open, onClose, onSaved, initialContact, avail
     e.preventDefault()
     // Commit any pending tag input on submit
     const finalTags = tagInput.trim()
-      ? [...new Set([...selectedTags, tagInput.trim().toLowerCase().replace(/\s+/g, '_')])]
+      ? [...new Set([...selectedTags, tagInput.trim().toLowerCase().replace(/\s+/g, '-')])]
       : selectedTags
 
     if (!form.name.trim()) {
@@ -135,6 +144,7 @@ export function AddContactDialog({ open, onClose, onSaved, initialContact, avail
       email: form.email.trim() || null,
       segment: form.segment || null,
       health: form.health || null,
+      status: form.status,
       tags: finalTags,
       notes: form.notes.trim() || null,
     }
@@ -251,6 +261,24 @@ export function AddContactDialog({ open, onClose, onSaved, initialContact, avail
                   ))}
                 </select>
               </div>
+            </div>
+
+            <div>
+              <label htmlFor="contact-status" className="block text-xs font-medium text-foreground mb-1">
+                Status
+              </label>
+              <select
+                id="contact-status"
+                value={form.status}
+                onChange={(e) => set('status', e.target.value as ContactStatus)}
+                className={INPUT_CLASS}
+              >
+                {(Object.keys(STATUS_LABELS) as ContactStatus[]).map((s) => (
+                  <option key={s} value={s}>
+                    {STATUS_LABELS[s]}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Tags field */}

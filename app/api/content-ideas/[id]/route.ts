@@ -7,7 +7,7 @@ import { indexContent, removeFromIndex } from '@/lib/indexing/index-content'
 const patchSchema = z.object({
   title: z.string().min(1).max(500).optional(),
   description: z.string().max(2000).nullable().optional(),
-  platform: z.string().max(100).optional(),
+  content_type_id: z.string().uuid().nullable().optional(),
   platform_owner: z.enum(['author', 'company']).optional(),
   status: z.enum(['idea', 'in_progress', 'done']).optional(),
 })

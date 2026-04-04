@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Settings, LogOut, MessageSquare, FileText } from 'lucide-react'
+import { Settings, LogOut, MessageSquare, FileText, BookOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NorthStarTrigger } from '@/components/company/north-star-trigger'
 import { ProjectsNav } from '@/components/projects/projects-nav'
@@ -11,6 +11,7 @@ import { NotificationsDropdown } from '@/components/layout/notifications-dropdow
 const staticNavItems = [
   { name: 'Assistant', href: '/dashboard/chat', icon: MessageSquare },
   { name: 'Documents', href: '/dashboard/documents', icon: FileText },
+  { name: 'Playbooks', href: '/dashboard/playbooks', icon: BookOpen },
 ]
 
 const bottomNavigation = [

@@ -87,5 +87,37 @@ export async function createOrganization(name: string, userId: string) {
   // Seed default teams from org_team_seeds
   await seedTeamsForOrg(org.id, userId)
 
+  // Seed default content types from templates.
+  // Each template gets one active content type so the org is ready to generate
+  // immediately without needing to configure anything first.
+  const { data: templates } = await supabase
+    .from('content_type_templates')
+    .select('id, slug, name')
+    .order('name', { ascending: true })
+
+  if (templates && templates.length > 0) {
+    const DEFAULT_CUSTOM_RULES: Record<string, string> = {
+      'social-post':        'Keep posts under 300 words. Use a strong hook as the first line. No hashtags unless specified.',
+      'video-script':       'Aim for 5–8 minutes of spoken content. Use a conversational tone. Mark pauses with [PAUSE].',
+      'long-form':          'Target 800–1200 words. Use subheadings (##). Cite data and examples where possible.',
+      'blog-post':          'Target 600–1000 words. SEO-friendly subheadings. Write for the reader, not search engines.',
+      'journal-article':    'Academic tone. Include an abstract. Cite sources inline. Minimum 1000 words.',
+      'email-newsletter':   'Keep the subject line under 50 characters. Open with a personal hook. One main CTA per email.',
+      'podcast-script':     'Conversational, not scripted. Write how people speak. Each segment 3–5 minutes of talk time.',
+      'case-study':         'Lead with the outcome in the headline. Use real numbers. Keep it under 600 words.',
+    }
+
+    await supabase.from('content_types').insert(
+      templates.map((t) => ({
+        organization_id: org.id,
+        template_id: t.id,
+        name: t.name,
+        custom_rules: DEFAULT_CUSTOM_RULES[t.slug] ?? '',
+        is_active: true,
+        created_by: userId,
+      })),
+    )
+  }
+
   return { organization: org, error: null }
 }

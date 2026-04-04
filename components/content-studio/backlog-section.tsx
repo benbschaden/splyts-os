@@ -5,37 +5,38 @@ import { ChevronDown, Plus, ArrowRight, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ContentIdeaRow } from '@/lib/queries/content-ideas'
 
-const PLATFORMS = [
-  'LinkedIn',
-  'Email Newsletter',
-  'Blog / Website',
-  'Instagram',
-  'Twitter / X',
-  'YouTube',
-  'TikTok',
-  'Podcast',
-  'Other',
-]
+interface ContentType {
+  id: string
+  name: string
+}
 
 interface BacklogSectionProps {
   projectId: string
   initialIdeas: ContentIdeaRow[]
+  contentTypes: ContentType[]
   onBuildIdea: (idea: ContentIdeaRow) => void
 }
 
-export function BacklogSection({ projectId, initialIdeas, onBuildIdea }: BacklogSectionProps) {
+export function BacklogSection({ projectId, initialIdeas, contentTypes, onBuildIdea }: BacklogSectionProps) {
   const [open, setOpen] = useState(true)
   const [ideas, setIdeas] = useState<ContentIdeaRow[]>(initialIdeas)
   const [showForm, setShowForm] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [platform, setPlatform] = useState(PLATFORMS[0])
+  const [contentTypeId, setContentTypeId] = useState(contentTypes[0]?.id ?? '')
   const [platformOwner, setPlatformOwner] = useState<'author' | 'company'>('company')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  function resolveContentTypeName(idea: ContentIdeaRow): string {
+    if (idea.content_type_id) {
+      return contentTypes.find((ct) => ct.id === idea.content_type_id)?.name ?? 'Unknown type'
+    }
+    return idea.platform ?? 'No type'
+  }
+
   async function handleAdd() {
-    if (!title.trim()) return
+    if (!title.trim() || !contentTypeId) return
     setSaving(true)
     setError(null)
 
@@ -46,7 +47,7 @@ export function BacklogSection({ projectId, initialIdeas, onBuildIdea }: Backlog
         projectId,
         title: title.trim(),
         description: description.trim() || null,
-        platform,
+        contentTypeId,
         platformOwner,
       }),
     })
@@ -62,7 +63,7 @@ export function BacklogSection({ projectId, initialIdeas, onBuildIdea }: Backlog
     setIdeas((prev) => [idea, ...prev])
     setTitle('')
     setDescription('')
-    setPlatform(PLATFORMS[0])
+    setContentTypeId(contentTypes[0]?.id ?? '')
     setPlatformOwner('company')
     setShowForm(false)
   }
@@ -71,7 +72,7 @@ export function BacklogSection({ projectId, initialIdeas, onBuildIdea }: Backlog
     setShowForm(false)
     setTitle('')
     setDescription('')
-    setPlatform(PLATFORMS[0])
+    setContentTypeId(contentTypes[0]?.id ?? '')
     setPlatformOwner('company')
     setError(null)
   }
@@ -160,21 +161,28 @@ export function BacklogSection({ projectId, initialIdeas, onBuildIdea }: Backlog
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label htmlFor="idea-platform" className="text-xs font-medium text-foreground">
-                    Platform
+                  <label htmlFor="idea-content-type" className="text-xs font-medium text-foreground">
+                    Content type
                   </label>
-                  <select
-                    id="idea-platform"
-                    value={platform}
-                    onChange={(e) => setPlatform(e.target.value)}
-                    className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    {PLATFORMS.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    ))}
-                  </select>
+                  {contentTypes.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-1">
+                      No content types configured.{' '}
+                      <a href="/dashboard/company/content-types" className="underline">Set up content types</a>
+                    </p>
+                  ) : (
+                    <select
+                      id="idea-content-type"
+                      value={contentTypeId}
+                      onChange={(e) => setContentTypeId(e.target.value)}
+                      className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      {contentTypes.map((ct) => (
+                        <option key={ct.id} value={ct.id}>
+                          {ct.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -205,7 +213,7 @@ export function BacklogSection({ projectId, initialIdeas, onBuildIdea }: Backlog
                 <button
                   type="button"
                   onClick={handleAdd}
-                  disabled={!title.trim() || saving}
+                  disabled={!title.trim() || !contentTypeId || saving}
                   className="rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background hover:opacity-80 transition-opacity disabled:opacity-40"
                 >
                   {saving ? 'Saving…' : 'Save idea'}
@@ -242,7 +250,7 @@ export function BacklogSection({ projectId, initialIdeas, onBuildIdea }: Backlog
                   )}
                   <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                     <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                      {idea.platform}
+                      {resolveContentTypeName(idea)}
                     </span>
                     <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
                       {idea.platform_owner === 'company' ? 'Company page' : 'Author page'}

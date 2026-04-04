@@ -82,8 +82,12 @@ export function ContentStudioDetail({
   const generateRef = useRef<HTMLDivElement>(null)
 
   function handleBuildIdea(idea: ContentIdeaRow) {
+    const contentTypeName = idea.content_type_id
+      ? (contentTypes.find((ct) => ct.id === idea.content_type_id)?.name ?? 'content')
+      : (idea.platform ?? 'content')
+
     const parts = [
-      `Write ${idea.platform} content for the ${idea.platform_owner === 'company' ? 'company page' : "author's page"}.`,
+      `Write ${contentTypeName} content for the ${idea.platform_owner === 'company' ? 'company page' : "author's page"}.`,
       `Idea: ${idea.title}`,
       idea.description ? `Context: ${idea.description}` : '',
     ].filter(Boolean)
@@ -142,6 +146,7 @@ export function ContentStudioDetail({
       <BacklogSection
         projectId={project.id}
         initialIdeas={contentIdeas}
+        contentTypes={contentTypes}
         onBuildIdea={handleBuildIdea}
       />
 

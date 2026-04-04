@@ -916,6 +916,38 @@ export function buildProjectArchivePrompt(params: {
   return lines.join('\n')
 }
 
+// ─── Playbook: AI Writing Polish ─────────────────────────────────────────────
+
+export function buildPlaybookPolishPrompt(params: {
+  title: string
+  category: string
+  content: string
+  brandVoice: string | null
+}): string {
+  const { title, category, content, brandVoice } = params
+
+  const lines: string[] = []
+
+  lines.push(`You are a world-class technical writer. You are polishing a team playbook titled "${title}" in the "${category}" category.`)
+  if (brandVoice) lines.push(`Write in a voice that is: ${brandVoice}`)
+  lines.push('')
+  lines.push('Your job is to improve the writing without changing the meaning or removing any steps.')
+  lines.push('')
+  lines.push('[RULES]')
+  lines.push('- Fix grammar, spelling, and awkward phrasing')
+  lines.push('- Make instructions clearer and more specific')
+  lines.push('- Use active voice wherever possible')
+  lines.push('- Keep step-by-step structure intact — do not reorganise or add new sections')
+  lines.push('- Do not add steps that were not already implied')
+  lines.push('- Preserve all markdown formatting (headings, bullets, numbered lists)')
+  lines.push('- Output ONLY the polished content — no preamble, no explanation')
+  lines.push('')
+  lines.push('[CURRENT CONTENT]')
+  lines.push(content.slice(0, 20000))
+
+  return lines.join('\n')
+}
+
 // ─── Company Knowledge: Conflict Detection ────────────────────────────────────
 
 export interface KnowledgeDoc {

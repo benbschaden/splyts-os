@@ -6,13 +6,17 @@ export type ContentIdeaRow = {
   project_id: string
   title: string
   description: string | null
-  platform: string
+  platform: string | null
   platform_owner: 'author' | 'company'
+  content_type_id: string | null
   status: 'idea' | 'in_progress' | 'done'
   created_by: string
   created_at: string
   updated_at: string
 }
+
+const SELECT_COLUMNS =
+  'id, organization_id, project_id, title, description, platform, platform_owner, content_type_id, status, created_by, created_at, updated_at'
 
 export async function getContentIdeasForProject(
   projectId: string,
@@ -22,9 +26,7 @@ export async function getContentIdeasForProject(
 
   const { data, error } = await supabase
     .from('content_ideas')
-    .select(
-      'id, organization_id, project_id, title, description, platform, platform_owner, status, created_by, created_at, updated_at',
-    )
+    .select(SELECT_COLUMNS)
     .eq('project_id', projectId)
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
@@ -39,7 +41,7 @@ export async function createContentIdea(params: {
   projectId: string
   title: string
   description: string | null
-  platform: string
+  contentTypeId: string
   platformOwner: 'author' | 'company'
   userId: string
 }): Promise<{ idea: ContentIdeaRow | null; error: string | null }> {
@@ -52,13 +54,11 @@ export async function createContentIdea(params: {
       project_id: params.projectId,
       title: params.title,
       description: params.description,
-      platform: params.platform,
+      content_type_id: params.contentTypeId,
       platform_owner: params.platformOwner,
       created_by: params.userId,
     })
-    .select(
-      'id, organization_id, project_id, title, description, platform, platform_owner, status, created_by, created_at, updated_at',
-    )
+    .select(SELECT_COLUMNS)
     .single()
 
   if (error) return { idea: null, error: 'Failed to create content idea' }
@@ -68,7 +68,7 @@ export async function createContentIdea(params: {
 export async function updateContentIdea(
   id: string,
   organizationId: string,
-  params: Partial<Pick<ContentIdeaRow, 'title' | 'description' | 'platform' | 'platform_owner' | 'status'>>,
+  params: Partial<Pick<ContentIdeaRow, 'title' | 'description' | 'content_type_id' | 'platform_owner' | 'status'>>,
 ): Promise<{ idea: ContentIdeaRow | null; error: string | null }> {
   const supabase = createServiceClient()
 
@@ -78,9 +78,7 @@ export async function updateContentIdea(
     .eq('id', id)
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
-    .select(
-      'id, organization_id, project_id, title, description, platform, platform_owner, status, created_by, created_at, updated_at',
-    )
+    .select(SELECT_COLUMNS)
     .single()
 
   if (error) return { idea: null, error: 'Failed to update content idea' }

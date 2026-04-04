@@ -1368,6 +1368,42 @@ export type Database = {
         }
         Relationships: []
       }
+      playbooks: {
+        Row: {
+          id: string
+          organization_id: string
+          created_by: string
+          title: string
+          category: string
+          content: string
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          created_by: string
+          title: string
+          category?: string
+          content?: string
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          created_by?: string
+          title?: string
+          category?: string
+          content?: string
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: []
+      }
       document_versions: {
         Row: {
           id: string
@@ -2008,8 +2044,9 @@ export type Database = {
           project_id: string
           title: string
           description: string | null
-          platform: string
+          platform: string | null
           platform_owner: string
+          content_type_id: string | null
           status: string
           created_by: string
           created_at: string
@@ -2022,8 +2059,9 @@ export type Database = {
           project_id: string
           title: string
           description?: string | null
-          platform: string
+          platform?: string | null
           platform_owner: string
+          content_type_id?: string | null
           status?: string
           created_by: string
           created_at?: string
@@ -2036,8 +2074,9 @@ export type Database = {
           project_id?: string
           title?: string
           description?: string | null
-          platform?: string
+          platform?: string | null
           platform_owner?: string
+          content_type_id?: string | null
           status?: string
           created_by?: string
           created_at?: string

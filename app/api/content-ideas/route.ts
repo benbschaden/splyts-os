@@ -2,25 +2,14 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getContentIdeasForProject, createContentIdea } from '@/lib/queries/content-ideas'
+import { getActiveContentTypes } from '@/lib/queries/content-types'
 import { indexContent } from '@/lib/indexing/index-content'
-
-const ALLOWED_PLATFORMS = [
-  'LinkedIn',
-  'Email Newsletter',
-  'Blog / Website',
-  'Instagram',
-  'Twitter / X',
-  'YouTube',
-  'TikTok',
-  'Podcast',
-  'Other',
-]
 
 const createSchema = z.object({
   projectId: z.string().uuid(),
   title: z.string().min(1).max(500),
   description: z.string().max(2000).nullable().optional(),
-  platform: z.string().max(100),
+  contentTypeId: z.string().uuid(),
   platformOwner: z.enum(['author', 'company']),
 })
 
@@ -63,10 +52,13 @@ export async function POST(request: Request): Promise<Response> {
       return Response.json({ error: parsed.error.errors[0].message }, { status: 400 })
     }
 
-    const { projectId, title, description, platform, platformOwner } = parsed.data
+    const { projectId, title, description, contentTypeId, platformOwner } = parsed.data
 
-    if (!ALLOWED_PLATFORMS.includes(platform)) {
-      return Response.json({ error: 'Invalid platform' }, { status: 400 })
+    // Verify the content type belongs to this org
+    const orgContentTypes = await getActiveContentTypes(org.id)
+    const validContentType = orgContentTypes.find((ct) => ct.id === contentTypeId)
+    if (!validContentType) {
+      return Response.json({ error: 'Invalid content type' }, { status: 400 })
     }
 
     const { idea, error } = await createContentIdea({
@@ -74,7 +66,7 @@ export async function POST(request: Request): Promise<Response> {
       projectId,
       title,
       description: description ?? null,
-      platform,
+      contentTypeId,
       platformOwner,
       userId: user.id,
     })

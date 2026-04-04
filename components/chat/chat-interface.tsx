@@ -2,13 +2,48 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Send, FileDown, FileText, Loader2, ChevronDown, Globe } from 'lucide-react'
+import { ArrowLeft, Send, FileDown, FileText, Loader2, ChevronDown, Globe, Copy, Check } from 'lucide-react'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { ChatSessionRow, ChatMessageRow } from '@/lib/queries/chat'
 import { CaptureDocumentDialog } from '@/components/chat/capture-document-dialog'
 import { AI_MODELS, DEFAULT_MODEL } from '@/lib/ai/models'
+
+function CodeBlock({ children }: { children: React.ReactNode }) {
+  const [copied, setCopied] = useState(false)
+
+  function extractText(node: React.ReactNode): string {
+    if (typeof node === 'string') return node
+    if (typeof node === 'number') return String(node)
+    if (Array.isArray(node)) return node.map(extractText).join('')
+    if (node && typeof node === 'object' && 'props' in (node as object)) {
+      return extractText((node as React.ReactElement).props.children)
+    }
+    return ''
+  }
+
+  function handleCopy() {
+    navigator.clipboard.writeText(extractText(children).replace(/\n$/, ''))
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="relative my-3 overflow-hidden rounded-lg border border-border bg-zinc-950">
+      <button
+        onClick={handleCopy}
+        className="absolute right-2 top-2 flex items-center gap-1 rounded px-2 py-1 text-xs text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100"
+      >
+        {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+        {copied ? 'Copied' : 'Copy'}
+      </button>
+      <pre className="overflow-x-auto px-4 pb-4 pt-9 text-sm leading-relaxed text-zinc-100">
+        {children}
+      </pre>
+    </div>
+  )
+}
 
 interface ChatInterfaceProps {
   session: ChatSessionRow
@@ -47,6 +82,7 @@ export function ChatInterface({ session, initialMessages, initialPrompt }: ChatI
   const [showCapture, setShowCapture] = useState(false)
   const [isExtracting, setIsExtracting] = useState(false)
   const [extractSuccess, setExtractSuccess] = useState(false)
+  const [copiedMsgs, setCopiedMsgs] = useState<Record<string, boolean>>({})
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -151,6 +187,12 @@ export function ChatInterface({ session, initialMessages, initialPrompt }: ChatI
     } finally {
       setIsExtracting(false)
     }
+  }
+
+  function handleCopyMessage(msgId: string, content: string) {
+    navigator.clipboard.writeText(content)
+    setCopiedMsgs((prev) => ({ ...prev, [msgId]: true }))
+    setTimeout(() => setCopiedMsgs((prev) => ({ ...prev, [msgId]: false })), 2000)
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -270,23 +312,31 @@ export function ChatInterface({ session, initialMessages, initialPrompt }: ChatI
                 key={message.id}
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                    message.role === 'user'
-                      ? 'bg-foreground text-background'
-                      : 'bg-muted text-foreground'
-                  }`}
-                >
-                  {message.role === 'user' ? (
+                {message.role === 'user' ? (
+                  <div className="max-w-[85%] rounded-2xl bg-foreground px-4 py-3 text-sm leading-relaxed text-background">
                     <p className="whitespace-pre-wrap">{message.content}</p>
-                  ) : (
-                    <div className="prose prose-sm max-w-none prose-p:my-1 prose-headings:font-semibold prose-headings:mt-3 prose-headings:mb-1 prose-h1:text-base prose-h2:text-sm prose-h3:text-sm prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-code:bg-background/60 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-pre:bg-background/60 prose-pre:text-xs prose-strong:font-semibold prose-a:text-foreground">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {message.content}
-                      </ReactMarkdown>
+                  </div>
+                ) : (
+                  <div className="group flex max-w-[85%] flex-col gap-1">
+                    <div className="rounded-2xl bg-muted px-4 py-3 text-sm leading-relaxed text-foreground">
+                      <div className="prose prose-sm max-w-none prose-p:my-1 prose-headings:font-semibold prose-headings:mt-3 prose-headings:mb-1 prose-h1:text-base prose-h2:text-sm prose-h3:text-sm prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-code:bg-zinc-100 prose-code:text-zinc-800 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-strong:font-semibold prose-a:text-foreground [&_pre]:p-0 [&_pre]:bg-transparent [&_pre]:border-0">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{ pre: ({ children }) => <CodeBlock>{children}</CodeBlock> }}
+                        >
+                          {message.content}
+                        </ReactMarkdown>
+                      </div>
                     </div>
-                  )}
-                </div>
+                    <button
+                      onClick={() => handleCopyMessage(message.id, message.content)}
+                      className="flex items-center gap-1 self-start rounded px-2 py-0.5 text-xs text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground group-hover:opacity-100"
+                    >
+                      {copiedMsgs[message.id] ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                      {copiedMsgs[message.id] ? 'Copied' : 'Copy response'}
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
             {isSending && (

@@ -45,7 +45,7 @@ async function runWithBrowser(
     const response: any = await (anthropic.beta.messages.create as any)({
       betas: ['web-search-2025-03-05'],
       model: modelId,
-      max_tokens: 2048,
+      max_tokens: 8000,
       system: systemPrompt,
       messages: loopMessages,
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
@@ -84,7 +84,7 @@ async function runWithoutBrowser(
 ): Promise<string> {
   const response = await anthropic.messages.create({
     model: modelId,
-    max_tokens: 2048,
+    max_tokens: 8000,
     system: systemPrompt,
     messages: messageHistory,
   })

@@ -7,7 +7,7 @@ export type ContentIdeaRow = {
   title: string
   description: string | null
   platform: string | null
-  platform_owner: 'author' | 'company'
+  author_user_id: string | null
   content_type_id: string | null
   status: 'idea' | 'in_progress' | 'done'
   created_by: string
@@ -16,7 +16,7 @@ export type ContentIdeaRow = {
 }
 
 const SELECT_COLUMNS =
-  'id, organization_id, project_id, title, description, platform, platform_owner, content_type_id, status, created_by, created_at, updated_at'
+  'id, organization_id, project_id, title, description, platform, author_user_id, content_type_id, status, created_by, created_at, updated_at'
 
 export async function getContentIdeasForProject(
   projectId: string,
@@ -42,7 +42,7 @@ export async function createContentIdea(params: {
   title: string
   description: string | null
   contentTypeId: string
-  platformOwner: 'author' | 'company'
+  authorUserId: string | null
   userId: string
 }): Promise<{ idea: ContentIdeaRow | null; error: string | null }> {
   const supabase = createServiceClient()
@@ -55,7 +55,7 @@ export async function createContentIdea(params: {
       title: params.title,
       description: params.description,
       content_type_id: params.contentTypeId,
-      platform_owner: params.platformOwner,
+      author_user_id: params.authorUserId,
       created_by: params.userId,
     })
     .select(SELECT_COLUMNS)
@@ -68,7 +68,7 @@ export async function createContentIdea(params: {
 export async function updateContentIdea(
   id: string,
   organizationId: string,
-  params: Partial<Pick<ContentIdeaRow, 'title' | 'description' | 'content_type_id' | 'platform_owner' | 'status'>>,
+  params: Partial<Pick<ContentIdeaRow, 'title' | 'description' | 'content_type_id' | 'author_user_id' | 'status'>>,
 ): Promise<{ idea: ContentIdeaRow | null; error: string | null }> {
   const supabase = createServiceClient()
 

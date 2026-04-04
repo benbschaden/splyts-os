@@ -7,7 +7,7 @@ import { getProjectById, getProjectTeams, getProjectMembers } from '@/lib/querie
 import { getOutputsForProject } from '@/lib/queries/outputs'
 import { getAttachmentsForOutputs } from '@/lib/queries/output-attachments'
 import { getActiveContentTypes } from '@/lib/queries/content-types'
-import { getAuthorProfiles } from '@/lib/queries/author-profiles'
+import { getOrgMembersAsAuthors } from '@/lib/queries/user-profile'
 import { getBrandContext } from '@/lib/queries/brand-context'
 import { getProjectMaterials } from '@/lib/queries/project-materials'
 import { getDiscoveryEntries } from '@/lib/queries/discovery-entries'
@@ -55,7 +55,7 @@ export default async function ProjectPage({ params }: PageProps) {
     getProjectById(id, org.id, user.id),
     getOutputsForProject(id, org.id, user.id),
     getActiveContentTypes(org.id),
-    getAuthorProfiles(org.id),
+    getOrgMembersAsAuthors(org.id),
     getBrandContext(org.id),
     getProjectMaterials(id, org.id),
     getDiscoveryEntries(id, org.id),
@@ -106,7 +106,7 @@ export default async function ProjectPage({ params }: PageProps) {
       outputs={outputs}
       outputAttachmentsByOutputId={outputAttachmentsByOutputId}
       contentTypes={contentTypes.map((ct) => ({ id: ct.id, name: ct.name }))}
-      authors={authors.map((a) => ({ id: a.id, name: a.name }))}
+      authors={authors}
       hasBrandContext={!!(brandContext?.mission && brandContext?.company_name)}
       materials={materials}
       discoveryEntries={discoveryEntries}

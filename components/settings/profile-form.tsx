@@ -232,7 +232,7 @@ export function ProfileForm({ initial }: ProfileFormProps) {
             id="profile-voice"
             type="text"
             value={voice}
-            onChange={(e) => setVoice(e.target.value)}
+            onChange={(e) => { setVoice(e.target.value); setSaved(false) }}
             placeholder="e.g. Direct, curious, no jargon"
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
           />
@@ -246,7 +246,7 @@ export function ProfileForm({ initial }: ProfileFormProps) {
             id="profile-tone"
             type="text"
             value={tone}
-            onChange={(e) => setTone(e.target.value)}
+            onChange={(e) => { setTone(e.target.value); setSaved(false) }}
             placeholder="e.g. Conversational but sharp"
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
           />
@@ -259,7 +259,7 @@ export function ProfileForm({ initial }: ProfileFormProps) {
           <textarea
             id="profile-writing-style"
             value={writingStyle}
-            onChange={(e) => setWritingStyle(e.target.value)}
+            onChange={(e) => { setWritingStyle(e.target.value); setSaved(false) }}
             rows={3}
             placeholder="e.g. Short punchy paragraphs. Stories before data. Always ends with a question."
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
@@ -273,7 +273,7 @@ export function ProfileForm({ initial }: ProfileFormProps) {
           <textarea
             id="profile-personal-pillars"
             value={personalPillars}
-            onChange={(e) => setPersonalPillars(e.target.value)}
+            onChange={(e) => { setPersonalPillars(e.target.value); setSaved(false) }}
             rows={3}
             placeholder="e.g. B2B GTM, founder mental health, honest marketing"
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
@@ -287,7 +287,7 @@ export function ProfileForm({ initial }: ProfileFormProps) {
           <textarea
             id="profile-platform-notes"
             value={platformNotes}
-            onChange={(e) => setPlatformNotes(e.target.value)}
+            onChange={(e) => { setPlatformNotes(e.target.value); setSaved(false) }}
             rows={3}
             placeholder="e.g. LinkedIn: no hashtags, no bullet lists. Email: always use a P.S."
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"

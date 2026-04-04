@@ -5,6 +5,11 @@ import { ChevronDown, Plus, ArrowRight, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ContentIdeaRow } from '@/lib/queries/content-ideas'
 
+interface Author {
+  id: string
+  name: string
+}
+
 interface ContentType {
   id: string
   name: string
@@ -14,25 +19,38 @@ interface BacklogSectionProps {
   projectId: string
   initialIdeas: ContentIdeaRow[]
   contentTypes: ContentType[]
+  authors: Author[]
   onBuildIdea: (idea: ContentIdeaRow) => void
 }
 
-export function BacklogSection({ projectId, initialIdeas, contentTypes, onBuildIdea }: BacklogSectionProps) {
+export function BacklogSection({ projectId, initialIdeas, contentTypes, authors, onBuildIdea }: BacklogSectionProps) {
   const [open, setOpen] = useState(true)
   const [ideas, setIdeas] = useState<ContentIdeaRow[]>(initialIdeas)
   const [showForm, setShowForm] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [contentTypeId, setContentTypeId] = useState(contentTypes[0]?.id ?? '')
-  const [platformOwner, setPlatformOwner] = useState<'author' | 'company'>('company')
+  // 'company' sentinel or a user UUID
+  const [authorValue, setAuthorValue] = useState<string>('company')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const allAuthorOptions = [
+    { id: 'company', name: 'Company page' },
+    ...authors.map((a) => ({ id: a.id, name: `${a.name}'s page` })),
+  ]
 
   function resolveContentTypeName(idea: ContentIdeaRow): string {
     if (idea.content_type_id) {
       return contentTypes.find((ct) => ct.id === idea.content_type_id)?.name ?? 'Unknown type'
     }
     return idea.platform ?? 'No type'
+  }
+
+  function resolveAuthorName(idea: ContentIdeaRow): string {
+    if (!idea.author_user_id) return 'Company page'
+    const author = authors.find((a) => a.id === idea.author_user_id)
+    return author ? `${author.name}'s page` : 'Personal page'
   }
 
   async function handleAdd() {
@@ -48,7 +66,7 @@ export function BacklogSection({ projectId, initialIdeas, contentTypes, onBuildI
         title: title.trim(),
         description: description.trim() || null,
         contentTypeId,
-        platformOwner,
+        authorUserId: authorValue === 'company' ? null : authorValue,
       }),
     })
 
@@ -64,7 +82,7 @@ export function BacklogSection({ projectId, initialIdeas, contentTypes, onBuildI
     setTitle('')
     setDescription('')
     setContentTypeId(contentTypes[0]?.id ?? '')
-    setPlatformOwner('company')
+    setAuthorValue('company')
     setShowForm(false)
   }
 
@@ -73,7 +91,7 @@ export function BacklogSection({ projectId, initialIdeas, contentTypes, onBuildI
     setTitle('')
     setDescription('')
     setContentTypeId(contentTypes[0]?.id ?? '')
-    setPlatformOwner('company')
+    setAuthorValue('company')
     setError(null)
   }
 
@@ -186,24 +204,21 @@ export function BacklogSection({ projectId, initialIdeas, contentTypes, onBuildI
                 </div>
 
                 <div className="space-y-1.5">
-                  <span className="text-xs font-medium text-foreground">Published on</span>
-                  <div className="flex rounded-md border border-input overflow-hidden">
-                    {(['company', 'author'] as const).map((owner) => (
-                      <button
-                        key={owner}
-                        type="button"
-                        onClick={() => setPlatformOwner(owner)}
-                        className={cn(
-                          'flex-1 py-1.5 text-xs font-medium transition-colors',
-                          platformOwner === owner
-                            ? 'bg-foreground text-background'
-                            : 'bg-background text-muted-foreground hover:bg-accent',
-                        )}
-                      >
-                        {owner === 'company' ? 'Company' : 'Author'}
-                      </button>
+                  <label htmlFor="idea-author" className="text-xs font-medium text-foreground">
+                    Publish on
+                  </label>
+                  <select
+                    id="idea-author"
+                    value={authorValue}
+                    onChange={(e) => setAuthorValue(e.target.value)}
+                    className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    {allAuthorOptions.map((opt) => (
+                      <option key={opt.id} value={opt.id}>
+                        {opt.name}
+                      </option>
                     ))}
-                  </div>
+                  </select>
                 </div>
               </div>
 
@@ -253,7 +268,7 @@ export function BacklogSection({ projectId, initialIdeas, contentTypes, onBuildI
                       {resolveContentTypeName(idea)}
                     </span>
                     <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
-                      {idea.platform_owner === 'company' ? 'Company page' : 'Author page'}
+                      {resolveAuthorName(idea)}
                     </span>
                   </div>
                 </div>

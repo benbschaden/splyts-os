@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ContactRow, ContactSegment } from '@/lib/queries/contacts'
@@ -12,6 +12,7 @@ interface ContactsListProps {
   onSelect: (contact: ContactRow) => void
   onContactCreated: (contact: ContactRow) => void
   onContactDeleted: (id: string) => void
+  allTags?: string[]
 }
 
 const SEGMENT_LABELS: Record<ContactSegment, string> = {
@@ -57,16 +58,12 @@ export function ContactsList({
   onSelect,
   onContactCreated,
   onContactDeleted,
+  allTags = [],
 }: ContactsListProps) {
   const [addOpen, setAddOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [segmentFilter, setSegmentFilter] = useState<ContactSegment | 'all'>('all')
   const [tagFilter, setTagFilter] = useState<string | 'all'>('all')
-
-  const allTags = useMemo(
-    () => [...new Set(contacts.flatMap((c) => c.tags))].sort(),
-    [contacts],
-  )
 
   const filtered = contacts.filter((c) => {
     const matchesSearch =
@@ -226,6 +223,7 @@ export function ContactsList({
 
       <AddContactDialog
         open={addOpen}
+        availableTags={allTags}
         onClose={() => setAddOpen(false)}
         onSaved={(contact) => {
           onContactCreated(contact)

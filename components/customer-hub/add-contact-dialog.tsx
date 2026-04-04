@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ContactRow, ContactSegment, ContactHealth } from '@/lib/queries/contacts'
@@ -10,6 +10,7 @@ interface AddContactDialogProps {
   onClose: () => void
   onSaved: (contact: ContactRow) => void
   initialContact?: ContactRow
+  availableTags?: string[]
 }
 
 interface FormData {
@@ -17,7 +18,6 @@ interface FormData {
   email: string
   segment: ContactSegment | ''
   health: ContactHealth | ''
-  tags: string
   notes: string
 }
 
@@ -26,7 +26,6 @@ const EMPTY: FormData = {
   email: '',
   segment: '',
   health: '',
-  tags: '',
   notes: '',
 }
 
@@ -49,11 +48,14 @@ const HEALTH_LABELS: Record<ContactHealth, string> = {
 const INPUT_CLASS =
   'w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring'
 
-export function AddContactDialog({ open, onClose, onSaved, initialContact }: AddContactDialogProps) {
+export function AddContactDialog({ open, onClose, onSaved, initialContact, availableTags = [] }: AddContactDialogProps) {
   const isEditing = !!initialContact
   const [form, setForm] = useState<FormData>(EMPTY)
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [tagInput, setTagInput] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const tagInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (open) {
@@ -63,12 +65,14 @@ export function AddContactDialog({ open, onClose, onSaved, initialContact }: Add
           email: initialContact.email ?? '',
           segment: initialContact.segment ?? '',
           health: initialContact.health ?? '',
-          tags: initialContact.tags.join(', '),
           notes: initialContact.notes ?? '',
         })
+        setSelectedTags(initialContact.tags)
       } else {
         setForm(EMPTY)
+        setSelectedTags([])
       }
+      setTagInput('')
       setError(null)
     }
   }, [open, initialContact])
@@ -85,8 +89,40 @@ export function AddContactDialog({ open, onClose, onSaved, initialContact }: Add
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
+  function addTag(tag: string) {
+    const trimmed = tag.trim().toLowerCase().replace(/\s+/g, '_')
+    if (!trimmed || selectedTags.includes(trimmed)) return
+    setSelectedTags((prev) => [...prev, trimmed])
+  }
+
+  function removeTag(tag: string) {
+    setSelectedTags((prev) => prev.filter((t) => t !== tag))
+  }
+
+  function handleTagKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault()
+      addTag(tagInput)
+      setTagInput('')
+    } else if (e.key === 'Backspace' && tagInput === '' && selectedTags.length > 0) {
+      removeTag(selectedTags[selectedTags.length - 1])
+    }
+  }
+
+  // Tags from other contacts that aren't already selected
+  const suggestedTags = availableTags.filter(
+    (t) =>
+      !selectedTags.includes(t) &&
+      (tagInput === '' || t.includes(tagInput.toLowerCase())),
+  )
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    // Commit any pending tag input on submit
+    const finalTags = tagInput.trim()
+      ? [...new Set([...selectedTags, tagInput.trim().toLowerCase().replace(/\s+/g, '_')])]
+      : selectedTags
+
     if (!form.name.trim()) {
       setError('Name is required.')
       return
@@ -99,10 +135,7 @@ export function AddContactDialog({ open, onClose, onSaved, initialContact }: Add
       email: form.email.trim() || null,
       segment: form.segment || null,
       health: form.health || null,
-      tags: form.tags
-        .split(',')
-        .map((t) => t.trim())
-        .filter(Boolean),
+      tags: finalTags,
       notes: form.notes.trim() || null,
     }
 
@@ -148,7 +181,7 @@ export function AddContactDialog({ open, onClose, onSaved, initialContact }: Add
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+          <div className="p-6 space-y-4 max-h-[65vh] overflow-y-auto">
             {error && (
               <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
             )}
@@ -220,18 +253,58 @@ export function AddContactDialog({ open, onClose, onSaved, initialContact }: Add
               </div>
             </div>
 
+            {/* Tags field */}
             <div>
-              <label htmlFor="contact-tags" className="block text-xs font-medium text-foreground mb-1">
-                Tags
-              </label>
-              <input
-                id="contact-tags"
-                type="text"
-                value={form.tags}
-                onChange={(e) => set('tags', e.target.value)}
-                placeholder="onboarding, power-user (comma-separated)"
-                className={INPUT_CLASS}
-              />
+              <label className="block text-xs font-medium text-foreground mb-1">Tags</label>
+
+              {/* Selected tag chips + input */}
+              <div
+                className="flex flex-wrap gap-1.5 rounded-md border border-input bg-background px-2.5 py-2 focus-within:ring-2 focus-within:ring-ring cursor-text min-h-[38px]"
+                onClick={() => tagInputRef.current?.focus()}
+              >
+                {selectedTags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="flex items-center gap-1 rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+                  >
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); removeTag(tag) }}
+                      className="text-primary/60 hover:text-primary transition-colors"
+                      aria-label={`Remove ${tag}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+                <input
+                  ref={tagInputRef}
+                  type="text"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={handleTagKeyDown}
+                  placeholder={selectedTags.length === 0 ? 'Type a tag and press Enter…' : ''}
+                  className="flex-1 min-w-[120px] bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                />
+              </div>
+
+              {/* Existing tag suggestions */}
+              {suggestedTags.length > 0 && (
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {suggestedTags.map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => addTag(tag)}
+                      className="rounded border border-border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-colors"
+                    >
+                      + {tag}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <p className="mt-1 text-[10px] text-muted-foreground">Press Enter or comma to add a new tag. Backspace removes the last.</p>
             </div>
 
             <div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import type { ContactRow } from '@/lib/queries/contacts'
@@ -55,6 +55,11 @@ export function CustomerHubDetail({
   useEffect(() => { setPersonas(initialPersonas) }, [initialPersonas])
 
   const refresh = useCallback(() => router.refresh(), [router])
+
+  const allTags = useMemo(
+    () => [...new Set(contacts.flatMap((c) => c.tags))].sort(),
+    [contacts],
+  )
 
   const selectedContactComms = selectedContact
     ? communications.filter((c) => c.contact_id === selectedContact.id)
@@ -163,6 +168,7 @@ export function CustomerHubDetail({
                 onSelect={setSelectedContact}
                 onContactCreated={handleContactCreated}
                 onContactDeleted={handleContactDeleted}
+                allTags={allTags}
               />
             </div>
 
@@ -174,6 +180,7 @@ export function CustomerHubDetail({
                   communications={selectedContactComms}
                   insights={selectedContactInsights}
                   personas={personas}
+                  allTags={allTags}
                   onCommunicationAdded={handleCommunicationAdded}
                   onCommunicationDeleted={handleCommunicationDeleted}
                   onCommunicationUpdated={handleCommunicationUpdated}

@@ -16,7 +16,6 @@ const COMPANY_ITEMS = [
   { name: 'Narratives', href: '/dashboard/company/narratives' },
   { name: 'Terminology', href: '/dashboard/company/terminology' },
   { name: 'Personas', href: '/dashboard/company/personas' },
-  { name: 'Authors', href: '/dashboard/company/authors' },
   { name: 'Assets', href: '/dashboard/company/assets' },
   { name: 'Content types', href: '/dashboard/company/content-types' },
   { name: 'Social proof', href: '/dashboard/company/social-proof' },

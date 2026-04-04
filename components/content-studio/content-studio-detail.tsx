@@ -140,6 +140,7 @@ export function ContentStudioDetail({
   function handleCloseDialog() {
     setGenerateOpen(false)
     setInitialMessage('')
+    setInitialAuthorId('company')
   }
 
   return (

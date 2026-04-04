@@ -4,14 +4,21 @@ export interface UserProfileData {
   full_name: string | null
   role: string | null
   avatar_url: string | null
+  voice: string | null
+  tone: string | null
+  writing_style: string | null
+  personal_pillars: string | null
+  platform_notes: string | null
 }
+
+const VOICE_COLUMNS = 'id, full_name, role, avatar_url, voice, tone, writing_style, personal_pillars, platform_notes, updated_at'
 
 export async function getUserProfile(userId: string) {
   const supabase = createServiceClient()
 
   const { data, error } = await supabase
     .from('user_profiles')
-    .select('id, full_name, role, avatar_url, updated_at')
+    .select(VOICE_COLUMNS)
     .eq('id', userId)
     .maybeSingle()
 
@@ -68,7 +75,7 @@ export async function upsertUserProfile(userId: string, profile: UserProfileData
       },
       { onConflict: 'id' },
     )
-    .select('id, full_name, role, avatar_url')
+    .select(VOICE_COLUMNS)
     .single()
 
   if (error) return { profile: null, error: 'Failed to save profile' }
@@ -91,4 +98,33 @@ export async function updateAvatarUrl(userId: string, avatarUrl: string) {
 
   if (error) return { error: 'Failed to update avatar' }
   return { error: null }
+}
+
+/** All org members as author options for generation dialogs and backlog.
+ *  Returns { id: user_id, name: full_name } for every member with a profile. */
+export async function getOrgMembersAsAuthors(
+  organizationId: string,
+): Promise<Array<{ id: string; name: string }>> {
+  const supabase = createServiceClient()
+
+  const { data: members, error } = await supabase
+    .from('organization_members')
+    .select('user_id')
+    .eq('organization_id', organizationId)
+
+  if (error || !members || members.length === 0) return []
+
+  const userIds = members.map((m) => m.user_id)
+
+  const { data: profiles } = await supabase
+    .from('user_profiles')
+    .select('id, full_name')
+    .in('id', userIds)
+    .not('full_name', 'is', null)
+
+  if (!profiles) return []
+
+  return profiles
+    .filter((p) => p.full_name)
+    .map((p) => ({ id: p.id, name: p.full_name! }))
 }

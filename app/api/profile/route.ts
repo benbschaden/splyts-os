@@ -6,6 +6,11 @@ import { getUserProfile, upsertUserProfile } from '@/lib/queries/user-profile'
 const updateProfileSchema = z.object({
   full_name: z.string().max(200).nullable().optional(),
   role: z.string().max(200).nullable().optional(),
+  voice: z.string().max(1000).nullable().optional(),
+  tone: z.string().max(1000).nullable().optional(),
+  writing_style: z.string().max(2000).nullable().optional(),
+  personal_pillars: z.string().max(2000).nullable().optional(),
+  platform_notes: z.string().max(2000).nullable().optional(),
 })
 
 export async function GET() {
@@ -42,6 +47,11 @@ export async function PUT(request: Request) {
     full_name: parsed.data.full_name ?? existing?.full_name ?? null,
     role: parsed.data.role ?? existing?.role ?? null,
     avatar_url: existing?.avatar_url ?? null,
+    voice: parsed.data.voice ?? existing?.voice ?? null,
+    tone: parsed.data.tone ?? existing?.tone ?? null,
+    writing_style: parsed.data.writing_style ?? existing?.writing_style ?? null,
+    personal_pillars: parsed.data.personal_pillars ?? existing?.personal_pillars ?? null,
+    platform_notes: parsed.data.platform_notes ?? existing?.platform_notes ?? null,
   })
 
   if (error || !profile) return NextResponse.json({ error }, { status: 500 })

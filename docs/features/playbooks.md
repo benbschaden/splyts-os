@@ -24,6 +24,12 @@ Feature: Playbooks
     And I click Run AI edit
     Then the AI revises the content following those instructions
 
+  Scenario: Repeated AI edits build on the last preview
+    Given I have run AI edit and a preview is shown
+    When I click Run AI edit again
+    Then the model receives the preview text as the starting point
+    And company context (brand, terminology, narratives) informs the revision
+
   Scenario: Team member browses all playbooks by category
     Given there are multiple playbooks across different categories
     When I navigate to Playbooks

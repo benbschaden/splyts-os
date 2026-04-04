@@ -918,6 +918,61 @@ export function buildProjectArchivePrompt(params: {
 
 // ─── Playbook: AI Writing Polish ─────────────────────────────────────────────
 
+/** Company fields for playbook AI (from brand_context + related rows). */
+export function buildPlaybookCompanyContextBlock(params: {
+  brand: {
+    company_name: string
+    mission: string
+    vision: string
+    north_star: string
+    voice: string
+    tone: string
+    pillars: string
+    target_audience: string
+    values: string | null
+    guardrails?: string | null
+  } | null
+  terminology: TerminologyRow[]
+  narratives: BrandNarrativeRow[]
+}): string {
+  const { brand, terminology, narratives } = params
+  const lines: string[] = []
+
+  if (brand) {
+    lines.push('[COMPANY CONTEXT]')
+    if (brand.company_name?.trim()) lines.push(`Company: ${brand.company_name.trim()}`)
+    if (brand.mission?.trim()) lines.push(`Mission: ${brand.mission.trim()}`)
+    if (brand.vision?.trim()) lines.push(`Vision: ${brand.vision.trim()}`)
+    if (brand.north_star?.trim()) lines.push(`North star: ${brand.north_star.trim()}`)
+    if (brand.voice?.trim()) lines.push(`Brand voice: ${brand.voice.trim()}`)
+    if (brand.tone?.trim()) lines.push(`Brand tone: ${brand.tone.trim()}`)
+    if (brand.pillars?.trim()) lines.push(`Messaging pillars: ${brand.pillars.trim()}`)
+    if (brand.target_audience?.trim()) lines.push(`Target audience: ${brand.target_audience.trim()}`)
+    if (brand.values?.trim()) lines.push(`Values: ${brand.values.trim()}`)
+    if (brand.guardrails?.trim()) {
+      lines.push('')
+      lines.push('[GUARDRAILS — never violate these]')
+      lines.push(brand.guardrails.trim())
+    }
+  }
+
+  const narrativesBlock = buildNarrativesBlock(narratives)
+  if (narrativesBlock) {
+    lines.push('')
+    lines.push('[CORE NARRATIVES — align wording and stories where relevant]')
+    lines.push(narrativesBlock)
+  }
+
+  const terminologyBlock = buildTerminologyBlock(terminology)
+  if (terminologyBlock) {
+    lines.push('')
+    lines.push('[TERMINOLOGY — use preferred terms consistently]')
+    lines.push(terminologyBlock)
+  }
+
+  return lines.join('\n').trim()
+}
+
 export function buildPlaybookPolishPrompt(params: {
   title: string
   category: string
@@ -925,15 +980,25 @@ export function buildPlaybookPolishPrompt(params: {
   brandVoice: string | null
   /** Optional user instructions (e.g. "shorten", "add a checklist", "more formal"). */
   instruction?: string | null
+  /** Pre-formatted block from buildPlaybookCompanyContextBlock (brand, narratives, terminology). */
+  companyContextBlock?: string | null
 }): string {
-  const { title, category, content, brandVoice, instruction } = params
+  const { title, category, content, brandVoice, instruction, companyContextBlock } = params
   const userInstruction = instruction?.trim() ?? ''
+  const companyBlock = companyContextBlock?.trim() ?? ''
 
   const lines: string[] = []
 
   lines.push(`You are a world-class technical writer. You are editing a team playbook titled "${title}" in the "${category}" category.`)
-  if (brandVoice) lines.push(`Write in a voice that is: ${brandVoice}`)
+  if (brandVoice) lines.push(`Primary voice reference: ${brandVoice}`)
   lines.push('')
+
+  if (companyBlock) {
+    lines.push(companyBlock)
+    lines.push('')
+    lines.push('Use the company context above when choosing language, terms, and emphasis. Do not invent company facts not supported by that context.')
+    lines.push('')
+  }
 
   if (userInstruction) {
     lines.push('[USER INSTRUCTIONS — follow these first]')

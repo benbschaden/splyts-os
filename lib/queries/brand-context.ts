@@ -31,7 +31,7 @@ export async function getBrandContext(organizationId: string) {
   const { data, error } = await supabase
     .from('brand_context')
     .select(
-      'id, company_name, mission, vision, north_star, voice, tone, pillars, target_audience, values, brand_assets, updated_at',
+      'id, company_name, mission, vision, north_star, voice, tone, pillars, target_audience, values, guardrails, brand_assets, updated_at',
     )
     .eq('organization_id', organizationId)
     .maybeSingle()

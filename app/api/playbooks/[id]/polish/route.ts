@@ -4,7 +4,9 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getPlaybookById, canEditPlaybook } from '@/lib/queries/playbooks'
 import { getBrandContext } from '@/lib/queries/brand-context'
-import { buildPlaybookPolishPrompt } from '@/lib/ai/prompts'
+import { getTerminology } from '@/lib/queries/terminology'
+import { getAiVisibleNarratives } from '@/lib/queries/brand-narratives'
+import { buildPlaybookCompanyContextBlock, buildPlaybookPolishPrompt } from '@/lib/ai/prompts'
 import { DEFAULT_MODEL, getModelById } from '@/lib/ai/models'
 
 const polishSchema = z.object({
@@ -44,7 +46,17 @@ export async function POST(
       return Response.json({ error: 'AI not configured' }, { status: 503 })
     }
 
-    const brandContext = await getBrandContext(org.id)
+    const [brandContext, terminology, narratives] = await Promise.all([
+      getBrandContext(org.id),
+      getTerminology(org.id),
+      getAiVisibleNarratives(org.id),
+    ])
+
+    const companyContextBlock = buildPlaybookCompanyContextBlock({
+      brand: brandContext,
+      terminology,
+      narratives,
+    })
     const brandVoice = brandContext?.voice ?? null
 
     const model = (parsed.data.modelId ? getModelById(parsed.data.modelId) : null) ?? DEFAULT_MODEL
@@ -55,6 +67,7 @@ export async function POST(
       content: parsed.data.content,
       brandVoice,
       instruction: parsed.data.instruction,
+      companyContextBlock: companyContextBlock || null,
     })
 
     const anthropic = new Anthropic({ apiKey })

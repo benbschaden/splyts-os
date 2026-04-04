@@ -75,15 +75,18 @@ export function PlaybookEditor({ playbook: initialPlaybook, canEdit }: PlaybookE
   }
 
   async function handlePolish() {
+    // Chain edits: each run uses the latest AI preview when present, else the textarea draft.
+    const baseContent = (polishedSuggestion ?? editContent).trim()
+    if (!baseContent) return
+
     setIsPolishing(true)
     setError(null)
-    setPolishedSuggestion(null)
     try {
       const res = await fetch(`/api/playbooks/${playbook.id}/polish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          content: editContent,
+          content: baseContent,
           ...(polishInstruction.trim() ? { instruction: polishInstruction.trim() } : {}),
           modelId: polishModelId,
         }),
@@ -218,7 +221,12 @@ export function PlaybookEditor({ playbook: initialPlaybook, canEdit }: PlaybookE
           {/* AI polish suggestion */}
           {polishedSuggestion && (
             <div className="mb-4 rounded-xl border border-border bg-accent/30 p-4">
-              <p className="mb-2 text-xs font-semibold text-foreground">AI suggestion — review before accepting</p>
+              <p className="mb-2 text-xs font-semibold text-foreground">
+                AI suggestion — review before accepting
+                {isPolishing && (
+                  <span className="ml-2 font-normal text-muted-foreground">(updating…)</span>
+                )}
+              </p>
               <div className="prose prose-sm max-w-none dark:prose-invert text-foreground mb-3 rounded-lg border border-border bg-background p-3">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{polishedSuggestion}</ReactMarkdown>
               </div>
@@ -283,7 +291,10 @@ export function PlaybookEditor({ playbook: initialPlaybook, canEdit }: PlaybookE
                 <button
                   type="button"
                   onClick={handlePolish}
-                  disabled={isPolishing || !editContent.trim()}
+                  disabled={
+                    isPolishing
+                    || !(polishedSuggestion?.trim() || editContent.trim())
+                  }
                   className="flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
                 >
                   {isPolishing ? (
@@ -293,6 +304,9 @@ export function PlaybookEditor({ playbook: initialPlaybook, canEdit }: PlaybookE
                   )}
                   {isPolishing ? 'Running…' : 'Run AI edit'}
                 </button>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Each run uses the preview above when it is shown, so repeated edits stack. Otherwise it uses the draft below. Discard the preview to continue from the textarea only.
+                </p>
               </div>
               <p className="text-xs text-muted-foreground">Markdown supported in the body below.</p>
               <textarea

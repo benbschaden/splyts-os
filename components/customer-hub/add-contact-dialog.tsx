@@ -9,11 +9,14 @@ interface AddContactDialogProps {
   open: boolean
   onClose: () => void
   onSaved: (contact: ContactRow) => void
+  initialContact?: ContactRow
 }
 
 interface FormData {
   name: string
   email: string
+  company: string
+  role: string
   segment: ContactSegment | ''
   health: ContactHealth | ''
   tags: string
@@ -23,6 +26,8 @@ interface FormData {
 const EMPTY: FormData = {
   name: '',
   email: '',
+  company: '',
+  role: '',
   segment: '',
   health: '',
   tags: '',
@@ -48,17 +53,31 @@ const HEALTH_LABELS: Record<ContactHealth, string> = {
 const INPUT_CLASS =
   'w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring'
 
-export function AddContactDialog({ open, onClose, onSaved }: AddContactDialogProps) {
+export function AddContactDialog({ open, onClose, onSaved, initialContact }: AddContactDialogProps) {
+  const isEditing = !!initialContact
   const [form, setForm] = useState<FormData>(EMPTY)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (open) {
-      setForm(EMPTY)
+      if (initialContact) {
+        setForm({
+          name: initialContact.name,
+          email: initialContact.email ?? '',
+          company: initialContact.company ?? '',
+          role: initialContact.role ?? '',
+          segment: initialContact.segment ?? '',
+          health: initialContact.health ?? '',
+          tags: initialContact.tags.join(', '),
+          notes: initialContact.notes ?? '',
+        })
+      } else {
+        setForm(EMPTY)
+      }
       setError(null)
     }
-  }, [open])
+  }, [open, initialContact])
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -81,21 +100,31 @@ export function AddContactDialog({ open, onClose, onSaved }: AddContactDialogPro
     setSaving(true)
     setError(null)
 
-    const res = await fetch('/api/contacts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: form.name.trim(),
-        email: form.email.trim() || null,
-        segment: form.segment || null,
-        health: form.health || null,
-        tags: form.tags
-          .split(',')
-          .map((t) => t.trim())
-          .filter(Boolean),
-        notes: form.notes.trim() || null,
-      }),
-    })
+    const payload = {
+      name: form.name.trim(),
+      email: form.email.trim() || null,
+      company: form.company.trim() || null,
+      role: form.role.trim() || null,
+      segment: form.segment || null,
+      health: form.health || null,
+      tags: form.tags
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean),
+      notes: form.notes.trim() || null,
+    }
+
+    const res = isEditing
+      ? await fetch(`/api/contacts/${initialContact!.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+      : await fetch('/api/contacts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
 
     setSaving(false)
 
@@ -115,7 +144,7 @@ export function AddContactDialog({ open, onClose, onSaved }: AddContactDialogPro
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-md rounded-xl border border-border bg-background shadow-xl">
         <div className="flex items-center justify-between p-6 border-b border-border">
-          <h2 className="text-sm font-semibold text-foreground">Add contact</h2>
+          <h2 className="text-sm font-semibold text-foreground">{isEditing ? 'Edit contact' : 'Add contact'}</h2>
           <button
             type="button"
             onClick={onClose}
@@ -158,6 +187,35 @@ export function AddContactDialog({ open, onClose, onSaved }: AddContactDialogPro
                 placeholder="email@example.com"
                 className={INPUT_CLASS}
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="contact-company" className="block text-xs font-medium text-foreground mb-1">
+                  Company
+                </label>
+                <input
+                  id="contact-company"
+                  type="text"
+                  value={form.company}
+                  onChange={(e) => set('company', e.target.value)}
+                  placeholder="Acme Inc."
+                  className={INPUT_CLASS}
+                />
+              </div>
+              <div>
+                <label htmlFor="contact-role" className="block text-xs font-medium text-foreground mb-1">
+                  Role
+                </label>
+                <input
+                  id="contact-role"
+                  type="text"
+                  value={form.role}
+                  onChange={(e) => set('role', e.target.value)}
+                  placeholder="Founder"
+                  className={INPUT_CLASS}
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -242,7 +300,7 @@ export function AddContactDialog({ open, onClose, onSaved }: AddContactDialogPro
               disabled={saving}
               className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
-              {saving ? 'Saving…' : 'Add contact'}
+              {saving ? 'Saving…' : isEditing ? 'Save changes' : 'Add contact'}
             </button>
           </div>
         </form>

@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   AlertCircle,
   ExternalLink,
+  Pencil,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ContactRow, ContactSegment } from '@/lib/queries/contacts'
@@ -23,6 +24,7 @@ import type { CustomerInsightRow, InsightCategory, InsightImpact } from '@/lib/q
 import type { PersonaRow } from '@/lib/queries/personas'
 import { AddCommunicationDialog } from './add-communication-dialog'
 import { AddInsightDialog } from './add-insight-dialog'
+import { AddContactDialog } from './add-contact-dialog'
 import { HubChatPanel } from './hub-chat-panel'
 
 interface ContactDetailProps {
@@ -35,6 +37,7 @@ interface ContactDetailProps {
   onCommunicationUpdated: (comm: ContactCommunicationRow) => void
   onInsightAdded: (insight: CustomerInsightRow) => void
   onInsightDeleted: (id: string) => void
+  onContactUpdated: (contact: ContactRow) => void
 }
 
 type GenerateState =
@@ -361,10 +364,12 @@ export function ContactDetail({
   onCommunicationUpdated,
   onInsightAdded,
   onInsightDeleted,
+  onContactUpdated,
 }: ContactDetailProps) {
   const [activeTab, setActiveTab] = useState<Tab>('communications')
   const [addCommOpen, setAddCommOpen] = useState(false)
   const [addInsightOpen, setAddInsightOpen] = useState(false)
+  const [editContactOpen, setEditContactOpen] = useState(false)
   const [deletingCommId, setDeletingCommId] = useState<string | null>(null)
   const [deletingInsightId, setDeletingInsightId] = useState<string | null>(null)
   const [generateState, setGenerateState] = useState<GenerateState>({ status: 'idle' })
@@ -545,13 +550,18 @@ export function ContactDetail({
       {/* Contact header */}
       <div className="shrink-0 px-6 py-5 border-b border-border bg-background">
         <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h2 className="text-base font-semibold text-foreground">{contact.name}</h2>
             <div className="mt-1 flex flex-wrap items-center gap-3">
               {contact.email && (
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
                   <Mail className="h-3.5 w-3.5 shrink-0" />
                   {contact.email}
+                </span>
+              )}
+              {(contact.company || contact.role) && (
+                <span className="text-xs text-muted-foreground">
+                  {[contact.role, contact.company].filter(Boolean).join(' · ')}
                 </span>
               )}
             </div>
@@ -581,8 +591,25 @@ export function ContactDetail({
                   <span className="opacity-70">• {currentPersonaScore}%</span>
                 </span>
               )}
+              {contact.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                >
+                  {tag}
+                </span>
+              ))}
             </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setEditContactOpen(true)}
+            className="shrink-0 flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            aria-label="Edit contact"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            Edit
+          </button>
         </div>
       </div>
 
@@ -1006,6 +1033,16 @@ export function ContactDetail({
         }}
         sourceContactId={contact.id}
         sourceContactName={contact.name}
+      />
+
+      <AddContactDialog
+        open={editContactOpen}
+        initialContact={contact}
+        onClose={() => setEditContactOpen(false)}
+        onSaved={(updated) => {
+          onContactUpdated(updated)
+          setEditContactOpen(false)
+        }}
       />
     </div>
   )

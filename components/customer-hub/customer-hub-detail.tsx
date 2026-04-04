@@ -69,6 +69,13 @@ export function CustomerHubDetail({
     setSelectedContact(contact)
   }
 
+  function handleContactUpdated(contact: ContactRow) {
+    setContacts((prev) =>
+      prev.map((c) => (c.id === contact.id ? contact : c)).sort((a, b) => a.name.localeCompare(b.name)),
+    )
+    setSelectedContact(contact)
+  }
+
   function handleContactDeleted(id: string) {
     setContacts((prev) => prev.filter((c) => c.id !== id))
     if (selectedContact?.id === id) setSelectedContact(null)
@@ -172,6 +179,7 @@ export function CustomerHubDetail({
                   onCommunicationUpdated={handleCommunicationUpdated}
                   onInsightAdded={handleInsightAdded}
                   onInsightDeleted={handleInsightDeleted}
+                  onContactUpdated={handleContactUpdated}
                 />
               ) : (
                 <div className="flex h-full items-center justify-center">

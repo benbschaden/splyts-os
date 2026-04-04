@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ContactRow, ContactSegment } from '@/lib/queries/contacts'
@@ -61,6 +61,12 @@ export function ContactsList({
   const [addOpen, setAddOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [segmentFilter, setSegmentFilter] = useState<ContactSegment | 'all'>('all')
+  const [tagFilter, setTagFilter] = useState<string | 'all'>('all')
+
+  const allTags = useMemo(
+    () => [...new Set(contacts.flatMap((c) => c.tags))].sort(),
+    [contacts],
+  )
 
   const filtered = contacts.filter((c) => {
     const matchesSearch =
@@ -70,10 +76,12 @@ export function ContactsList({
 
     const matchesSegment = segmentFilter === 'all' || c.segment === segmentFilter
 
-    return matchesSearch && matchesSegment
+    const matchesTag = tagFilter === 'all' || c.tags.includes(tagFilter)
+
+    return matchesSearch && matchesSegment && matchesTag
   })
 
-  const isFiltering = search.trim() !== '' || segmentFilter !== 'all'
+  const isFiltering = search.trim() !== '' || segmentFilter !== 'all' || tagFilter !== 'all'
 
   return (
     <div className="flex h-full w-[260px] shrink-0 flex-col border-r border-border bg-background">
@@ -116,6 +124,20 @@ export function ContactsList({
             </option>
           ))}
         </select>
+        {allTags.length > 0 && (
+          <select
+            value={tagFilter}
+            onChange={(e) => setTagFilter(e.target.value)}
+            className="w-full rounded-md border border-input bg-muted/40 px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            <option value="all">All tags</option>
+            {allTags.map((tag) => (
+              <option key={tag} value={tag}>
+                {tag}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* List */}
@@ -169,6 +191,21 @@ export function ContactsList({
                   )}
                   {contact.email && (
                     <p className="text-[11px] text-muted-foreground/70 truncate mt-0.5">{contact.email}</p>
+                  )}
+                  {contact.tags.length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {contact.tags.slice(0, 3).map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded bg-muted px-1 py-0.5 text-[9px] font-medium text-muted-foreground"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                      {contact.tags.length > 3 && (
+                        <span className="text-[9px] text-muted-foreground/60">+{contact.tags.length - 3}</span>
+                      )}
+                    </div>
                   )}
                 </div>
                 {contact.segment && (

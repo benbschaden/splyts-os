@@ -28,6 +28,11 @@ export default async function ProfileSettingsPage() {
           role: profile?.role ?? '',
           avatar_url: profile?.avatar_url ?? null,
           email: user.email ?? '',
+          voice: profile?.voice ?? '',
+          tone: profile?.tone ?? '',
+          writing_style: profile?.writing_style ?? '',
+          personal_pillars: profile?.personal_pillars ?? '',
+          platform_notes: profile?.platform_notes ?? '',
         }}
       />
     </div>

@@ -10,12 +10,22 @@ interface ProfileFormProps {
     role: string
     avatar_url: string | null
     email: string
+    voice: string
+    tone: string
+    writing_style: string
+    personal_pillars: string
+    platform_notes: string
   }
 }
 
 export function ProfileForm({ initial }: ProfileFormProps) {
   const [fullName, setFullName] = useState(initial.full_name)
   const [role, setRole] = useState(initial.role)
+  const [voice, setVoice] = useState(initial.voice)
+  const [tone, setTone] = useState(initial.tone)
+  const [writingStyle, setWritingStyle] = useState(initial.writing_style)
+  const [personalPillars, setPersonalPillars] = useState(initial.personal_pillars)
+  const [platformNotes, setPlatformNotes] = useState(initial.platform_notes)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(initial.avatar_url)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -35,6 +45,11 @@ export function ProfileForm({ initial }: ProfileFormProps) {
       body: JSON.stringify({
         full_name: fullName.trim() || null,
         role: role.trim() || null,
+        voice: voice.trim() || null,
+        tone: tone.trim() || null,
+        writing_style: writingStyle.trim() || null,
+        personal_pillars: personalPillars.trim() || null,
+        platform_notes: platformNotes.trim() || null,
       }),
     })
 
@@ -198,6 +213,86 @@ export function ProfileForm({ initial }: ProfileFormProps) {
             'disabled:opacity-50',
           )}
         />
+      </div>
+
+      {/* Content voice section */}
+      <div className="space-y-4 border-t border-border pt-4">
+        <div className="space-y-1">
+          <h3 className="text-sm font-semibold text-foreground">Content voice</h3>
+          <p className="text-xs text-muted-foreground">
+            Used when generating content in your voice. The more detail you add, the more accurate the output.
+          </p>
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="profile-voice" className="text-sm font-medium text-foreground">
+            Voice
+          </label>
+          <input
+            id="profile-voice"
+            type="text"
+            value={voice}
+            onChange={(e) => setVoice(e.target.value)}
+            placeholder="e.g. Direct, curious, no jargon"
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="profile-tone" className="text-sm font-medium text-foreground">
+            Tone
+          </label>
+          <input
+            id="profile-tone"
+            type="text"
+            value={tone}
+            onChange={(e) => setTone(e.target.value)}
+            placeholder="e.g. Conversational but sharp"
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="profile-writing-style" className="text-sm font-medium text-foreground">
+            Writing style
+          </label>
+          <textarea
+            id="profile-writing-style"
+            value={writingStyle}
+            onChange={(e) => setWritingStyle(e.target.value)}
+            rows={3}
+            placeholder="e.g. Short punchy paragraphs. Stories before data. Always ends with a question."
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="profile-personal-pillars" className="text-sm font-medium text-foreground">
+            Personal pillars
+          </label>
+          <textarea
+            id="profile-personal-pillars"
+            value={personalPillars}
+            onChange={(e) => setPersonalPillars(e.target.value)}
+            rows={3}
+            placeholder="e.g. B2B GTM, founder mental health, honest marketing"
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="profile-platform-notes" className="text-sm font-medium text-foreground">
+            Platform notes
+          </label>
+          <textarea
+            id="profile-platform-notes"
+            value={platformNotes}
+            onChange={(e) => setPlatformNotes(e.target.value)}
+            rows={3}
+            placeholder="e.g. LinkedIn: no hashtags, no bullet lists. Email: always use a P.S."
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
+          />
+        </div>
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}

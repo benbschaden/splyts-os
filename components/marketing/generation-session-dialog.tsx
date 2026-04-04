@@ -56,6 +56,7 @@ interface GenerationSessionDialogProps {
   contentTypes: ContentType[]
   hasBrandContext: boolean
   initialUserMessage?: string
+  initialAuthorId?: string
   resumeDraft?: ResumeDraft | null
 }
 
@@ -69,6 +70,7 @@ export function GenerationSessionDialog({
   contentTypes,
   hasBrandContext,
   initialUserMessage,
+  initialAuthorId,
   resumeDraft,
 }: GenerationSessionDialogProps) {
   const router = useRouter()
@@ -104,7 +106,7 @@ export function GenerationSessionDialog({
       } else {
         setPhase('setup')
         setContentTypeId(contentTypes[0]?.id ?? '')
-        setAuthorId('company')
+        setAuthorId(initialAuthorId ?? 'company')
         setModelId(DEFAULT_MODEL.id)
         setMessages([])
         setDraftId(null)
@@ -116,7 +118,7 @@ export function GenerationSessionDialog({
       setPublishError(null)
       setDiscarding(false)
     }
-  }, [open, contentTypes, initialUserMessage, resumeDraft])
+  }, [open, contentTypes, initialUserMessage, initialAuthorId, resumeDraft])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })

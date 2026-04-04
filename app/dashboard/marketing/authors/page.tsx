@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
 
 export default function MarketingAuthorsRedirect() {
-  redirect('/dashboard/company/authors')
+  redirect('/dashboard/settings/profile')
 }

@@ -21,7 +21,6 @@ export type ContentCalendarItem = {
   updated_at: string
   // Joined fields
   content_types?: { name: string } | null
-  author_profiles?: { name: string } | null
   outputs?: {
     reach: number | null
     reach_metric: string | null
@@ -37,7 +36,7 @@ export async function getContentCalendarItems(
 
   let query = supabase
     .from('content_calendar')
-    .select('id, organization_id, title, description, scheduled_date, content_type_id, platform, author_id, assigned_to, output_id, status, notes, created_by, updated_by, created_at, updated_at, content_types(name), author_profiles(name), outputs(reach, reach_metric, published_at)')
+    .select('id, organization_id, title, description, scheduled_date, content_type_id, platform, author_id, assigned_to, output_id, status, notes, created_by, updated_by, created_at, updated_at, content_types(name), outputs(reach, reach_metric, published_at)')
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
     .order('scheduled_date', { ascending: true })

@@ -25,7 +25,7 @@ const sections = [
       { href: '/dashboard/company/narratives', name: 'Brand narratives', desc: 'The 3–5 core stories your company tells, anchoring AI content' },
       { href: '/dashboard/company/terminology', name: 'Terminology', desc: 'Always-use and never-use word list for AI consistency' },
       { href: '/dashboard/company/personas', name: 'Personas', desc: 'Target audience profiles fed into AI generation' },
-      { href: '/dashboard/company/authors', name: 'Authors', desc: 'Named voices for generation' },
+      { href: '/dashboard/settings/profile', name: 'Your voice', desc: 'Set up your personal content voice in your profile' },
       { href: '/dashboard/company/assets', name: 'Brand assets', desc: 'Logos, colours, typography, and image style reference' },
     ],
   },

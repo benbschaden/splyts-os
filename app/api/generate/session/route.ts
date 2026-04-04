@@ -125,16 +125,34 @@ export async function POST(request: Request): Promise<Response> {
     if (authorId === 'company') {
       author = { type: 'company' }
     } else {
-      const { data: authorProfile } = await db
-        .from('author_profiles')
-        .select('name, role, voice, tone, writing_style, personal_pillars, platform_notes')
-        .eq('id', authorId)
+      // Verify the user is a member of this org, then fetch their voice profile
+      const { data: membership } = await db
+        .from('organization_members')
+        .select('user_id')
+        .eq('user_id', authorId)
         .eq('organization_id', org.id)
-        .is('deleted_at', null)
         .maybeSingle()
 
-      if (!authorProfile) return Response.json({ error: 'Author not found' }, { status: 404 })
-      author = { type: 'named', ...authorProfile }
+      if (!membership) return Response.json({ error: 'Not found' }, { status: 404 })
+
+      const { data: authorProfile } = await db
+        .from('user_profiles')
+        .select('full_name, role, voice, tone, writing_style, personal_pillars, platform_notes')
+        .eq('id', authorId)
+        .maybeSingle()
+
+      if (!authorProfile) return Response.json({ error: 'Not found' }, { status: 404 })
+
+      author = {
+        type: 'named',
+        name: authorProfile.full_name ?? 'Unknown',
+        role: authorProfile.role,
+        voice: authorProfile.voice,
+        tone: authorProfile.tone,
+        writing_style: authorProfile.writing_style,
+        personal_pillars: authorProfile.personal_pillars,
+        platform_notes: authorProfile.platform_notes,
+      }
     }
 
     const projectMaterials = projectMaterialsRaw.map((m) => ({

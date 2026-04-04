@@ -10,7 +10,8 @@ const createSchema = z.object({
   title: z.string().min(1).max(500),
   description: z.string().max(2000).nullable().optional(),
   contentTypeId: z.string().uuid(),
-  platformOwner: z.enum(['author', 'company']),
+  // null = Company, UUID = specific team member
+  authorUserId: z.string().uuid().nullable().optional(),
 })
 
 export async function GET(request: Request): Promise<Response> {
@@ -52,7 +53,7 @@ export async function POST(request: Request): Promise<Response> {
       return Response.json({ error: parsed.error.errors[0].message }, { status: 400 })
     }
 
-    const { projectId, title, description, contentTypeId, platformOwner } = parsed.data
+    const { projectId, title, description, contentTypeId, authorUserId } = parsed.data
 
     // Verify the content type belongs to this org
     const orgContentTypes = await getActiveContentTypes(org.id)
@@ -67,7 +68,7 @@ export async function POST(request: Request): Promise<Response> {
       title,
       description: description ?? null,
       contentTypeId,
-      platformOwner,
+      authorUserId: authorUserId ?? null,
       userId: user.id,
     })
 

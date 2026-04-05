@@ -60,7 +60,7 @@ export async function getChatSessions(
     .order('updated_at', { ascending: false })
 
   if (error) return []
-  return data as ChatSessionRow[]
+  return data as unknown as ChatSessionRow[]
 }
 
 export async function getProjectChatSessions(
@@ -80,7 +80,7 @@ export async function getProjectChatSessions(
     .order('updated_at', { ascending: false })
 
   if (error) return []
-  return data as ChatSessionRow[]
+  return data as unknown as ChatSessionRow[]
 }
 
 export async function getChatSessionById(
@@ -98,7 +98,7 @@ export async function getChatSessionById(
     .maybeSingle()
 
   if (error || !data) return null
-  return data as ChatSessionRow
+  return data as unknown as ChatSessionRow
 }
 
 export async function findChatSessionForContact(
@@ -115,7 +115,7 @@ export async function findChatSessionForContact(
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
-  return data ? (data as ChatSessionRow) : null
+  return data ? (data as unknown as ChatSessionRow) : null
 }
 
 export async function findChatSessionForSegment(
@@ -132,7 +132,7 @@ export async function findChatSessionForSegment(
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
-  return data ? (data as ChatSessionRow) : null
+  return data ? (data as unknown as ChatSessionRow) : null
 }
 
 export async function createChatSession(
@@ -150,7 +150,7 @@ export async function createChatSession(
     .insert({
       organization_id: organizationId,
       created_by: userId,
-      context_config: contextConfig,
+      context_config: contextConfig as unknown as import('@/lib/types/database').Json,
       model_id: modelId,
       project_id: projectId ?? null,
       ...(title ? { title } : {}),
@@ -159,7 +159,7 @@ export async function createChatSession(
     .single()
 
   if (error) return { session: null, error: 'Failed to create chat session' }
-  return { session: data as ChatSessionRow, error: null }
+  return { session: data as unknown as ChatSessionRow, error: null }
 }
 
 export async function updateChatSession(

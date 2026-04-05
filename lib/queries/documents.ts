@@ -440,11 +440,12 @@ export async function upsertDocumentEmbedding(input: {
   const supabase = createServiceClient()
   // Supabase passes vector columns as "[x,y,z]" string format
   const embeddingStr = `[${input.embedding.join(',')}]`
-  await supabase.from('document_embeddings').upsert(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase as any).from('document_embeddings').upsert(
     {
       document_id: input.documentId,
       content: input.content,
-      embedding: embeddingStr as unknown as number[],
+      embedding: embeddingStr,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'document_id' },
@@ -458,11 +459,12 @@ export async function upsertMaterialEmbedding(input: {
 }): Promise<void> {
   const supabase = createServiceClient()
   const embeddingStr = `[${input.embedding.join(',')}]`
-  await supabase.from('project_material_embeddings').upsert(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase as any).from('project_material_embeddings').upsert(
     {
       material_id: input.materialId,
       content: input.content,
-      embedding: embeddingStr as unknown as number[],
+      embedding: embeddingStr,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'material_id' },

@@ -108,7 +108,7 @@ export default async function ProjectPage({ params }: PageProps) {
       contentTypes={contentTypes.map((ct) => ({ id: ct.id, name: ct.name }))}
       authors={authors}
       hasBrandContext={!!(brandContext?.mission && brandContext?.company_name)}
-      materials={materials}
+      materials={(materials ?? []) as unknown as Parameters<typeof ProjectDetail>[0]['materials']}
       discoveryEntries={discoveryEntries}
       discoveryStudies={discoveryStudies}
       orgTeams={orgTeams.map((t) => ({ id: t.id, name: t.name }))}

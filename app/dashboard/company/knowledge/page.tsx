@@ -18,6 +18,16 @@ export default async function CompanyKnowledgePage() {
     listActiveConflicts(supabase, org.id),
   ])
 
+  type KnowledgeFileInput = {
+    id: string
+    file_name: string
+    file_mime: string
+    file_size_bytes: number | null
+    processing_status: 'pending' | 'processing' | 'ready' | 'failed'
+    processing_error: string | null
+    created_at: string
+  }
+
   // The Supabase join returns nested objects for file_a/file_b.
   // Cast to the shape KnowledgePanel expects.
   type ConflictWithFiles = {
@@ -43,7 +53,7 @@ export default async function CompanyKnowledgePage() {
       </div>
 
       <KnowledgePanel
-        initialFiles={files ?? []}
+        initialFiles={(files ?? []) as unknown as KnowledgeFileInput[]}
         initialConflicts={(conflicts ?? []) as ConflictWithFiles[]}
         isAdmin={isAtLeastAdmin(org.role)}
       />

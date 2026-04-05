@@ -17,7 +17,7 @@ export async function getBusinessPlan(organizationId: string) {
   if (!data) {
     console.warn('[getBusinessPlan] No row found for org', organizationId)
   } else {
-    console.log('[getBusinessPlan] Loaded sections for org', organizationId, '— keys:', Object.keys(data.sections))
+    console.log('[getBusinessPlan] Loaded sections for org', organizationId, '— keys:', data.sections && typeof data.sections === 'object' ? Object.keys(data.sections) : [])
   }
   return data as { id: string; sections: BusinessPlanSections; updated_at: string } | null
 }

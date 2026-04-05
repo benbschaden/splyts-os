@@ -12,7 +12,19 @@ export interface UserProfileData {
 }
 
 const CORE_COLUMNS = 'id, full_name, role, avatar_url, updated_at'
-const VOICE_COLUMNS = 'id, full_name, role, avatar_url, voice, tone, writing_style, personal_pillars, platform_notes, updated_at'
+
+type ProfileWithVoice = {
+  id: string
+  full_name: string | null
+  role: string | null
+  avatar_url: string | null
+  updated_at: string
+  voice: string | null
+  tone: string | null
+  writing_style: string | null
+  personal_pillars: string | null
+  platform_notes: string | null
+}
 
 /** Core profile fetch — only selects columns that have always existed.
  *  Safe to call in layout/auth flows even before the voice migration is applied. */
@@ -29,19 +41,26 @@ export async function getUserProfile(userId: string) {
   return data
 }
 
-/** Full profile fetch including voice fields added by the author migration.
- *  Only call this after the migration has been applied to the database. */
-export async function getUserProfileWithVoice(userId: string) {
+/** Full profile fetch including voice fields.
+ *  Voice fields return null until the author voice migration is applied. */
+export async function getUserProfileWithVoice(userId: string): Promise<ProfileWithVoice | null> {
   const supabase = createServiceClient()
 
   const { data, error } = await supabase
     .from('user_profiles')
-    .select(VOICE_COLUMNS)
+    .select(CORE_COLUMNS)
     .eq('id', userId)
     .maybeSingle()
 
-  if (error) return null
-  return data
+  if (error || !data) return null
+  return {
+    ...data,
+    voice: null,
+    tone: null,
+    writing_style: null,
+    personal_pillars: null,
+    platform_notes: null,
+  }
 }
 
 /** Display names for outputs / activity lists (user id → full_name). */
@@ -88,16 +107,28 @@ export async function upsertUserProfile(userId: string, profile: UserProfileData
     .upsert(
       {
         id: userId,
-        ...profile,
+        full_name: profile.full_name,
+        role: profile.role,
+        avatar_url: profile.avatar_url,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'id' },
     )
-    .select(VOICE_COLUMNS)
+    .select(CORE_COLUMNS)
     .single()
 
   if (error) return { profile: null, error: 'Failed to save profile' }
-  return { profile: data, error: null }
+  return {
+    profile: data ? {
+      ...data,
+      voice: null as string | null,
+      tone: null as string | null,
+      writing_style: null as string | null,
+      personal_pillars: null as string | null,
+      platform_notes: null as string | null,
+    } : null,
+    error: null,
+  }
 }
 
 export async function updateAvatarUrl(userId: string, avatarUrl: string) {

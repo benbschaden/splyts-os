@@ -1,0 +1,30 @@
+---
+description: Migrations and git are always manual — never run them automatically
+alwaysApply: true
+---
+
+# Manual Migrations and Git
+
+## Migrations
+Never apply SQL migrations programmatically. This includes:
+- `supabase db push`
+- `supabase db execute`
+- Any CLI or script that runs SQL against the database
+- Any Supabase Management API call that modifies the schema
+
+When a migration is needed:
+1. Write the `.sql` file in `supabase/migrations/` as normal
+2. Show the SQL to the user and tell them to run it in the Supabase Dashboard
+3. Stop — do not attempt to apply it yourself
+
+## Types
+After a migration is applied, regenerate types by telling the user to run:
+```bash
+npx supabase gen types typescript --project-id <ref> > lib/types/database.ts
+```
+If types cannot be regenerated remotely, update `lib/types/database.ts` manually based on the migration SQL.
+
+## Git
+Never run `git commit`, `git push`, `gh pr create`, or any command that writes to the remote repository unless explicitly asked.
+
+After code changes, stop and tell the user what files changed. They handle git.

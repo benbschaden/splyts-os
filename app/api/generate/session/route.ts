@@ -164,9 +164,11 @@ export async function POST(request: Request): Promise<Response> {
     const fileMaterials = projectMaterialsRaw
       .filter((m) => m.material_type === 'file')
       .map((m) => ({ id: m.id, title: m.title, file_name: m.file_name }))
+    console.log('[session] fileMaterials count:', fileMaterials.length, 'ids:', fileMaterials.map(m => m.id))
     const fileFullTexts = fileMaterials.length > 0
       ? await fetchFullTextsForMaterials(fileMaterials, org.id)
       : []
+    console.log('[session] fileFullTexts count:', fileFullTexts.length, 'totalChars:', fileFullTexts.reduce((sum, f) => sum + f.content.length, 0))
 
     const systemPrompt = buildGenerationSystemPrompt({
       brand,

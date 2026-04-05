@@ -631,13 +631,14 @@ export function buildGenerationSystemPrompt(params: {
   author: GenerationAuthor
   projectMaterials?: ProjectMaterialForPrompt[]
   retrievedContext?: RetrievedContext[]
+  fileFullTexts?: Array<{ title: string; content: string }>
 }): string {
   const {
     brand, businessPlanSections, personas, productSections, productFeatures,
     currentGoals, competitors, socialProof, narratives, terminology,
     kpiDefinitions, kpiSnapshot, topPerformers,
     contentTypeName, basePrompt, customRules, cadence, author,
-    projectMaterials, retrievedContext,
+    projectMaterials, retrievedContext, fileFullTexts,
   } = params
 
   const lines: string[] = []
@@ -762,6 +763,17 @@ export function buildGenerationSystemPrompt(params: {
       // If over budget, try name-only compact format
       const compactFeatures = buildProductFeaturesBlock(productFeatures, true)
       if (compactFeatures) addSection('PRODUCT FEATURES', compactFeatures)
+    }
+  }
+
+  if (fileFullTexts && fileFullTexts.length > 0) {
+    lines.push('[PROJECT FILES — full content]')
+    lines.push('The following files are attached to this project. Use them as primary source material and evidence for the content. Read them in full.')
+    lines.push('')
+    for (const file of fileFullTexts) {
+      lines.push(`--- ${file.title} ---`)
+      lines.push(file.content)
+      lines.push('')
     }
   }
 

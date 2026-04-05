@@ -20,7 +20,7 @@ import { getProjectMaterials } from '@/lib/queries/project-materials'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getModelById, DEFAULT_MODEL } from '@/lib/ai/models'
 import { buildGenerationSystemPrompt, type GenerationAuthor } from '@/lib/ai/prompts'
-import { retrieveRelevantDocuments } from '@/lib/retrieval/search'
+import { retrieveRelevantDocuments, fetchFullTextsForMaterials } from '@/lib/retrieval/search'
 
 const schema = z.object({
   projectId: z.string().uuid(),
@@ -161,6 +161,13 @@ export async function POST(request: Request): Promise<Response> {
       link_url: m.link_url,
     }))
 
+    const fileMaterials = projectMaterialsRaw
+      .filter((m) => m.material_type === 'file')
+      .map((m) => ({ id: m.id, title: m.title, file_name: m.file_name }))
+    const fileFullTexts = fileMaterials.length > 0
+      ? await fetchFullTextsForMaterials(fileMaterials, org.id)
+      : []
+
     const systemPrompt = buildGenerationSystemPrompt({
       brand,
       businessPlanSections: businessPlan?.sections ?? null,
@@ -182,6 +189,7 @@ export async function POST(request: Request): Promise<Response> {
       author,
       projectMaterials,
       retrievedContext: retrievedContext.length > 0 ? retrievedContext : undefined,
+      fileFullTexts: fileFullTexts.length > 0 ? fileFullTexts : undefined,
     })
 
     if (messages.length === 0) {

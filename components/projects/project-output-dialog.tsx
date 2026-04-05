@@ -124,7 +124,7 @@ export function ProjectOutputDialog({
       body: JSON.stringify({
         outputType,
         modelId,
-        draftId,
+        ...(draftId ? { draftId } : {}),
         messages: newMessages,
       }),
     })

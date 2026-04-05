@@ -8,7 +8,8 @@ CREATE INDEX IF NOT EXISTS content_index_material_id_idx
 
 -- RPC: fetch all chunks for a material in chunk_index order
 -- Used to reconstruct full document text when the user requests complete analysis.
-CREATE OR REPLACE FUNCTION fetch_material_chunks(p_material_id uuid)
+-- Scoped to org_id to match all other RPC security patterns in this codebase.
+CREATE OR REPLACE FUNCTION fetch_material_chunks(p_material_id uuid, p_org_id uuid)
 RETURNS TABLE (
   chunk_index   int,
   total_chunks  int,
@@ -27,6 +28,7 @@ AS $$
     metadata->>'material_title'        AS material_title
   FROM content_index
   WHERE content_type = 'project_material_chunk'
+    AND organization_id = p_org_id
     AND metadata->>'material_id' = p_material_id::text
   ORDER BY (metadata->>'chunk_index')::int;
 $$;

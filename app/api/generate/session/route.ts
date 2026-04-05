@@ -104,7 +104,7 @@ export async function POST(request: Request): Promise<Response> {
             organizationId: org.id,
             userId: user.id,
             projectId,
-            limit: 5,
+            limit: 10,
           })
         : Promise.resolve([]),
     ])

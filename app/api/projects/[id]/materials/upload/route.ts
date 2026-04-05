@@ -5,6 +5,7 @@ import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { createProjectMaterial } from '@/lib/queries/project-materials'
 import { extractText } from '@/lib/company/extract-text'
 import { indexContent } from '@/lib/indexing/index-content'
+import { indexMaterialChunks } from '@/lib/indexing/chunk-material'
 import { logProjectActivity } from '@/lib/queries/project-activity'
 
 const BUCKET = 'project-files'
@@ -187,6 +188,18 @@ export async function POST(
 
     indexContent('project_material', material, org.id).catch(err =>
       console.error('[content-index] Index failed:', err)
+    )
+
+    indexMaterialChunks({
+      id: material.id,
+      content: material.content ?? null,
+      title: material.title ?? null,
+      file_name: material.file_name ?? null,
+      project_id: projectId,
+      material_type: 'file',
+      created_by: user.id,
+    }, org.id).catch(err =>
+      console.error('[content-index] Chunk indexing failed:', err)
     )
 
     logProjectActivity({

@@ -282,6 +282,22 @@ export const CONTENT_REGISTRY: Record<string, ContentTypeConfig> = {
     }),
   },
 
+  project_material_chunk: {
+    // Chunks are indexed directly by indexMaterialChunks() — this entry exists
+    // as a fallback if indexContent() is ever called on a chunk row.
+    deriveText: (row) => ({
+      title: str(row.title),
+      summary: str(row.summary ?? row.content).slice(0, 1000),
+    }),
+    deriveMetadata: (row) => ({
+      material_id: row.metadata && typeof row.metadata === 'object'
+        ? (row.metadata as Record<string, unknown>).material_id ?? null
+        : null,
+      project_id: row.project_id ?? null,
+      material_type: row.material_type ?? null,
+    }),
+  },
+
   content_idea: {
     deriveText: (row) => ({
       title: str(row.title),

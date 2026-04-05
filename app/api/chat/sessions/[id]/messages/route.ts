@@ -202,7 +202,7 @@ export async function POST(
         organizationId: org.id,
         userId: user.id,
         projectId: session.project_id ?? undefined,
-        limit: 5,
+        limit: 15,
       }),
     ])
 

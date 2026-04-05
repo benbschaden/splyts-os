@@ -194,10 +194,10 @@ function buildProjectMaterialsBlock(materials: ProjectMaterialForPrompt[]): stri
   }
 
   if (grouped['file']) {
-    lines.push('Files:')
+    lines.push('Files (full content searchable via retrieval — relevant passages will appear below):')
     for (const m of grouped['file']) {
-      lines.push(`- ${m.file_name ?? 'Unnamed file'}`)
-      if (m.content) lines.push(`  ${m.content.slice(0, 500)}`)
+      const label = m.title ?? m.file_name ?? 'Unnamed file'
+      lines.push(`- ${label}`)
     }
   }
 
@@ -215,8 +215,21 @@ function buildProjectMaterialsBlock(materials: ProjectMaterialForPrompt[]): stri
 function buildRetrievedContextBlock(items: RetrievedContext[]): string {
   if (items.length === 0) return ''
   return items.map((item) => {
+    if (item.type === 'project_material_chunk') {
+      const meta = item.metadata as {
+        chunk_index?: number
+        total_chunks?: number
+        material_title?: string
+      }
+      const chunkLabel =
+        meta.chunk_index != null && meta.total_chunks != null
+          ? `, chunk ${meta.chunk_index + 1}/${meta.total_chunks}`
+          : ''
+      const title = meta.material_title ?? item.title ?? 'Untitled'
+      return `[file: ${title}${chunkLabel}]\n${item.summary}`
+    }
     const typeLabel = item.type.replace(/_/g, ' ')
-    const title = item.title ? item.title : 'Untitled'
+    const title = item.title ?? 'Untitled'
     return `[${typeLabel}] ${title}\n${item.summary}`
   }).join('\n\n')
 }

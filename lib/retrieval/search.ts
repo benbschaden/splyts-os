@@ -70,7 +70,31 @@ export async function retrieveRelevantDocuments(params: {
   return retrieveRelevantContext({
     query: params.query,
     organizationId: params.organizationId,
-    typeFilter: ['document', 'project_material'],
-    limit: params.limit,
+    typeFilter: ['document', 'project_material', 'project_material_chunk'],
+    limit: params.limit ?? 15,
   })
+}
+
+/**
+ * Fetch all chunks for a specific material in chunk_index order and return
+ * the full reconstructed text. Used for single-material deep-dive analysis.
+ * Returns empty string if the material has no chunks or the fetch fails.
+ */
+export async function fetchAllMaterialChunks(
+  materialId: string,
+  organizationId: string,
+): Promise<string> {
+  const supabase = createUntypedServiceClient()
+
+  const { data, error } = await supabase.rpc('fetch_material_chunks', {
+    p_material_id: materialId,
+    p_org_id: organizationId,
+  })
+
+  if (error || !data || data.length === 0) return ''
+
+  return (data as Array<{ chunk_index: number; chunk_content: string }>)
+    .sort((a, b) => a.chunk_index - b.chunk_index)
+    .map((row) => row.chunk_content)
+    .join(' ')
 }

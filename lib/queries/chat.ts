@@ -31,6 +31,7 @@ export interface ChatSessionRow {
   project_id: string | null
   created_at: string
   updated_at: string
+  captured_at: string | null
 }
 
 export interface ChatMessageRow {
@@ -41,7 +42,7 @@ export interface ChatMessageRow {
   created_at: string
 }
 
-const SESSION_SELECT = 'id, organization_id, created_by, title, model_id, context_config, project_id, created_at, updated_at'
+const SESSION_SELECT = 'id, organization_id, created_by, title, model_id, context_config, project_id, created_at, updated_at, captured_at'
 const MESSAGE_SELECT = 'id, session_id, role, content, created_at'
 
 export async function getChatSessions(
@@ -176,6 +177,23 @@ export async function updateChatSession(
     .is('deleted_at', null)
 
   if (error) return { error: 'Failed to update chat session' }
+  return { error: null }
+}
+
+export async function markSessionCaptured(
+  id: string,
+  userId: string,
+): Promise<{ error: string | null }> {
+  const supabase = createServiceClient()
+
+  const { error } = await supabase
+    .from('chat_sessions')
+    .update({ captured_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('created_by', userId)
+    .is('deleted_at', null)
+
+  if (error) return { error: 'Failed to mark session as captured' }
   return { error: null }
 }
 

@@ -813,9 +813,12 @@ export function buildDocumentCapturePrompt(params: {
 }): string {
   const { conversationText, documentType, brand } = params
 
+  const todayLabel = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+
   const lines: string[] = []
 
   lines.push(`You are drafting a ${documentType} based on the following conversation.`)
+  lines.push(`Today's date is ${todayLabel}.`)
   if (brand) {
     lines.push(`The document is for ${brand.company_name}.`)
     lines.push(`Write in the company voice: ${brand.voice || 'clear and professional'}.`)
@@ -827,7 +830,45 @@ export function buildDocumentCapturePrompt(params: {
   lines.push('---')
   lines.push(`Now write a well-structured ${documentType} that captures the key insights, decisions, and next steps from this conversation.`)
   lines.push('Format it clearly with headings and sections where appropriate.')
+  lines.push('Do not include a date header or footer in the document.')
   lines.push('Output only the document content — no preamble, no explanation.')
+
+  return lines.join('\n')
+}
+
+export function buildDocumentChatSystemPrompt(params: {
+  documentTitle: string
+  documentType: string
+  documentContent: string
+  brand: { company_name: string; voice: string | null } | null
+}): string {
+  const { documentTitle, documentType, documentContent, brand } = params
+
+  const lines: string[] = []
+
+  lines.push(`You are an expert editor and advisor helping to discuss, refine, and improve a document.`)
+  if (brand) {
+    lines.push(`This document belongs to ${brand.company_name}.`)
+    lines.push(`Write and suggest edits in the company voice: ${brand.voice || 'clear and professional'}.`)
+  }
+  lines.push('')
+  lines.push(`[DOCUMENT: ${documentTitle}]`)
+  lines.push(`Type: ${documentType}`)
+  lines.push('')
+  lines.push(documentContent)
+  lines.push('')
+  lines.push('---')
+  lines.push('Your role:')
+  lines.push('- Answer questions about the document content')
+  lines.push('- Discuss ideas and improvements')
+  lines.push('- When asked to rewrite, edit, or improve the document (or any part of it), provide the revised full document wrapped in <replacement> tags like this:')
+  lines.push('')
+  lines.push('<replacement>')
+  lines.push('...full revised document content here...')
+  lines.push('</replacement>')
+  lines.push('')
+  lines.push('The replacement block should contain the complete updated document in markdown, not just the changed section.')
+  lines.push('Only include a replacement block when explicitly providing a revised version. For discussion and questions, reply normally.')
 
   return lines.join('\n')
 }

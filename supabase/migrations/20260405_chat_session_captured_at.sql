@@ -1,0 +1,2 @@
+ALTER TABLE chat_sessions
+  ADD COLUMN IF NOT EXISTS captured_at TIMESTAMPTZ;

@@ -2,7 +2,7 @@ import { z } from 'zod'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
-import { getChatSessionById, getChatMessages } from '@/lib/queries/chat'
+import { getChatSessionById, getChatMessages, markSessionCaptured } from '@/lib/queries/chat'
 import { getBrandContext } from '@/lib/queries/brand-context'
 import { createDocument } from '@/lib/queries/documents'
 import { buildDocumentCapturePrompt } from '@/lib/ai/prompts'
@@ -98,6 +98,10 @@ export async function POST(
 
     indexContent('document', document, org.id).catch(err =>
       console.error('[content-index] Index failed:', err)
+    )
+
+    markSessionCaptured(id, user.id).catch(err =>
+      console.error('[capture] Failed to mark session captured:', err)
     )
 
     return Response.json({ document }, { status: 201 })

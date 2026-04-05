@@ -12,6 +12,7 @@ import remarkGfm from 'remark-gfm'
 import type { DocumentRow, DocumentVisibility } from '@/lib/queries/documents'
 import { DocumentVersionsDrawer } from './document-versions-drawer'
 import { DiscussionsPanel } from '@/components/discussions/discussions-panel'
+import { DocumentChatPanel } from './document-chat-panel'
 
 interface DocumentViewerProps {
   document: DocumentRow
@@ -40,7 +41,7 @@ export function DocumentViewer({ document: initialDocument, isOwner, isAdmin, ca
   const [conflictVersion, setConflictVersion] = useState<number | null>(null)
   const [lockWarning, setLockWarning] = useState<string | null>(null)
   const [showVersions, setShowVersions] = useState(false)
-  const [activeView, setActiveView] = useState<'content' | 'discussions'>('content')
+  const [activeView, setActiveView] = useState<'content' | 'discussions' | 'ai'>('content')
 
   // Unlock on page unload
   const unlock = useCallback(async () => {
@@ -303,17 +304,21 @@ export function DocumentViewer({ document: initialDocument, isOwner, isAdmin, ca
 
       {/* View tabs */}
       <div className="flex border-b border-border px-6">
-        {(['content', 'discussions'] as const).map((v) => (
+        {([
+          { id: 'content', label: 'Content' },
+          { id: 'discussions', label: 'Discussions' },
+          { id: 'ai', label: 'Discuss with AI' },
+        ] as const).map((v) => (
           <button
-            key={v}
-            onClick={() => setActiveView(v)}
-            className={`mr-4 py-2.5 text-sm font-medium border-b-2 transition-colors capitalize ${
-              activeView === v
+            key={v.id}
+            onClick={() => setActiveView(v.id)}
+            className={`mr-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              activeView === v.id
                 ? 'border-foreground text-foreground'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
-            {v}
+            {v.label}
           </button>
         ))}
       </div>
@@ -484,6 +489,21 @@ export function DocumentViewer({ document: initialDocument, isOwner, isAdmin, ca
             parentType="document"
             parentId={document.id}
             organizationId={document.organization_id}
+          />
+        </div>
+      )}
+
+      {activeView === 'ai' && (
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <DocumentChatPanel
+            documentId={document.id}
+            onApply={(newContent) => {
+              patch({ content: newContent }, document.version).then((ok) => {
+                if (ok) {
+                  setActiveView('content')
+                }
+              })
+            }}
           />
         </div>
       )}

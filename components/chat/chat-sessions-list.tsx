@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { MessageSquare, Plus, Trash2, Globe } from 'lucide-react'
+import { MessageSquare, Plus, Trash2, Globe, FileText, ChevronDown, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ChatSessionRow, ContextConfig } from '@/lib/queries/chat'
 import { AI_MODELS, DEFAULT_MODEL } from '@/lib/ai/models'
@@ -94,6 +94,7 @@ export function ChatSessionsList({ sessions: initialSessions }: ChatSessionsList
   const [selectedModelId, setSelectedModelId] = useState(DEFAULT_MODEL.id)
   const [showNewChat, setShowNewChat] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [showCaptured, setShowCaptured] = useState(false)
 
   async function handleCreateSession() {
     setIsCreating(true)
@@ -328,41 +329,116 @@ export function ChatSessionsList({ sessions: initialSessions }: ChatSessionsList
             </p>
           </div>
         ) : (
-          <ul className="space-y-1">
-            {sessions.map((session) => (
-              <li key={session.id}>
-                <Link
-                  href={`/dashboard/chat/${session.id}`}
-                  className="group flex items-center justify-between rounded-lg border border-border bg-background px-4 py-3 transition-colors hover:bg-accent"
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-foreground">
-                        {session.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {AI_MODELS.find((m) => m.id === session.model_id)?.label ?? session.model_id}
-                        {' · '}
-                        {new Date(session.updated_at).toLocaleDateString()}
-                        {session.context_config.browser && ' · Browser'}
-                      </p>
-                    </div>
-                  </div>
+          <div className="space-y-4">
+            {/* Active sessions */}
+            {(() => {
+              const active = sessions.filter((s) => !s.captured_at)
+              if (active.length === 0) return null
+              return (
+                <ul className="space-y-1">
+                  {active.map((session) => (
+                    <SessionItem
+                      key={session.id}
+                      session={session}
+                      deletingId={deletingId}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </ul>
+              )
+            })()}
+
+            {/* Captured sessions — collapsible */}
+            {(() => {
+              const captured = sessions.filter((s) => !!s.captured_at)
+              if (captured.length === 0) return null
+              return (
+                <div>
                   <button
-                    onClick={(e) => handleDelete(session.id, e)}
-                    disabled={deletingId === session.id}
-                    aria-label="Delete conversation"
-                    className="ml-2 shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive disabled:opacity-50"
+                    type="button"
+                    onClick={() => setShowCaptured((v) => !v)}
+                    className="flex w-full items-center gap-1.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    {showCaptured ? (
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    ) : (
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    )}
+                    <FileText className="h-3.5 w-3.5" />
+                    Captured ({captured.length})
                   </button>
-                </Link>
-              </li>
-            ))}
-          </ul>
+                  {showCaptured && (
+                    <ul className="mt-1 space-y-1">
+                      {captured.map((session) => (
+                        <SessionItem
+                          key={session.id}
+                          session={session}
+                          deletingId={deletingId}
+                          onDelete={handleDelete}
+                          isCaptured
+                        />
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )
+            })()}
+          </div>
         )}
       </div>
     </div>
+  )
+}
+
+interface SessionItemProps {
+  session: ChatSessionRow
+  deletingId: string | null
+  onDelete: (id: string, e: React.MouseEvent) => void
+  isCaptured?: boolean
+}
+
+function SessionItem({ session, deletingId, onDelete, isCaptured }: SessionItemProps) {
+  return (
+    <li>
+      <Link
+        href={`/dashboard/chat/${session.id}`}
+        className={cn(
+          'group flex items-center justify-between rounded-lg border px-4 py-3 transition-colors hover:bg-accent',
+          isCaptured
+            ? 'border-border/50 bg-muted/30 opacity-70 hover:opacity-100'
+            : 'border-border bg-background',
+        )}
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          {isCaptured ? (
+            <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+          ) : (
+            <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
+          )}
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-foreground">
+              {session.title}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {AI_MODELS.find((m) => m.id === session.model_id)?.label ?? session.model_id}
+              {' · '}
+              {new Date(session.updated_at).toLocaleDateString()}
+              {session.context_config.browser && ' · Browser'}
+              {isCaptured && session.captured_at && (
+                <> · Captured {new Date(session.captured_at).toLocaleDateString()}</>
+              )}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={(e) => onDelete(session.id, e)}
+          disabled={deletingId === session.id}
+          aria-label="Delete conversation"
+          className="ml-2 shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive disabled:opacity-50"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </Link>
+    </li>
   )
 }

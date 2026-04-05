@@ -292,11 +292,14 @@ export async function publishOutput(id: string, organizationId: string, userId: 
     .eq('id', id)
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
-    .select('id, published_at, updated_at, status')
+    .select('id, brief, content, content_type_id, model_id, project_id, created_by, created_at, updated_at, published_at, status, reach, reach_metric, engagement, performance_notes')
     .single()
 
   if (error) return { output: null, error: 'Failed to mark as published' }
-  return { output: data, error: null }
+
+  const names = await getUserDisplayNamesByIds([data.created_by])
+  const output = { ...data, creator_full_name: names[data.created_by] ?? null }
+  return { output, error: null }
 }
 
 export async function updateOutputPerformance(

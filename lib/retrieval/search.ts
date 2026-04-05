@@ -91,14 +91,7 @@ export async function fetchAllMaterialChunks(
     p_org_id: organizationId,
   })
 
-  if (error) {
-    console.error('[fetchAllMaterialChunks] RPC error for', materialId, ':', error.message)
-    return ''
-  }
-  if (!data || data.length === 0) {
-    console.log('[fetchAllMaterialChunks] no chunks for', materialId)
-    return ''
-  }
+  if (error || !data || data.length === 0) return ''
 
   return (data as Array<{ chunk_index: number; chunk_content: string }>)
     .sort((a, b) => a.chunk_index - b.chunk_index)
@@ -121,8 +114,6 @@ export async function fetchFullTextsForMaterials(
   const texts = await Promise.all(
     materials.map((m) => fetchAllMaterialChunks(m.id, organizationId))
   )
-
-  console.log('[fetchFullTextsForMaterials] raw chunk lengths:', texts.map((t, i) => `${materials[i].id}:${t.length}`))
 
   const result: Array<{ title: string; content: string }> = []
   let totalChars = 0

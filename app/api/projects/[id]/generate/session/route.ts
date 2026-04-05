@@ -1,3 +1,6 @@
+// Project-scoped generate session — used by ProjectOutputDialog (project page Generate button).
+// URL: POST /api/projects/[id]/generate/session
+// For the marketing content generator (Generate tab), see /api/generate/session/route.ts
 import { z } from 'zod'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
@@ -78,11 +81,9 @@ export async function POST(
     const fileMaterials = materialsRaw
       .filter((m) => m.material_type === 'file')
       .map((m) => ({ id: m.id, title: m.title, file_name: m.file_name }))
-    console.log('[projects/generate/session] fileMaterials count:', fileMaterials.length, 'ids:', fileMaterials.map(m => m.id))
     const fileFullTexts = fileMaterials.length > 0
       ? await fetchFullTextsForMaterials(fileMaterials, org.id)
       : []
-    console.log('[projects/generate/session] fileFullTexts count:', fileFullTexts.length, 'totalChars:', fileFullTexts.reduce((sum, f) => sum + f.content.length, 0))
 
     // Pass up to the 5 most recent outputs as context (newest first from query)
     const previousOutputsForPrompt = previousOutputs.slice(0, 5).map((o) => ({

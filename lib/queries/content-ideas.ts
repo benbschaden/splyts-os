@@ -15,9 +15,8 @@ export type ContentIdeaRow = {
   updated_at: string
 }
 
-// author_user_id is added by a pending migration — select without it until then
 const SELECT_COLUMNS =
-  'id, organization_id, project_id, title, description, platform, content_type_id, status, created_by, created_at, updated_at'
+  'id, organization_id, project_id, title, description, platform, author_user_id, content_type_id, status, created_by, created_at, updated_at'
 
 export async function getContentIdeasForProject(
   projectId: string,
@@ -34,7 +33,7 @@ export async function getContentIdeasForProject(
     .order('created_at', { ascending: false })
 
   if (error) return []
-  return (data ?? []).map((row) => ({ ...row, author_user_id: null })) as ContentIdeaRow[]
+  return (data ?? []) as ContentIdeaRow[]
 }
 
 export async function createContentIdea(params: {
@@ -56,15 +55,14 @@ export async function createContentIdea(params: {
       title: params.title,
       description: params.description,
       content_type_id: params.contentTypeId,
-      // platform_owner is the pre-migration column; author_user_id replaces it after migration
-      platform_owner: params.authorUserId ? 'author' : 'company',
+      author_user_id: params.authorUserId,
       created_by: params.userId,
     })
     .select(SELECT_COLUMNS)
     .single()
 
   if (error) return { idea: null, error: 'Failed to create content idea' }
-  return { idea: data ? { ...data, author_user_id: null } as ContentIdeaRow : null, error: null }
+  return { idea: data as ContentIdeaRow, error: null }
 }
 
 export async function updateContentIdea(
@@ -74,12 +72,9 @@ export async function updateContentIdea(
 ): Promise<{ idea: ContentIdeaRow | null; error: string | null }> {
   const supabase = createServiceClient()
 
-  // author_user_id is a post-migration column — strip it before updating
-  const { author_user_id: _authorUserId, ...safeParams } = params
-
   const { data, error } = await supabase
     .from('content_ideas')
-    .update({ ...safeParams, updated_at: new Date().toISOString() })
+    .update({ ...params, updated_at: new Date().toISOString() })
     .eq('id', id)
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
@@ -87,7 +82,7 @@ export async function updateContentIdea(
     .single()
 
   if (error) return { idea: null, error: 'Failed to update content idea' }
-  return { idea: data ? { ...data, author_user_id: null } as ContentIdeaRow : null, error: null }
+  return { idea: data as ContentIdeaRow, error: null }
 }
 
 export async function deleteContentIdea(

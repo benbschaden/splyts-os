@@ -14,62 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      author_profiles: {
-        Row: {
-          created_at: string
-          created_by: string
-          deleted_at: string | null
-          id: string
-          name: string
-          organization_id: string
-          personal_pillars: string | null
-          platform_notes: string | null
-          role: string | null
-          tone: string | null
-          updated_at: string
-          voice: string | null
-          writing_style: string | null
-        }
-        Insert: {
-          created_at?: string
-          created_by: string
-          deleted_at?: string | null
-          id?: string
-          name: string
-          organization_id: string
-          personal_pillars?: string | null
-          platform_notes?: string | null
-          role?: string | null
-          tone?: string | null
-          updated_at?: string
-          voice?: string | null
-          writing_style?: string | null
-        }
-        Update: {
-          created_at?: string
-          created_by?: string
-          deleted_at?: string | null
-          id?: string
-          name?: string
-          organization_id?: string
-          personal_pillars?: string | null
-          platform_notes?: string | null
-          role?: string | null
-          tone?: string | null
-          updated_at?: string
-          voice?: string | null
-          writing_style?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "author_profiles_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       brand_context: {
         Row: {
           brand_assets: Json
@@ -895,13 +839,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "content_calendar_author_id_fkey"
-            columns: ["author_id"]
-            isOneToOne: false
-            referencedRelation: "author_profiles"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "content_calendar_content_type_id_fkey"
             columns: ["content_type_id"]
             isOneToOne: false
@@ -926,6 +863,7 @@ export type Database = {
       }
       content_ideas: {
         Row: {
+          author_user_id: string | null
           content_type_id: string | null
           created_at: string
           created_by: string
@@ -934,13 +872,13 @@ export type Database = {
           id: string
           organization_id: string
           platform: string | null
-          platform_owner: string
           project_id: string
           status: string
           title: string
           updated_at: string
         }
         Insert: {
+          author_user_id?: string | null
           content_type_id?: string | null
           created_at?: string
           created_by: string
@@ -949,13 +887,13 @@ export type Database = {
           id?: string
           organization_id: string
           platform?: string | null
-          platform_owner: string
           project_id: string
           status?: string
           title: string
           updated_at?: string
         }
         Update: {
+          author_user_id?: string | null
           content_type_id?: string | null
           created_at?: string
           created_by?: string
@@ -964,7 +902,6 @@ export type Database = {
           id?: string
           organization_id?: string
           platform?: string | null
-          platform_owner?: string
           project_id?: string
           status?: string
           title?: string
@@ -3308,8 +3245,13 @@ export type Database = {
           full_name: string | null
           id: string
           notifications_last_read_at: string | null
+          personal_pillars: string | null
+          platform_notes: string | null
           role: string | null
+          tone: string | null
           updated_at: string
+          voice: string | null
+          writing_style: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -3317,8 +3259,13 @@ export type Database = {
           full_name?: string | null
           id: string
           notifications_last_read_at?: string | null
+          personal_pillars?: string | null
+          platform_notes?: string | null
           role?: string | null
+          tone?: string | null
           updated_at?: string
+          voice?: string | null
+          writing_style?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -3326,8 +3273,13 @@ export type Database = {
           full_name?: string | null
           id?: string
           notifications_last_read_at?: string | null
+          personal_pillars?: string | null
+          platform_notes?: string | null
           role?: string | null
+          tone?: string | null
           updated_at?: string
+          voice?: string | null
+          writing_style?: string | null
         }
         Relationships: []
       }

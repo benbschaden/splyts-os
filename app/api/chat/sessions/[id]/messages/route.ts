@@ -25,7 +25,7 @@ import { getAiVisibleInsights, getInsightsForContact, getInsightsForSegment, typ
 import { getCommunicationsForContact, getCommunicationsForSegment } from '@/lib/queries/contact-communications'
 import { buildChatSystemPrompt } from '@/lib/ai/prompts'
 import { DEFAULT_MODEL, getModelById } from '@/lib/ai/models'
-import { retrieveRelevantDocuments } from '@/lib/retrieval/search'
+import { retrieveRelevantDocuments, fetchFullTextsForMaterials } from '@/lib/retrieval/search'
 
 const schema = z.object({
   content: z.string().min(1, 'Message cannot be empty').max(10000),
@@ -236,6 +236,15 @@ export async function POST(
       }),
     ])
 
+    // For file materials in this project, load full text from chunk index so the AI sees
+    // the complete document — not just the 15 chunks that happened to score highest.
+    const fileMaterials = shouldLoadMaterials
+      ? projectMaterials.filter((m) => m.material_type === 'file')
+      : []
+    const fileFullTexts = fileMaterials.length > 0
+      ? await fetchFullTextsForMaterials(fileMaterials, org.id)
+      : []
+
     // Build filed docs fallback (used only when retrieval returns nothing — e.g. embeddings not yet generated)
     const filedDocs = (retrievedContext.length === 0 && includeFiledDocs)
       ? sharedDocs
@@ -308,6 +317,7 @@ export async function POST(
       segmentInsights: customerHubSegment ? contactInsightsData : undefined,
       hubSegment: customerHubSegment ?? undefined,
       retrievedContext: retrievedContext.length > 0 ? retrievedContext : undefined,
+      fileFullTexts: fileFullTexts.length > 0 ? fileFullTexts : undefined,
     })
 
     const messageHistory: Anthropic.MessageParam[] = [

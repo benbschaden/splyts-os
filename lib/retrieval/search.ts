@@ -98,3 +98,36 @@ export async function fetchAllMaterialChunks(
     .map((row) => row.chunk_content)
     .join(' ')
 }
+
+/**
+ * Fetch full reconstructed text for multiple file materials in parallel.
+ * Returns array of {title, content} for materials that have chunks.
+ * Total content is capped at maxChars to avoid blowing the token budget.
+ */
+export async function fetchFullTextsForMaterials(
+  materials: Array<{ id: string; title: string | null; file_name: string | null }>,
+  organizationId: string,
+  maxChars = 100_000,
+): Promise<Array<{ title: string; content: string }>> {
+  if (materials.length === 0) return []
+
+  const texts = await Promise.all(
+    materials.map((m) => fetchAllMaterialChunks(m.id, organizationId))
+  )
+
+  const result: Array<{ title: string; content: string }> = []
+  let totalChars = 0
+
+  for (let i = 0; i < materials.length; i++) {
+    const text = texts[i]
+    if (!text) continue
+    const remaining = maxChars - totalChars
+    if (remaining <= 0) break
+    const trimmed = text.slice(0, remaining)
+    const title = materials[i].title ?? materials[i].file_name ?? 'Unnamed file'
+    result.push({ title, content: trimmed })
+    totalChars += trimmed.length
+  }
+
+  return result
+}

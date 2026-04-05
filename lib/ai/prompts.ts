@@ -288,6 +288,7 @@ export function buildChatSystemPrompt(params: {
   segmentInsights?: CustomerInsightRow[]
   hubSegment?: string
   retrievedContext?: RetrievedContext[]
+  fileFullTexts?: Array<{ title: string; content: string }>
 }): string {
   const {
     brand, businessPlanSections, personas, productSections, productFeatures,
@@ -300,7 +301,7 @@ export function buildChatSystemPrompt(params: {
     customerInsights, includeCustomerInsights,
     customerHubContactComms, includeCustomerHubContact, contactInsights,
     segmentComms, segmentInsights, hubSegment,
-    retrievedContext,
+    retrievedContext, fileFullTexts,
   } = params
 
   const lines: string[] = []
@@ -426,6 +427,17 @@ export function buildChatSystemPrompt(params: {
       lines.push(doc.body.slice(0, 500))
     })
     lines.push('')
+  }
+
+  if (fileFullTexts && fileFullTexts.length > 0) {
+    lines.push('[PROJECT FILES — full content]')
+    lines.push('The following files are attached to this project. Read them in full before answering.')
+    lines.push('')
+    for (const file of fileFullTexts) {
+      lines.push(`--- ${file.title} ---`)
+      lines.push(file.content)
+      lines.push('')
+    }
   }
 
   if (includeProjectMaterials && projectMaterials && projectMaterials.length > 0) {

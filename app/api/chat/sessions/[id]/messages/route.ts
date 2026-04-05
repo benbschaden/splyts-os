@@ -348,14 +348,17 @@ export async function POST(
       return Response.json({ error: 'AI response failed. Please try again.' }, { status: 500 })
     }
 
-    // Save both messages
-    const [userMsg, assistantMsg] = await Promise.all([
-      addChatMessage(id, 'user', content),
-      addChatMessage(id, 'assistant', assistantContent),
-    ])
+    // Save user first, then assistant — parallel inserts race on `created_at` and reload order
+    // (getChatMessages orders by created_at) can show the assistant above the user after refresh.
+    const userMsg = await addChatMessage(id, 'user', content)
+    if (userMsg.error) {
+      console.error('[chat/messages] Failed to save user message')
+      return Response.json({ error: 'Failed to save messages' }, { status: 500 })
+    }
 
-    if (userMsg.error || assistantMsg.error) {
-      console.error('[chat/messages] Failed to save messages')
+    const assistantMsg = await addChatMessage(id, 'assistant', assistantContent)
+    if (assistantMsg.error) {
+      console.error('[chat/messages] Failed to save assistant message')
       return Response.json({ error: 'Failed to save messages' }, { status: 500 })
     }
 

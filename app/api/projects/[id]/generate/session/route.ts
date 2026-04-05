@@ -8,6 +8,7 @@ import { getProjectMaterials } from '@/lib/queries/project-materials'
 import { getOutputsForProject, createDraftOutput, updateDraftOutput } from '@/lib/queries/outputs'
 import { DEFAULT_MODEL, getModelById } from '@/lib/ai/models'
 import { buildProjectOutputSessionSystemPrompt } from '@/lib/ai/prompts'
+import { fetchFullTextsForMaterials } from '@/lib/retrieval/search'
 
 const schema = z.object({
   outputType: z.string().min(1).max(100),
@@ -74,6 +75,15 @@ export async function POST(
       link_url: m.link_url,
     }))
 
+    const fileMaterials = materialsRaw
+      .filter((m) => m.material_type === 'file')
+      .map((m) => ({ id: m.id, title: m.title, file_name: m.file_name }))
+    console.log('[projects/generate/session] fileMaterials count:', fileMaterials.length, 'ids:', fileMaterials.map(m => m.id))
+    const fileFullTexts = fileMaterials.length > 0
+      ? await fetchFullTextsForMaterials(fileMaterials, org.id)
+      : []
+    console.log('[projects/generate/session] fileFullTexts count:', fileFullTexts.length, 'totalChars:', fileFullTexts.reduce((sum, f) => sum + f.content.length, 0))
+
     // Pass up to the 5 most recent outputs as context (newest first from query)
     const previousOutputsForPrompt = previousOutputs.slice(0, 5).map((o) => ({
       brief: o.brief,
@@ -88,6 +98,7 @@ export async function POST(
       materials,
       businessPlanSections: businessPlan?.sections ?? null,
       previousOutputs: previousOutputsForPrompt,
+      fileFullTexts: fileFullTexts.length > 0 ? fileFullTexts : undefined,
     })
 
     const apiKey = process.env.ANTHROPIC_API_KEY

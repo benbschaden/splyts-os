@@ -1342,9 +1342,9 @@ function buildProjectMaterialsAndPlanBlocks(
   const materialsBlock = materials.length > 0
     ? materials
         .map((m) => {
+          if (m.material_type === 'file') return `[FILE] ${m.title ?? m.file_name ?? 'Uploaded file'} (full content included in PROJECT FILES section below)`
           if (m.content) return `[${m.material_type.toUpperCase()}] ${m.title ?? 'Note'}:\n${m.content.slice(0, 3000)}`
           if (m.link_url) return `[LINK] ${m.title ?? m.link_url}: ${m.link_url}`
-          if (m.file_name) return `[FILE] ${m.file_name} (uploaded reference)`
           return null
         })
         .filter(Boolean)
@@ -1372,9 +1372,14 @@ export function buildProjectOutputSessionSystemPrompt(params: {
   materials: ProjectMaterialForDeliverablePrompt[]
   businessPlanSections: BusinessPlanSections | null
   previousOutputs?: Array<{ brief: string; content: string; createdAt: string }>
+  fileFullTexts?: Array<{ title: string; content: string }>
 }): string {
-  const { projectName, projectDescription, outputType, materials, businessPlanSections, previousOutputs } = params
+  const { projectName, projectDescription, outputType, materials, businessPlanSections, previousOutputs, fileFullTexts } = params
   const { materialsBlock, planBlock } = buildProjectMaterialsAndPlanBlocks(materials, businessPlanSections)
+
+  const fileFullTextsBlock = fileFullTexts && fileFullTexts.length > 0
+    ? fileFullTexts.map((f) => `--- ${f.title} ---\n${f.content}`).join('\n\n')
+    : null
 
   const previousOutputsBlock = previousOutputs && previousOutputs.length > 0
     ? previousOutputs
@@ -1410,6 +1415,7 @@ export function buildProjectOutputSessionSystemPrompt(params: {
 PROJECT: ${projectName}${projectDescription ? `\nCONTEXT: ${projectDescription}` : ''}
 
 DELIVERABLE TYPE: ${outputType}
+${fileFullTextsBlock ? `\nPROJECT FILES — full content (read in full before answering):\n${fileFullTextsBlock}` : ''}
 ${materialsBlock ? `\nPROJECT MATERIALS (use as source and reference):\n${materialsBlock}` : ''}
 ${planBlock ? `\nBUSINESS CONTEXT (background reference):\n${planBlock}` : ''}
 ${previousOutputsBlock ? `\nPREVIOUSLY GENERATED OUTPUTS FOR THIS PROJECT (read for context, avoid repeating verbatim):\n${previousOutputsBlock}` : ''}

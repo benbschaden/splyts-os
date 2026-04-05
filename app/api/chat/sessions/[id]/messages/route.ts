@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getChatSessionById, getChatMessages, addChatMessage, updateChatSession } from '@/lib/queries/chat'
@@ -90,6 +91,35 @@ async function runWithoutBrowser(
   })
   const textBlock = response.content.find((b) => b.type === 'text')
   return textBlock?.type === 'text' ? textBlock.text.trim() : ''
+}
+
+async function runWithOpenAI(
+  modelId: string,
+  openaiApi: 'chat' | 'responses' | undefined,
+  systemPrompt: string,
+  messageHistory: Anthropic.MessageParam[],
+): Promise<string> {
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) throw new Error('OpenAI is not configured')
+  const openai = new OpenAI({ apiKey })
+  const mappedMessages = messageHistory.map((m) => ({
+    role: m.role as 'user' | 'assistant',
+    content: typeof m.content === 'string' ? m.content : '',
+  }))
+  if (openaiApi === 'responses') {
+    const response = await openai.responses.create({
+      model: modelId,
+      instructions: systemPrompt,
+      input: mappedMessages,
+    })
+    return response.output_text?.trim() ?? ''
+  }
+  const response = await openai.chat.completions.create({
+    model: modelId,
+    max_tokens: 8000,
+    messages: [{ role: 'system', content: systemPrompt }, ...mappedMessages],
+  })
+  return response.choices[0]?.message?.content?.trim() ?? ''
 }
 
 export async function POST(
@@ -285,18 +315,20 @@ export async function POST(
       { role: 'user', content },
     ]
 
-    const apiKey = process.env.ANTHROPIC_API_KEY
-    if (!apiKey) {
-      return Response.json({ error: 'AI is not configured' }, { status: 503 })
-    }
-
-    const anthropic = new Anthropic({ apiKey })
     let assistantContent: string
 
     try {
-      assistantContent = browserEnabled
-        ? await runWithBrowser(anthropic, model.id, systemPrompt, messageHistory)
-        : await runWithoutBrowser(anthropic, model.id, systemPrompt, messageHistory)
+      if (model.provider === 'openai') {
+        // Browser mode not available for OpenAI — run standard completion
+        assistantContent = await runWithOpenAI(model.id, model.openaiApi, systemPrompt, messageHistory)
+      } else {
+        const apiKey = process.env.ANTHROPIC_API_KEY
+        if (!apiKey) return Response.json({ error: 'AI is not configured' }, { status: 503 })
+        const anthropic = new Anthropic({ apiKey })
+        assistantContent = browserEnabled
+          ? await runWithBrowser(anthropic, model.id, systemPrompt, messageHistory)
+          : await runWithoutBrowser(anthropic, model.id, systemPrompt, messageHistory)
+      }
 
       if (!assistantContent) {
         return Response.json({ error: 'AI response failed. Please try again.' }, { status: 500 })

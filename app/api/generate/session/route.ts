@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getBrandContext } from '@/lib/queries/brand-context'
@@ -54,9 +55,6 @@ export async function POST(request: Request): Promise<Response> {
     const { projectId, contentTypeId, authorId, modelId, draftId, messages } = parsed.data
 
     const model = (modelId ? getModelById(modelId) : null) ?? DEFAULT_MODEL
-    if (model.provider !== 'anthropic') {
-      return Response.json({ error: `Provider "${model.provider}" is not yet configured.` }, { status: 503 })
-    }
 
     const db = createServiceClient()
 
@@ -186,11 +184,6 @@ export async function POST(request: Request): Promise<Response> {
       retrievedContext: retrievedContext.length > 0 ? retrievedContext : undefined,
     })
 
-    const apiKey = process.env.ANTHROPIC_API_KEY
-    if (!apiKey) return Response.json({ error: 'AI generation is not configured' }, { status: 503 })
-
-    const anthropic = new Anthropic({ apiKey })
-
     if (messages.length === 0) {
       return Response.json({ error: 'Messages cannot be empty' }, { status: 400 })
     }
@@ -199,20 +192,56 @@ export async function POST(request: Request): Promise<Response> {
 
     let assistantContent: string
 
-    try {
-      const response = await anthropic.messages.create({
-        model: model.id,
-        max_tokens: 2048,
-        system: systemPrompt,
-        messages: conversationHistory,
-      })
-      const textBlock = response.content.find((b) => b.type === 'text')
-      if (!textBlock || textBlock.type !== 'text') {
+    if (model.provider === 'anthropic') {
+      const apiKey = process.env.ANTHROPIC_API_KEY
+      if (!apiKey) return Response.json({ error: 'AI generation is not configured' }, { status: 503 })
+      const anthropic = new Anthropic({ apiKey })
+      try {
+        const response = await anthropic.messages.create({
+          model: model.id,
+          max_tokens: 2048,
+          system: systemPrompt,
+          messages: conversationHistory,
+        })
+        const textBlock = response.content.find((b) => b.type === 'text')
+        if (!textBlock || textBlock.type !== 'text') {
+          return Response.json({ error: 'Generation failed. Please try again.' }, { status: 500 })
+        }
+        assistantContent = textBlock.text.trim()
+      } catch {
         return Response.json({ error: 'Generation failed. Please try again.' }, { status: 500 })
       }
-      assistantContent = textBlock.text.trim()
-    } catch {
-      return Response.json({ error: 'Generation failed. Please try again.' }, { status: 500 })
+    } else if (model.provider === 'openai') {
+      const apiKey = process.env.OPENAI_API_KEY
+      if (!apiKey) return Response.json({ error: 'OpenAI is not configured' }, { status: 503 })
+      const openai = new OpenAI({ apiKey })
+      try {
+        if (model.openaiApi === 'responses') {
+          const response = await openai.responses.create({
+            model: model.id,
+            instructions: systemPrompt,
+            input: conversationHistory,
+          })
+          assistantContent = response.output_text?.trim() ?? ''
+        } else {
+          const response = await openai.chat.completions.create({
+            model: model.id,
+            max_tokens: 2048,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              ...conversationHistory,
+            ],
+          })
+          assistantContent = response.choices[0]?.message?.content?.trim() ?? ''
+        }
+        if (!assistantContent) {
+          return Response.json({ error: 'Generation failed. Please try again.' }, { status: 500 })
+        }
+      } catch {
+        return Response.json({ error: 'Generation failed. Please try again.' }, { status: 500 })
+      }
+    } else {
+      return Response.json({ error: `Provider "${model.provider}" is not configured.` }, { status: 503 })
     }
 
     // Auto-save draft after every AI response

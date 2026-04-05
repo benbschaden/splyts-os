@@ -1,5 +1,5 @@
-export type AIProvider = 'anthropic'
-// Future: | 'openai' | 'google'
+export type AIProvider = 'anthropic' | 'openai'
+export type OpenAIApiType = 'chat' | 'responses'
 
 export interface AIModel {
   id: string
@@ -7,13 +7,14 @@ export interface AIModel {
   label: string
   description: string
   default?: boolean
+  openaiApi?: OpenAIApiType
 }
 
 export const AI_MODELS: AIModel[] = [
   {
     id: 'claude-opus-4-6',
     provider: 'anthropic',
-    label: 'Claude Opus 4.6',
+    label: 'Claude Opus',
     description: 'Most capable — best for polished, high-stakes content',
     default: true,
   },
@@ -28,6 +29,34 @@ export const AI_MODELS: AIModel[] = [
     provider: 'anthropic',
     label: 'Claude Haiku',
     description: 'Fastest — ideal for quick drafts and iteration',
+  },
+  {
+    id: 'gpt-4o',
+    provider: 'openai',
+    openaiApi: 'chat',
+    label: 'GPT-4o',
+    description: 'OpenAI flagship — powerful and fast',
+  },
+  {
+    id: 'gpt-4o-mini',
+    provider: 'openai',
+    openaiApi: 'chat',
+    label: 'GPT-4o mini',
+    description: 'OpenAI lightweight — quick iteration',
+  },
+  {
+    id: 'gpt-5.4',
+    provider: 'openai',
+    openaiApi: 'responses',
+    label: 'GPT-5.4',
+    description: 'OpenAI newest — most powerful reasoning and generation',
+  },
+  {
+    id: 'gpt-5.4-mini',
+    provider: 'openai',
+    openaiApi: 'responses',
+    label: 'GPT-5.4 mini',
+    description: 'OpenAI newest lightweight — fast and highly capable',
   },
 ]
 

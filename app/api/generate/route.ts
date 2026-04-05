@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getBrandContext } from '@/lib/queries/brand-context'
@@ -435,15 +436,11 @@ export async function POST(request: Request) {
     brief,
   })
 
-  // Route to the correct AI provider
-  const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) {
-    return Response.json({ error: 'AI generation is not configured' }, { status: 503 })
-  }
-
   let generatedContent: string
 
   if (model.provider === 'anthropic') {
+    const apiKey = process.env.ANTHROPIC_API_KEY
+    if (!apiKey) return Response.json({ error: 'AI generation is not configured' }, { status: 503 })
     const anthropic = new Anthropic({ apiKey })
     try {
       const message = await anthropic.messages.create({
@@ -459,8 +456,33 @@ export async function POST(request: Request) {
     } catch {
       return Response.json({ error: 'Generation failed. Please try again.' }, { status: 500 })
     }
+  } else if (model.provider === 'openai') {
+    const apiKey = process.env.OPENAI_API_KEY
+    if (!apiKey) return Response.json({ error: 'OpenAI is not configured' }, { status: 503 })
+    const openai = new OpenAI({ apiKey })
+    try {
+      if (model.openaiApi === 'responses') {
+        const response = await openai.responses.create({
+          model: model.id,
+          input: prompt,
+        })
+        generatedContent = response.output_text?.trim() ?? ''
+      } else {
+        const response = await openai.chat.completions.create({
+          model: model.id,
+          max_tokens: 2048,
+          messages: [{ role: 'user', content: prompt }],
+        })
+        generatedContent = response.choices[0]?.message?.content?.trim() ?? ''
+      }
+      if (!generatedContent) {
+        return Response.json({ error: 'Generation failed. Please try again.' }, { status: 500 })
+      }
+    } catch {
+      return Response.json({ error: 'Generation failed. Please try again.' }, { status: 500 })
+    }
   } else {
-    return Response.json({ error: `Provider "${model.provider}" is not yet configured.` }, { status: 503 })
+    return Response.json({ error: `Provider "${model.provider}" is not configured.` }, { status: 503 })
   }
 
   // Save output

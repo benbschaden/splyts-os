@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto'
+import { waitUntil } from '@vercel/functions'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
@@ -186,20 +187,23 @@ export async function POST(
       return Response.json({ error: error ?? 'Failed to save material' }, { status: 500 })
     }
 
-    indexContent('project_material', material, org.id).catch(err =>
-      console.error('[content-index] Index failed:', err)
-    )
-
-    indexMaterialChunks({
-      id: material.id,
-      content: material.content ?? null,
-      title: material.title ?? null,
-      file_name: material.file_name ?? null,
-      project_id: projectId,
-      material_type: 'file',
-      created_by: user.id,
-    }, org.id).catch(err =>
-      console.error('[content-index] Chunk indexing failed:', err)
+    waitUntil(
+      Promise.all([
+        indexContent('project_material', material, org.id).catch(err =>
+          console.error('[content-index] Index failed:', err)
+        ),
+        indexMaterialChunks({
+          id: material.id,
+          content: material.content ?? null,
+          title: material.title ?? null,
+          file_name: material.file_name ?? null,
+          project_id: projectId,
+          material_type: 'file',
+          created_by: user.id,
+        }, org.id).catch(err =>
+          console.error('[content-index] Chunk indexing failed:', err)
+        ),
+      ])
     )
 
     logProjectActivity({

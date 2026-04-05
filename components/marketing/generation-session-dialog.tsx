@@ -133,7 +133,7 @@ export function GenerationSessionDialog({
         contentTypeId,
         authorId,
         modelId,
-        draftId,
+        ...(draftId ? { draftId } : {}),
         messages: newMessages,
       }),
     })

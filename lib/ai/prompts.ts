@@ -873,6 +873,43 @@ export function buildDocumentChatSystemPrompt(params: {
   return lines.join('\n')
 }
 
+export function buildOutputChatSystemPrompt(params: {
+  outputType: string
+  brief: string
+  content: string
+  brand: { company_name: string; voice: string | null } | null
+}): string {
+  const { outputType, brief, content, brand } = params
+
+  const lines: string[] = []
+
+  lines.push(`You are an expert editor and advisor helping to discuss, refine, and improve a project output.`)
+  if (brand) {
+    lines.push(`This output belongs to ${brand.company_name}.`)
+    lines.push(`Write and suggest edits in the company voice: ${brand.voice || 'clear and professional'}.`)
+  }
+  lines.push('')
+  lines.push(`[OUTPUT TYPE: ${outputType}]`)
+  lines.push(`[BRIEF: ${brief}]`)
+  lines.push('')
+  lines.push(content)
+  lines.push('')
+  lines.push('---')
+  lines.push('Your role:')
+  lines.push('- Answer questions about the output content')
+  lines.push('- Discuss ideas and improvements')
+  lines.push('- When asked to rewrite, edit, or improve the output (or any part of it), provide the full revised content wrapped in <replacement> tags like this:')
+  lines.push('')
+  lines.push('<replacement>')
+  lines.push('...full revised content here...')
+  lines.push('</replacement>')
+  lines.push('')
+  lines.push('The replacement block must contain the complete updated output in markdown, not just the changed section.')
+  lines.push('Only include a replacement block when explicitly providing a revised version. For discussion and questions, reply normally.')
+
+  return lines.join('\n')
+}
+
 export function buildExtractPrompt(params: {
   conversationText: string
   projectName: string

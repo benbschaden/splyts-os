@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Sparkles, Copy, Pencil, Trash2, Check, X, FileText, BarChart2, Send, File, RotateCcw, Loader2 } from 'lucide-react'
+import { Sparkles, Copy, Pencil, Trash2, Check, X, FileText, BarChart2, Send, File, RotateCcw, Loader2, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   GenerationSessionDialog,
@@ -89,6 +89,219 @@ function safeMetadataStringArray(meta: Record<string, unknown> | null | undefine
   return v.filter((item): item is string => typeof item === 'string')
 }
 
+interface OutputChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+function extractReplacement(text: string): string | null {
+  const match = text.match(/<replacement>([\s\S]*?)<\/replacement>/)
+  return match ? match[1].trim() : null
+}
+
+function stripReplacementTags(text: string): string {
+  return text.replace(/<replacement>[\s\S]*?<\/replacement>/, '').trim()
+}
+
+function OutputChatPanel({
+  outputId,
+  onApply,
+  onClose,
+}: {
+  outputId: string
+  onApply: (content: string) => void
+  onClose: () => void
+}) {
+  const [messages, setMessages] = useState<OutputChatMessage[]>([])
+  const [input, setInput] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [applied, setApplied] = useState<string | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  useEffect(() => {
+    inputRef.current?.focus()
+  }, [])
+
+  async function sendMessage() {
+    const text = input.trim()
+    if (!text || loading) return
+
+    const newMessages: OutputChatMessage[] = [...messages, { role: 'user', content: text }]
+    setMessages(newMessages)
+    setInput('')
+    setLoading(true)
+    setError(null)
+
+    try {
+      const res = await fetch(`/api/outputs/${outputId}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: newMessages }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setError((data as { error?: string }).error ?? 'Something went wrong. Please try again.')
+        return
+      }
+
+      const data = await res.json() as { response: string }
+      setMessages((prev) => [...prev, { role: 'assistant', content: data.response }])
+    } catch {
+      setError('Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      sendMessage()
+    }
+  }
+
+  function handleApply(replacement: string) {
+    onApply(replacement)
+    setApplied(replacement)
+  }
+
+  return (
+    <div className="border-t border-border bg-muted/10">
+      {/* Panel header */}
+      <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <MessageSquare className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          <p className="text-xs font-medium text-foreground">Discuss with AI</p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close chat panel"
+          className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {/* Messages */}
+      <div className="flex flex-col gap-3 overflow-y-auto px-4 py-3" style={{ maxHeight: '320px' }}>
+        {messages.length === 0 && (
+          <p className="text-xs text-muted-foreground text-center py-4">
+            Ask questions, request edits, or ask for a full rewrite.
+          </p>
+        )}
+
+        {messages.map((msg, i) => {
+          if (msg.role === 'user') {
+            return (
+              <div key={i} className="flex justify-end">
+                <div className="max-w-[85%] rounded-lg bg-foreground px-3 py-2 text-xs text-background leading-relaxed">
+                  {msg.content}
+                </div>
+              </div>
+            )
+          }
+
+          const replacement = extractReplacement(msg.content)
+          const displayText = replacement ? stripReplacementTags(msg.content) : msg.content
+          const alreadyApplied = applied === replacement
+
+          return (
+            <div key={i} className="flex flex-col gap-1.5">
+              <div className="max-w-[92%] rounded-lg border border-border bg-background px-3 py-2">
+                {displayText && (
+                  <div className="text-xs text-foreground leading-relaxed prose prose-xs max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 prose-headings:text-xs prose-headings:font-semibold prose-headings:mt-1.5 prose-headings:mb-0.5">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayText}</ReactMarkdown>
+                  </div>
+                )}
+                {replacement && (
+                  <div className="mt-2 rounded-md border border-border bg-muted/40 px-2.5 py-2">
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+                      Revised version
+                    </p>
+                    <div className="text-xs text-foreground leading-relaxed prose prose-xs max-w-none dark:prose-invert prose-p:my-0.5 prose-ul:my-0.5 prose-li:my-0 line-clamp-6">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{replacement}</ReactMarkdown>
+                    </div>
+                    <div className="mt-2">
+                      {alreadyApplied ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                          <Check className="h-3 w-3 text-green-500" />
+                          Applied
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleApply(replacement)}
+                          className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-2.5 py-1 text-xs font-medium text-background hover:opacity-80 transition-opacity"
+                        >
+                          <Check className="h-3 w-3" />
+                          Accept
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+
+        {loading && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Thinking…
+          </div>
+        )}
+
+        {error && (
+          <p className="text-xs text-destructive">{error}</p>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input */}
+      <div className="border-t border-border px-4 py-2.5 flex items-end gap-2">
+        <textarea
+          ref={inputRef}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Ask a question or request a change… (Enter to send)"
+          rows={2}
+          disabled={loading}
+          aria-label="Message to AI about this output"
+          className={cn(
+            'flex-1 resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/50',
+            'focus:outline-none focus:ring-1 focus:ring-ring',
+            'disabled:opacity-50',
+          )}
+        />
+        <button
+          type="button"
+          onClick={sendMessage}
+          disabled={!input.trim() || loading}
+          aria-label="Send message"
+          className="shrink-0 inline-flex items-center justify-center rounded-md bg-foreground p-1.5 text-background hover:opacity-80 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {loading ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Send className="h-3.5 w-3.5" />
+          )}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function OutputCard({
   output,
   attachments,
@@ -110,6 +323,7 @@ function OutputCard({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showChat, setShowChat] = useState(false)
   const [showPerf, setShowPerf] = useState(false)
   const [perfForm, setPerfForm] = useState({
     reach: output.reach?.toString() ?? '',
@@ -257,6 +471,18 @@ function OutputCard({
               <BarChart2 className="h-3.5 w-3.5" />
             </button>
           )}
+          <button
+            onClick={() => setShowChat((v) => !v)}
+            title="Discuss with AI"
+            className={cn(
+              'rounded-md p-1.5 transition-colors',
+              showChat
+                ? 'bg-foreground text-background hover:opacity-80'
+                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+            )}
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+          </button>
           <button
             onClick={handleCopy}
             title="Copy to clipboard"
@@ -504,6 +730,31 @@ function OutputCard({
           </div>
         )}
       </div>
+
+      {/* AI chat panel */}
+      {showChat && (
+        <OutputChatPanel
+          outputId={output.id}
+          onApply={async (content) => {
+            setSaving(true)
+            setError(null)
+            const res = await fetch(`/api/outputs/${output.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ content }),
+            })
+            setSaving(false)
+            if (!res.ok) {
+              setError('Failed to save. Please try again.')
+              return
+            }
+            const { output: updated } = await res.json()
+            onUpdated({ ...output, content: updated.content, updated_at: updated.updated_at })
+            setEditContent(updated.content)
+          }}
+          onClose={() => setShowChat(false)}
+        />
+      )}
 
       {/* Delete confirmation */}
       {confirmDelete && (

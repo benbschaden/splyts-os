@@ -153,6 +153,24 @@ export async function getOutputsForProject(
   return await attachCreatorNames((data ?? []) as unknown as OutputRow[])
 }
 
+export async function getOutputById(
+  outputId: string,
+  organizationId: string,
+): Promise<{ id: string; brief: string; content: string; content_type_id: string | null; model_id: string } | null> {
+  const supabase = createServiceClient()
+
+  const { data, error } = await supabase
+    .from('outputs')
+    .select('id, brief, content, content_type_id, model_id')
+    .eq('id', outputId)
+    .eq('organization_id', organizationId)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  if (error || !data) return null
+  return data
+}
+
 export async function createOutput(params: {
   organizationId: string
   projectId: string

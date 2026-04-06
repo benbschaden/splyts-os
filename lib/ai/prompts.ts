@@ -2113,3 +2113,84 @@ export function buildMeetingProcessingPrompt(params: {
 
   return lines.join('\n')
 }
+
+export interface MeetingChatBrandContext {
+  company_name: string
+  mission: string
+  vision: string
+  north_star: string
+  voice: string
+  tone: string
+  pillars: string
+  target_audience: string
+  values: string | null
+  guardrails?: string | null
+}
+
+export interface MeetingChatMeetingContext {
+  title: string
+  meetingDate: string | null
+  summary: string | null
+  decisionsJson: string
+  actionItemsJson: string
+  openQuestionsJson: string
+  transcriptExcerpt: string
+}
+
+/**
+ * System prompt for Discuss: Q&A and drafting against processed meeting notes.
+ */
+export function buildMeetingChatSystemPrompt(params: {
+  brand: MeetingChatBrandContext | null
+  meeting: MeetingChatMeetingContext
+}): string {
+  const { brand, meeting } = params
+  const lines: string[] = []
+
+  lines.push('You are a thoughtful assistant helping a team discuss and refine meeting outcomes.')
+  lines.push('Answer questions using the meeting context below. When asked to draft a document, produce clear markdown.')
+  lines.push('If something is not in the meeting notes, say so rather than inventing facts.')
+  lines.push('')
+
+  if (brand && brand.mission && brand.company_name) {
+    lines.push('## Organisation brand context')
+    lines.push(`Company: ${brand.company_name}`)
+    lines.push(`Mission: ${brand.mission}`)
+    lines.push(`Vision: ${brand.vision}`)
+    lines.push(`North star: ${brand.north_star}`)
+    lines.push(`Voice: ${brand.voice}`)
+    lines.push(`Tone: ${brand.tone}`)
+    lines.push(`Pillars: ${brand.pillars}`)
+    lines.push(`Audience: ${brand.target_audience}`)
+    if (brand.values) lines.push(`Values: ${brand.values}`)
+    if (brand.guardrails) {
+      lines.push('')
+      lines.push('### Guardrails — never violate')
+      lines.push(brand.guardrails)
+    }
+    lines.push('')
+  }
+
+  lines.push('## Meeting')
+  lines.push(`Title: ${meeting.title}`)
+  if (meeting.meetingDate) lines.push(`Date: ${meeting.meetingDate}`)
+  lines.push('')
+  if (meeting.summary) {
+    lines.push('### Summary')
+    lines.push(meeting.summary)
+    lines.push('')
+  }
+  lines.push('### Decisions (structured)')
+  lines.push(meeting.decisionsJson || '[]')
+  lines.push('')
+  lines.push('### Action items (structured)')
+  lines.push(meeting.actionItemsJson || '[]')
+  lines.push('')
+  lines.push('### Open questions (structured)')
+  lines.push(meeting.openQuestionsJson || '[]')
+  lines.push('')
+  lines.push('### Transcript (excerpt; full text may be truncated for context limits)')
+  lines.push(meeting.transcriptExcerpt)
+
+  return lines.join('\n')
+}

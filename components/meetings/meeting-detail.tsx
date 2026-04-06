@@ -16,18 +16,29 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { MeetingRow, MeetingAttendee, SuggestedProjectLink } from '@/lib/queries/meetings'
+import type { MeetingDocumentWithProjects } from '@/lib/queries/meeting-documents'
+import { MeetingDiscussPanel } from '@/components/meetings/meeting-discuss-panel'
 
 interface OrgMember {
   user_id: string
   full_name: string | null
 }
 
+interface ProjectOption {
+  id: string
+  name: string
+}
+
 interface MeetingDetailProps {
   meeting: MeetingRow
   attendees: MeetingAttendee[]
   isCreator: boolean
+  currentUserId: string
   organizationId: string
   orgMembers: OrgMember[]
+  initialDocuments: MeetingDocumentWithProjects[]
+  linkedProjectIds: string[]
+  projectOptions: ProjectOption[]
 }
 
 function formatDate(dateStr: string | null): string {
@@ -133,9 +144,14 @@ export function MeetingDetail({
   meeting: initialMeeting,
   attendees,
   isCreator,
+  currentUserId,
+  initialDocuments,
+  linkedProjectIds,
+  projectOptions,
 }: MeetingDetailProps) {
   const router = useRouter()
   const [meeting, setMeeting] = useState<MeetingRow>(initialMeeting)
+  const [viewTab, setViewTab] = useState<'overview' | 'discuss'>('overview')
   const [processing, setProcessing] = useState(false)
   const [processError, setProcessError] = useState<string | null>(null)
   const [acceptedProjectIds, setAcceptedProjectIds] = useState<Set<string>>(
@@ -235,24 +251,62 @@ export function MeetingDetail({
           </div>
         </div>
 
-        {isCreator && !isProcessed && (
-          <button
-            onClick={handleProcess}
-            disabled={processing}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-          >
-            {processing ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-            ) : (
-              <Sparkles className="h-3.5 w-3.5" aria-hidden />
-            )}
-            {processing ? 'Processing…' : 'Process'}
-          </button>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {isProcessed && (
+            <nav className="flex rounded-md border border-border p-0.5 mr-1" aria-label="Meeting view">
+              <button
+                type="button"
+                onClick={() => setViewTab('overview')}
+                className={cn(
+                  'rounded px-2.5 py-1 text-xs font-medium transition-colors',
+                  viewTab === 'overview' ? 'bg-accent text-foreground' : 'text-muted-foreground',
+                )}
+              >
+                Overview
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewTab('discuss')}
+                className={cn(
+                  'rounded px-2.5 py-1 text-xs font-medium transition-colors',
+                  viewTab === 'discuss' ? 'bg-accent text-foreground' : 'text-muted-foreground',
+                )}
+              >
+                Discuss
+              </button>
+            </nav>
+          )}
+          {isCreator && !isProcessed && (
+            <button
+              onClick={handleProcess}
+              disabled={processing}
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+            >
+              {processing ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5" aria-hidden />
+              )}
+              {processing ? 'Processing…' : 'Process'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6">
+        {isProcessed && viewTab === 'discuss' ? (
+          <div className="mx-auto max-w-2xl">
+            <MeetingDiscussPanel
+              meetingId={meeting.id}
+              meetingTitle={meeting.title}
+              currentUserId={currentUserId}
+              initialDocuments={initialDocuments}
+              linkedProjectIds={linkedProjectIds}
+              projectOptions={projectOptions}
+            />
+          </div>
+        ) : (
         <div className="mx-auto max-w-2xl space-y-6">
           {processError && (
             <p className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -414,6 +468,7 @@ export function MeetingDetail({
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
   )

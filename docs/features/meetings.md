@@ -92,4 +92,40 @@ Feature: Meeting Intelligence
     Given a meeting is created with visibility "org_wide"
     When any org member views the meeting or a linked project's Meetings tab
     Then they can see the meeting regardless of whether they were an attendee
+
+  # -------------------------------------------------------
+  # Discuss, documents, and routing
+  # -------------------------------------------------------
+
+  Scenario: Discuss processed meeting notes with a chosen model
+    Given a meeting has been processed
+    When I open the "Discuss" tab
+    And I select a model from the list
+    And I send a message about the meeting
+    Then I receive an assistant reply grounded in the meeting notes and brand context
+
+  Scenario: Save a draft document from the discussion
+    Given I am on the Discuss tab with at least one assistant message
+    When I click "Save as document"
+    And I edit the title and content
+    And I save as draft
+    Then a draft document is stored on the meeting
+    And it appears in the documents list for that meeting
+
+  Scenario: Publish a document to projects including meeting routes
+    Given I have a draft document on a processed meeting
+    And the meeting was already routed to "Q2 Campaign"
+    When I click "Publish"
+    Then "Q2 Campaign" is pre-selected in the project list
+    And I can add or remove other organisation projects
+    When I confirm publish
+    Then the document is marked published
+    And it appears under "Published notes" on each selected project's Meetings tab
+
+  Scenario: Update routing on a published document
+    Given I published a meeting document to one project
+    When I click "Routing" on that document
+    And I change the selected projects
+    And I confirm
+    Then the document visibility updates to match the new project selection
 ```

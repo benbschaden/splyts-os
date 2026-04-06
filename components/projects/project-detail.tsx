@@ -27,6 +27,7 @@ import { CustomerHubDetail } from '@/components/customer-hub/customer-hub-detail
 import { Globe, Users, Lock, UserCheck } from 'lucide-react'
 import { ProjectMeetingsTab } from '@/components/meetings/project-meetings-tab'
 import type { MeetingRow } from '@/lib/queries/meetings'
+import type { PublishedMeetingDocForProject } from '@/lib/queries/meeting-documents'
 import type { DiscoveryEntryRow } from '@/lib/queries/discovery-entries'
 import type { DiscoveryStudyRow } from '@/lib/queries/discovery-studies'
 import type { ContactRow } from '@/lib/queries/contacts'
@@ -161,6 +162,7 @@ interface ProjectDetailProps {
   hubCohortDocuments?: CohortDocumentRow[]
   hubPersonas?: PersonaRow[]
   projectMeetings?: Array<MeetingRow & { relevant_summary: string | null }>
+  projectMeetingDocuments?: PublishedMeetingDocForProject[]
 }
 
 export function ProjectDetail({
@@ -189,6 +191,7 @@ export function ProjectDetail({
   hubCohortDocuments = [],
   hubPersonas = [],
   projectMeetings = [],
+  projectMeetingDocuments = [],
 }: ProjectDetailProps) {
   if (project.tool_key === 'customer_hub') {
     return (
@@ -646,7 +649,10 @@ export function ProjectDetail({
               )}
 
               {activeTab === 'meetings' && (
-                <ProjectMeetingsTab projectMeetings={projectMeetings} />
+                <ProjectMeetingsTab
+                  projectMeetings={projectMeetings}
+                  projectMeetingDocuments={projectMeetingDocuments}
+                />
               )}
             </div>
           </>

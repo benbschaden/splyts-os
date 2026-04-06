@@ -2,13 +2,15 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Video, CheckCircle, Circle, ChevronDown, ChevronUp } from 'lucide-react'
+import { Video, CheckCircle, Circle, ChevronDown, ChevronUp, FileText } from 'lucide-react'
 import type { MeetingRow } from '@/lib/queries/meetings'
+import type { PublishedMeetingDocForProject } from '@/lib/queries/meeting-documents'
 
 type ProjectMeeting = MeetingRow & { relevant_summary: string | null }
 
 interface ProjectMeetingsTabProps {
   projectMeetings: ProjectMeeting[]
+  projectMeetingDocuments: PublishedMeetingDocForProject[]
 }
 
 function formatDate(dateStr: string | null): string {
@@ -28,7 +30,6 @@ function MeetingCard({ meeting }: { meeting: ProjectMeeting }) {
 
   return (
     <div className="rounded-lg border border-border overflow-hidden">
-      {/* Card header */}
       <div className="flex items-start justify-between gap-3 p-4">
         <div className="flex-1 min-w-0">
           <Link
@@ -62,7 +63,6 @@ function MeetingCard({ meeting }: { meeting: ProjectMeeting }) {
         )}
       </div>
 
-      {/* Expanded decisions + actions */}
       {expanded && (
         <div className="border-t border-border divide-y divide-border">
           {(meeting.extracted_decisions ?? []).map((d, i) => (
@@ -95,24 +95,93 @@ function MeetingCard({ meeting }: { meeting: ProjectMeeting }) {
   )
 }
 
-export function ProjectMeetingsTab({ projectMeetings }: ProjectMeetingsTabProps) {
-  if (projectMeetings.length === 0) {
+function DocumentCard({ doc }: { doc: PublishedMeetingDocForProject }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="rounded-lg border border-border overflow-hidden">
+      <div className="flex items-start justify-between gap-3 p-4">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+            <span className="text-sm font-medium text-foreground">{doc.title}</span>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            From{' '}
+            <Link href={`/dashboard/meetings/${doc.meeting_id}`} className="underline hover:text-foreground">
+              {doc.meeting_title}
+            </Link>
+            {doc.published_at && (
+              <span> · {formatDate(doc.published_at)}</span>
+            )}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setOpen((p) => !p)}
+          className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-accent"
+          aria-expanded={open}
+        >
+          {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
+      </div>
+      {open && (
+        <div className="border-t border-border px-4 py-3">
+          <pre className="whitespace-pre-wrap text-xs text-muted-foreground font-sans max-h-[240px] overflow-y-auto">
+            {doc.content}
+          </pre>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function ProjectMeetingsTab({
+  projectMeetings,
+  projectMeetingDocuments,
+}: ProjectMeetingsTabProps) {
+  const emptyMeetings = projectMeetings.length === 0
+  const emptyDocs = projectMeetingDocuments.length === 0
+
+  if (emptyMeetings && emptyDocs) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <Video className="mb-3 h-7 w-7 text-muted-foreground/40" aria-hidden />
-        <p className="text-sm font-medium text-muted-foreground">No meetings linked yet</p>
-        <p className="mt-1 text-xs text-muted-foreground/70">
-          When a meeting is processed and routed to this project, it will appear here.
+        <p className="text-sm font-medium text-muted-foreground">Nothing here yet</p>
+        <p className="mt-1 text-xs text-muted-foreground/70 max-w-sm">
+          When meetings are routed to this project, or published notes from Discuss are routed here,
+          they will appear in this tab.
         </p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-3">
-      {projectMeetings.map((meeting) => (
-        <MeetingCard key={meeting.id} meeting={meeting} />
-      ))}
+    <div className="space-y-8">
+      {!emptyMeetings && (
+        <section>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+            Meetings
+          </h3>
+          <div className="space-y-3">
+            {projectMeetings.map((meeting) => (
+              <MeetingCard key={meeting.id} meeting={meeting} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {!emptyDocs && (
+        <section>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+            Published notes
+          </h3>
+          <div className="space-y-3">
+            {projectMeetingDocuments.map((doc) => (
+              <DocumentCard key={doc.id} doc={doc} />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   )
 }

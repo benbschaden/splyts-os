@@ -28,3 +28,17 @@ Feature: Authentication
     When I open the link
     Then I see an error: "This invite link is no longer valid"
     And I am shown a prompt to contact my admin
+
+  Scenario: User requests password reset from login
+    Given I have an account and I am on the login page
+    When I enter my email and choose forgot password
+    Then I receive a reset email with a link to the app
+    And opening the link lets me set a new password
+    And I am then taken to the team dashboard
+
+  Scenario: User opens password reset link with a valid session token
+    Given I clicked the reset link from my email
+    When the app finishes signing me in from the link
+    Then I see the set new password screen
+    When I submit a valid new password twice
+    Then my password is updated and I reach the team dashboard

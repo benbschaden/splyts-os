@@ -43,13 +43,14 @@ Always confirm you are in the **same** Supabase project as your `NEXT_PUBLIC_SUP
 | Setting | Typical value (production) |
 |--------|------------------------------|
 | **Site URL** | `https://<your-app>.vercel.app` (or your custom domain root) |
-| **Redirect URLs** | `https://<your-app>.vercel.app/auth/confirm` |
+| **Redirect URLs** | `https://<your-app>.vercel.app/auth/confirm`<br>`https://<your-app>.vercel.app/auth/callback`<br>`https://<your-app>.vercel.app/auth/callback?next=recovery` |
 
 Notes:
 
 - **Do not** rely on `http://localhost:3000` in production. The invite email’s `redirect_to` is built from **`NEXT_PUBLIC_APP_URL`** in Vercel; if that points at localhost, invited users will be sent to your laptop.
 - You can add **both** local and production URLs during development, e.g. `http://localhost:3000/auth/confirm` and `https://<prod>/auth/confirm`.
-- **`/auth/callback`** is only needed if you implement OAuth or another flow that uses that path. The **invite** flow uses **`/auth/confirm`**.
+- **`/auth/callback`** is used for **PKCE** flows: OAuth (if enabled), **password reset** (`exchangeCodeForSession` in `app/auth/callback/route.ts`). The **invite** flow uses **`/auth/confirm`** (hash tokens).
+- **Password reset:** “Forgot password?” calls `resetPasswordForEmail` with `redirectTo = ${origin}/auth/callback?next=recovery`. Add that **exact** URL (prod + localhost) to **Redirect URLs** if Supabase rejects the redirect. After exchange, the app sends recovery sessions to **`/auth/update-password`**. Recovery initiated from the Supabase dashboard may omit `?next=recovery`; the server also detects recovery via the access token **`amr`** claim when present.
 
 ### Service role
 
@@ -79,6 +80,10 @@ If `NEXT_PUBLIC_APP_URL` is wrong, the email link will point at the wrong host e
 | `app/api/invites/accept/route.ts` | Authenticated user: find pending invite **by email**, accept into `organization_members`. |
 | `lib/queries/team.ts` | `getPendingInviteByEmail`, `acceptInviteById`, `revokeInvite` (soft-delete invite + delete unconfirmed Auth user). |
 | `app/welcome/page.tsx` + `components/auth/welcome-form.tsx` | First-time profile: **password** (`updateUser`) + name, then `PUT /api/profile`. |
+| `app/auth/callback/route.ts` | Exchanges `?code=` for a session; invite + `invite_token` → `/welcome`; password recovery → `/auth/update-password`; else → `/dashboard`. |
+| `app/auth/update-password/page.tsx` + `components/auth/update-password-form.tsx` | After reset link: **new password** (`updateUser`), then dashboard. |
+| `components/auth/login-form.tsx` | **Forgot password?** → `resetPasswordForEmail` with `redirectTo` including `next=recovery`. |
+| `lib/auth/recovery-session.ts` | Reads JWT **`amr`** for `recovery` to route dashboard-sent reset emails. |
 | `supabase/migrations/*get_auth_user_by_email*` | RPC to read `auth.users` by email (PostgREST cannot query `auth` schema directly). Used for 422 handling and revoke. |
 
 ---

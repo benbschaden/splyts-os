@@ -1,16 +1,21 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 
 export function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [resetLoading, setResetLoading] = useState(false)
+  const [resetSent, setResetSent] = useState(false)
+
+  const sessionLinkError = searchParams.get('error') === 'session'
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -33,8 +38,36 @@ export function LoginForm() {
     router.refresh()
   }
 
+  async function handleForgotPassword() {
+    setError(null)
+    setResetSent(false)
+    const trimmed = email.trim()
+    if (!trimmed) {
+      setError('Enter your email above, then use forgot password.')
+      return
+    }
+    setResetLoading(true)
+    const supabase = createClient()
+    const origin = window.location.origin
+    const redirectTo = `${origin}/auth/callback?next=recovery`
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(trimmed, {
+      redirectTo,
+    })
+    setResetLoading(false)
+    if (resetError) {
+      setError(resetError.message || 'Could not send reset email. Try again.')
+      return
+    }
+    setResetSent(true)
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {sessionLinkError && (
+        <p className="text-sm text-muted-foreground rounded-md border border-border bg-muted/50 px-3 py-2">
+          Sign in again, or open the password reset link from your email on this device.
+        </p>
+      )}
       <div className="space-y-2">
         <label
           htmlFor="email"
@@ -87,6 +120,12 @@ export function LoginForm() {
         <p className="text-sm text-destructive">{error}</p>
       )}
 
+      {resetSent && (
+        <p className="text-sm text-muted-foreground rounded-md border border-border bg-muted/50 px-3 py-2">
+          Check your email for a reset link. If it does not arrive, check spam or try again.
+        </p>
+      )}
+
       <button
         type="submit"
         disabled={loading}
@@ -99,6 +138,17 @@ export function LoginForm() {
       >
         {loading ? 'Signing in…' : 'Sign in'}
       </button>
+
+      <div className="text-center">
+        <button
+          type="button"
+          onClick={() => void handleForgotPassword()}
+          disabled={loading || resetLoading}
+          className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground disabled:opacity-50"
+        >
+          {resetLoading ? 'Sending…' : 'Forgot password?'}
+        </button>
+      </div>
     </form>
   )
 }

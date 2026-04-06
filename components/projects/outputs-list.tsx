@@ -335,6 +335,7 @@ function OutputCard({
   const [publishing, setPublishing] = useState(false)
   const [showPublishForm, setShowPublishForm] = useState(false)
   const [publishDate, setPublishDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [showBrief, setShowBrief] = useState(false)
 
   async function handleSave() {
     if (!editContent.trim()) return
@@ -494,6 +495,18 @@ function OutputCard({
             <MessageSquare className="h-3.5 w-3.5" />
           </button>
           <button
+            onClick={() => setShowBrief((v) => !v)}
+            title="View brief"
+            className={cn(
+              'rounded-md px-2 py-1 text-xs font-medium transition-colors',
+              showBrief
+                ? 'bg-muted text-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+            )}
+          >
+            Brief
+          </button>
+          <button
             onClick={handleCopy}
             title="Copy to clipboard"
             className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
@@ -642,11 +655,21 @@ function OutputCard({
         </div>
       )}
 
-      {/* Brief */}
-      <div className="px-4 pt-3 pb-1">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Brief</p>
-        <p className="text-xs text-muted-foreground leading-relaxed">{output.brief}</p>
-      </div>
+      {/* Brief — hidden by default, revealed on demand */}
+      {showBrief && (
+        <div className="px-4 pt-3 pb-1 border-t border-border bg-muted/30">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Brief</p>
+            <button
+              onClick={() => setShowBrief(false)}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Hide
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">{output.brief}</p>
+        </div>
+      )}
 
       {/* Content */}
       <div className="px-4 pb-3 pt-2">

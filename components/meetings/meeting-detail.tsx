@@ -15,7 +15,7 @@ import {
   ChevronUp,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { MeetingRow, MeetingAttendee, SuggestedProjectLink } from '@/lib/queries/meetings'
+import type { MeetingRow, MeetingAttendee } from '@/lib/queries/meetings'
 import type { MeetingDocumentWithProjects } from '@/lib/queries/meeting-documents'
 import { MeetingDiscussPanel } from '@/components/meetings/meeting-discuss-panel'
 
@@ -85,61 +85,6 @@ function Section({
   )
 }
 
-function ProjectSuggestionCard({
-  suggestion,
-  accepted,
-  onToggle,
-  disabled,
-}: {
-  suggestion: SuggestedProjectLink
-  accepted: boolean
-  onToggle: () => void
-  disabled: boolean
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      disabled={disabled}
-      className={cn(
-        'w-full text-left rounded-lg border p-4 transition-all',
-        accepted
-          ? 'border-primary bg-primary/5'
-          : 'border-border bg-background hover:border-foreground/30',
-        disabled && 'opacity-50 cursor-default',
-      )}
-    >
-      <div className="flex items-start gap-3">
-        <div
-          className={cn(
-            'mt-0.5 h-4 w-4 shrink-0 rounded border-2 transition-colors',
-            accepted ? 'border-primary bg-primary' : 'border-muted-foreground/40',
-          )}
-          aria-hidden
-        >
-          {accepted && (
-            <CheckCircle className="h-3 w-3 text-primary-foreground translate-x-[1px]" />
-          )}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-foreground">{suggestion.project_name}</p>
-          <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-            {suggestion.rationale}
-          </p>
-          <div className="mt-2 flex gap-3 text-xs text-muted-foreground">
-            {suggestion.relevant_decisions.length > 0 && (
-              <span>{suggestion.relevant_decisions.length} decision{suggestion.relevant_decisions.length !== 1 ? 's' : ''}</span>
-            )}
-            {suggestion.relevant_actions.length > 0 && (
-              <span>{suggestion.relevant_actions.length} action{suggestion.relevant_actions.length !== 1 ? 's' : ''}</span>
-            )}
-          </div>
-        </div>
-      </div>
-    </button>
-  )
-}
-
 export function MeetingDetail({
   meeting: initialMeeting,
   attendees,
@@ -154,14 +99,16 @@ export function MeetingDetail({
   const [viewTab, setViewTab] = useState<'overview' | 'discuss'>('overview')
   const [processing, setProcessing] = useState(false)
   const [processError, setProcessError] = useState<string | null>(null)
-  const [acceptedProjectIds, setAcceptedProjectIds] = useState<Set<string>>(
-    new Set(meeting.suggested_project_links?.map((s) => s.project_id) ?? []),
-  )
+  const [acceptedProjectIds, setAcceptedProjectIds] = useState<Set<string>>(() => {
+    if (initialMeeting.accepted_at && linkedProjectIds.length > 0) {
+      return new Set(linkedProjectIds)
+    }
+    return new Set(initialMeeting.suggested_project_links?.map((s) => s.project_id) ?? [])
+  })
   const [accepting, setAccepting] = useState(false)
   const [acceptError, setAcceptError] = useState<string | null>(null)
   const [showTranscript, setShowTranscript] = useState(!meeting.processed_at)
 
-  const suggestions = meeting.suggested_project_links ?? []
   const isProcessed = !!meeting.processed_at
   const isAccepted = !!meeting.accepted_at
 
@@ -213,7 +160,7 @@ export function MeetingDetail({
   }
 
   function toggleProjectAcceptance(projectId: string) {
-    if (isAccepted) return
+    if (!isCreator) return
     setAcceptedProjectIds((prev) => {
       const next = new Set(prev)
       if (next.has(projectId)) {
@@ -224,6 +171,17 @@ export function MeetingDetail({
       return next
     })
   }
+
+  const suggestionByProjectId = new Map(
+    (meeting.suggested_project_links ?? []).map((s) => [s.project_id, s]),
+  )
+  const suggestionIds = new Set(suggestionByProjectId.keys())
+  const sortedProjectOptions = [...projectOptions].sort((a, b) => {
+    const aS = suggestionIds.has(a.id) ? 0 : 1
+    const bS = suggestionIds.has(b.id) ? 0 : 1
+    if (aS !== bS) return aS - bS
+    return a.name.localeCompare(b.name)
+  })
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -382,56 +340,116 @@ export function MeetingDetail({
             </Section>
           )}
 
-          {/* Project routing suggestions */}
-          {isProcessed && suggestions.length > 0 && (
+          {/* Project routing: all org projects you can access + AI hints */}
+          {isProcessed && projectOptions.length > 0 && (
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <div>
                   <p className="text-sm font-semibold text-foreground">
-                    {isAccepted ? 'Routed to projects' : 'Suggested project routing'}
+                    {isAccepted ? 'Routed to projects' : 'Route to projects'}
                   </p>
-                  {!isAccepted && (
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Select which projects should see this meeting&apos;s content, then confirm.
-                    </p>
-                  )}
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Select any projects where this meeting should appear. AI-suggested projects are listed first with a short rationale; you can add or remove others.
+                  </p>
                 </div>
                 {isAccepted && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">
                     <CheckCircle className="h-3 w-3" aria-hidden />
-                    Confirmed
+                    Saved
                   </span>
                 )}
               </div>
 
-              <div className="space-y-2">
-                {suggestions.map((suggestion) => (
-                  <ProjectSuggestionCard
-                    key={suggestion.project_id}
-                    suggestion={suggestion}
-                    accepted={acceptedProjectIds.has(suggestion.project_id)}
-                    onToggle={() => toggleProjectAcceptance(suggestion.project_id)}
-                    disabled={isAccepted}
-                  />
-                ))}
-              </div>
+              <ul className="space-y-2 rounded-lg border border-border divide-y divide-border overflow-hidden">
+                {sortedProjectOptions.map((p) => {
+                  const sug = suggestionByProjectId.get(p.id)
+                  const checked = acceptedProjectIds.has(p.id)
+                  return (
+                    <li key={p.id} className="bg-background">
+                      <label
+                        className={cn(
+                          'flex gap-3 px-4 py-3 cursor-pointer',
+                          !isCreator && 'cursor-default opacity-90',
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          className="mt-1 h-4 w-4 shrink-0 rounded border-input"
+                          checked={checked}
+                          onChange={() => toggleProjectAcceptance(p.id)}
+                          disabled={!isCreator}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-medium text-foreground">{p.name}</span>
+                            {sug && (
+                              <span className="text-[10px] font-semibold uppercase tracking-wide text-primary">
+                                AI suggested
+                              </span>
+                            )}
+                            {!sug && (
+                              <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                                Manual
+                              </span>
+                            )}
+                          </div>
+                          {sug?.rationale && (
+                            <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{sug.rationale}</p>
+                          )}
+                          {!sug && (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Not suggested by AI — turn on to show this meeting on that project&apos;s Meetings tab.
+                            </p>
+                          )}
+                          {sug && (sug.relevant_decisions.length > 0 || sug.relevant_actions.length > 0) && (
+                            <p className="mt-1.5 text-[11px] text-muted-foreground">
+                              {sug.relevant_decisions.length > 0 && (
+                                <span>
+                                  {sug.relevant_decisions.length} decision
+                                  {sug.relevant_decisions.length !== 1 ? 's' : ''}
+                                </span>
+                              )}
+                              {sug.relevant_decisions.length > 0 && sug.relevant_actions.length > 0 && ' · '}
+                              {sug.relevant_actions.length > 0 && (
+                                <span>
+                                  {sug.relevant_actions.length} action
+                                  {sug.relevant_actions.length !== 1 ? 's' : ''}
+                                </span>
+                              )}
+                            </p>
+                          )}
+                        </div>
+                      </label>
+                    </li>
+                  )
+                })}
+              </ul>
 
-              {!isAccepted && isCreator && (
-                <div className="flex items-center gap-3 pt-1">
+              {isCreator && (
+                <div className="flex flex-wrap items-center gap-3 pt-1">
                   <button
+                    type="button"
                     onClick={handleAccept}
                     disabled={accepting}
                     className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                   >
                     {accepting && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
-                    {accepting ? 'Confirming…' : `Confirm routing${acceptedProjectIds.size > 0 ? ` (${acceptedProjectIds.size})` : ''}`}
+                    {accepting
+                      ? 'Saving…'
+                      : isAccepted
+                        ? `Update routing${acceptedProjectIds.size > 0 ? ` (${acceptedProjectIds.size})` : ''}`
+                        : `Save routing${acceptedProjectIds.size > 0 ? ` (${acceptedProjectIds.size})` : ''}`}
                   </button>
-                  {acceptError && (
-                    <p className="text-sm text-destructive">{acceptError}</p>
-                  )}
+                  {acceptError && <p className="text-sm text-destructive">{acceptError}</p>}
                 </div>
               )}
             </div>
+          )}
+
+          {isProcessed && projectOptions.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              No projects are available for your account to link. Create a project or ask an admin for access, then refresh this page.
+            </p>
           )}
 
           {/* Transcript toggle */}

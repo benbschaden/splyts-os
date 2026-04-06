@@ -407,15 +407,24 @@ export async function acceptMeetingRoutingSuggestions(params: {
 
   const supabase = createUntypedServiceClient()
 
+  const { error: delError } = await supabase
+    .from('meeting_project_links')
+    .delete()
+    .eq('meeting_id', params.meetingId)
+
+  if (delError) {
+    console.error('[meetings] Link delete error:', delError)
+    return { error: 'Failed to update project links' }
+  }
+
   if (params.acceptedProjectLinks.length > 0) {
-    const { error: linkError } = await supabase.from('meeting_project_links').upsert(
+    const { error: linkError } = await supabase.from('meeting_project_links').insert(
       params.acceptedProjectLinks.map((link) => ({
         meeting_id: params.meetingId,
         project_id: link.projectId,
         relevant_summary: link.relevantSummary,
         linked_by: params.userId,
       })),
-      { onConflict: 'meeting_id,project_id' },
     )
 
     if (linkError) {

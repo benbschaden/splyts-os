@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getMeetingById, acceptMeetingRoutingSuggestions } from '@/lib/queries/meetings'
+import { validateProjectIdsInOrg } from '@/lib/queries/meeting-documents'
 
 const acceptSchema = z.object({
   accepted_project_ids: z.array(z.string().uuid()).max(50),
@@ -28,7 +29,7 @@ export async function POST(
       return Response.json({ error: 'Not found' }, { status: 404 })
     }
 
-    if (!meeting.processed_at || !meeting.suggested_project_links) {
+    if (!meeting.processed_at) {
       return Response.json(
         { error: 'Meeting has not been processed yet' },
         { status: 400 },
@@ -43,17 +44,24 @@ export async function POST(
 
     const { accepted_project_ids } = parsed.data
 
-    // Build the accepted links using the stored suggestions for the relevant_summary text
+    const valid = await validateProjectIdsInOrg(org.id, accepted_project_ids)
+    if (!valid) {
+      return Response.json({ error: 'One or more projects are invalid' }, { status: 400 })
+    }
+
     const suggestionMap = new Map(
-      meeting.suggested_project_links.map((s) => [s.project_id, s]),
+      (meeting.suggested_project_links ?? []).map((s) => [s.project_id, s]),
     )
 
-    const acceptedProjectLinks = accepted_project_ids
-      .filter((pid) => suggestionMap.has(pid))
-      .map((pid) => ({
+    const manualSummary = 'Linked manually — not from AI suggestions.'
+
+    const acceptedProjectLinks = accepted_project_ids.map((pid) => {
+      const sug = suggestionMap.get(pid)
+      return {
         projectId: pid,
-        relevantSummary: suggestionMap.get(pid)!.rationale,
-      }))
+        relevantSummary: sug?.rationale?.trim() ? sug.rationale : manualSummary,
+      }
+    })
 
     const { error } = await acceptMeetingRoutingSuggestions({
       meetingId: id,

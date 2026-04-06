@@ -2139,21 +2139,47 @@ export interface MeetingChatMeetingContext {
 
 /**
  * System prompt for Discuss: Q&A and drafting against processed meeting notes.
+ * Receives optional pre-serialised company context blocks built by the route.
  */
 export function buildMeetingChatSystemPrompt(params: {
   brand: MeetingChatBrandContext | null
   meeting: MeetingChatMeetingContext
+  // Optional company context — each is a plain-text block ready to embed
+  businessPlanText?: string
+  personasText?: string
+  productText?: string
+  featuresText?: string
+  goalsText?: string
+  competitorsText?: string
+  narrativesText?: string
+  terminologyText?: string
 }): string {
-  const { brand, meeting } = params
+  const {
+    brand,
+    meeting,
+    businessPlanText,
+    personasText,
+    productText,
+    featuresText,
+    goalsText,
+    competitorsText,
+    narrativesText,
+    terminologyText,
+  } = params
   const lines: string[] = []
 
   lines.push('You are a thoughtful assistant helping a team discuss and refine meeting outcomes.')
+  lines.push(
+    'You have full access to the company\'s brand, product, goals, personas, and competitive intelligence ' +
+    'so that everything you produce is grounded in company context, not generic advice.',
+  )
   lines.push('Answer questions using the meeting context below. When asked to draft a document, produce clear markdown.')
-  lines.push('If something is not in the meeting notes, say so rather than inventing facts.')
+  lines.push('If something is not in the meeting notes or company context, say so rather than inventing facts.')
   lines.push('')
 
+  // --- Brand ------------------------------------------------------------------
   if (brand && brand.mission && brand.company_name) {
-    lines.push('## Organisation brand context')
+    lines.push('## Brand')
     lines.push(`Company: ${brand.company_name}`)
     lines.push(`Mission: ${brand.mission}`)
     lines.push(`Vision: ${brand.vision}`)
@@ -2171,6 +2197,60 @@ export function buildMeetingChatSystemPrompt(params: {
     lines.push('')
   }
 
+  // --- Terminology ------------------------------------------------------------
+  if (terminologyText?.trim()) {
+    lines.push('## Terminology')
+    lines.push(terminologyText.trim())
+    lines.push('')
+  }
+
+  // --- Narratives -------------------------------------------------------------
+  if (narrativesText?.trim()) {
+    lines.push('## Brand narratives')
+    lines.push(narrativesText.trim())
+    lines.push('')
+  }
+
+  // --- Business plan ----------------------------------------------------------
+  if (businessPlanText?.trim()) {
+    lines.push('## Business plan')
+    lines.push(businessPlanText.trim())
+    lines.push('')
+  }
+
+  // --- Current goals ----------------------------------------------------------
+  if (goalsText?.trim()) {
+    lines.push('## Current goals')
+    lines.push(goalsText.trim())
+    lines.push('')
+  }
+
+  // --- Product ----------------------------------------------------------------
+  if (productText?.trim() || featuresText?.trim()) {
+    lines.push('## Product')
+    if (productText?.trim()) lines.push(productText.trim())
+    if (featuresText?.trim()) {
+      lines.push('Features:')
+      lines.push(featuresText.trim())
+    }
+    lines.push('')
+  }
+
+  // --- Personas ---------------------------------------------------------------
+  if (personasText?.trim()) {
+    lines.push('## Personas')
+    lines.push(personasText.trim())
+    lines.push('')
+  }
+
+  // --- Competitors ------------------------------------------------------------
+  if (competitorsText?.trim()) {
+    lines.push('## Competitive landscape')
+    lines.push(competitorsText.trim())
+    lines.push('')
+  }
+
+  // --- Meeting ----------------------------------------------------------------
   lines.push('## Meeting')
   lines.push(`Title: ${meeting.title}`)
   if (meeting.meetingDate) lines.push(`Date: ${meeting.meetingDate}`)
@@ -2180,16 +2260,16 @@ export function buildMeetingChatSystemPrompt(params: {
     lines.push(meeting.summary)
     lines.push('')
   }
-  lines.push('### Decisions (structured)')
+  lines.push('### Decisions')
   lines.push(meeting.decisionsJson || '[]')
   lines.push('')
-  lines.push('### Action items (structured)')
+  lines.push('### Action items')
   lines.push(meeting.actionItemsJson || '[]')
   lines.push('')
-  lines.push('### Open questions (structured)')
+  lines.push('### Open questions')
   lines.push(meeting.openQuestionsJson || '[]')
   lines.push('')
-  lines.push('### Transcript (excerpt; full text may be truncated for context limits)')
+  lines.push('### Transcript (may be truncated for context limits)')
   lines.push(meeting.transcriptExcerpt)
 
   return lines.join('\n')

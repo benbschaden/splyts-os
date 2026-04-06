@@ -20,6 +20,7 @@ import { getPersonas } from '@/lib/queries/personas'
 import { getTeamsForOrg, getOrgMembersWithProfiles } from '@/lib/queries/teams'
 import { getContentIdeasForProject } from '@/lib/queries/content-ideas'
 import { getPublishedOutputsForOrg } from '@/lib/queries/outputs'
+import { getMeetingsForProject } from '@/lib/queries/meetings'
 import { ProjectDetail } from '@/components/projects/project-detail'
 import { isAtLeastAdmin } from '@/lib/auth/roles'
 
@@ -51,6 +52,7 @@ export default async function ProjectPage({ params }: PageProps) {
     contentIdeas,
     publishedOutputs,
     discoveryStudies,
+    projectMeetings,
   ] = await Promise.all([
     getProjectById(id, org.id, user.id),
     getOutputsForProject(id, org.id, user.id),
@@ -64,6 +66,7 @@ export default async function ProjectPage({ params }: PageProps) {
     getContentIdeasForProject(id, org.id),
     getPublishedOutputsForOrg(org.id),
     getDiscoveryStudies(id, org.id),
+    getMeetingsForProject(id, org.id, user.id),
   ])
 
   if (!project) notFound()
@@ -122,6 +125,7 @@ export default async function ProjectPage({ params }: PageProps) {
       hubInsights={hubInsights}
       hubCohortDocuments={hubCohortDocuments}
       hubPersonas={hubPersonas}
+      projectMeetings={projectMeetings}
     />
   )
 }

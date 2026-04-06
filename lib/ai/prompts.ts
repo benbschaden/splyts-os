@@ -2025,3 +2025,91 @@ export function buildPersonaMatchPrompt(params: {
 
   return lines.join('\n')
 }
+
+// -------------------------------------------------------
+// Meeting Intelligence
+// -------------------------------------------------------
+
+export interface MeetingProcessingProject {
+  id: string
+  name: string
+  description: string | null
+}
+
+export interface MeetingProcessingMember {
+  user_id: string
+  full_name: string | null
+}
+
+/**
+ * Builds the prompt for extracting structured intelligence from a meeting transcript.
+ * Returns a JSON-shaped response with decisions, actions, questions, and project suggestions.
+ */
+export function buildMeetingProcessingPrompt(params: {
+  transcript: string
+  attendees: MeetingProcessingMember[]
+  orgProjects: MeetingProcessingProject[]
+}): string {
+  const { transcript, attendees, orgProjects } = params
+  const lines: string[] = []
+
+  lines.push('You are an expert meeting analyst. Your task is to extract structured intelligence from a meeting transcript and suggest where that information belongs in a project management system.')
+  lines.push('')
+
+  if (attendees.length > 0) {
+    lines.push('## Meeting attendees')
+    attendees.forEach((a) => {
+      lines.push(`- ${a.full_name ?? 'Unknown'} (id: ${a.user_id})`)
+    })
+    lines.push('')
+  }
+
+  if (orgProjects.length > 0) {
+    lines.push('## Active projects in the organisation')
+    lines.push('When suggesting project routing, use the exact project_id values listed here.')
+    orgProjects.forEach((p) => {
+      lines.push(`- id: ${p.id} | name: ${p.name}${p.description ? ` | description: ${p.description}` : ''}`)
+    })
+    lines.push('')
+  }
+
+  lines.push('## Meeting transcript')
+  lines.push(transcript.trim())
+  lines.push('')
+  lines.push('---')
+  lines.push('')
+  lines.push('Extract the following from the transcript. Respond with a single valid JSON object — no markdown fences, no explanatory text outside the JSON.')
+  lines.push('')
+  lines.push('JSON schema:')
+  lines.push('{')
+  lines.push('  "summary": "<2-4 sentence summary of the meeting>",')
+  lines.push('  "decisions": [')
+  lines.push('    { "text": "<decision made>", "owner": "<name of person responsible, or null>" }')
+  lines.push('  ],')
+  lines.push('  "action_items": [')
+  lines.push('    { "text": "<action to be taken>", "assignee_name": "<name of person assigned, or null>" }')
+  lines.push('  ],')
+  lines.push('  "open_questions": [')
+  lines.push('    { "text": "<unresolved question or parking lot item>" }')
+  lines.push('  ],')
+  lines.push('  "project_suggestions": [')
+  lines.push('    {')
+  lines.push('      "project_id": "<exact project id from the list above>",')
+  lines.push('      "project_name": "<project name>",')
+  lines.push('      "rationale": "<1-2 sentences explaining why this content belongs in this project>",')
+  lines.push('      "relevant_decisions": [<0-based indices into the decisions array>],')
+  lines.push('      "relevant_actions": [<0-based indices into the action_items array>]')
+  lines.push('    }')
+  lines.push('  ]')
+  lines.push('}')
+  lines.push('')
+  lines.push('Rules:')
+  lines.push('- Only suggest projects from the provided list. If no projects are a good fit, return an empty project_suggestions array.')
+  lines.push('- A decision or action may appear in multiple project suggestions if genuinely relevant to each.')
+  lines.push('- If a decision or action is general housekeeping with no project relevance, omit it from project_suggestions.')
+  lines.push('- Only include decisions, actions, and questions that are explicitly stated or strongly implied in the transcript.')
+  lines.push('- If the transcript contains no discernible decisions, return an empty decisions array.')
+  lines.push('- Assignee names must match names mentioned in the transcript — do not infer.')
+
+  return lines.join('\n')
+}

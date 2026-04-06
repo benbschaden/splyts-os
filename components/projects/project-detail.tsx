@@ -13,6 +13,7 @@ import {
   Archive,
   Search,
   ChevronDown,
+  Video,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { OutputsList } from '@/components/projects/outputs-list'
@@ -24,6 +25,8 @@ import { ContentStudioDetail } from '@/components/content-studio/content-studio-
 import { CustomerDiscoveryDetail } from '@/components/customer-discovery/customer-discovery-detail'
 import { CustomerHubDetail } from '@/components/customer-hub/customer-hub-detail'
 import { Globe, Users, Lock, UserCheck } from 'lucide-react'
+import { ProjectMeetingsTab } from '@/components/meetings/project-meetings-tab'
+import type { MeetingRow } from '@/lib/queries/meetings'
 import type { DiscoveryEntryRow } from '@/lib/queries/discovery-entries'
 import type { DiscoveryStudyRow } from '@/lib/queries/discovery-studies'
 import type { ContactRow } from '@/lib/queries/contacts'
@@ -130,7 +133,7 @@ interface Material {
   updated_at: string
 }
 
-type Tab = 'content' | 'discovery' | 'materials' | 'discussions'
+type Tab = 'content' | 'discovery' | 'materials' | 'discussions' | 'meetings'
 
 interface ProjectDetailProps {
   project: Project
@@ -157,6 +160,7 @@ interface ProjectDetailProps {
   hubInsights?: CustomerInsightRow[]
   hubCohortDocuments?: CohortDocumentRow[]
   hubPersonas?: PersonaRow[]
+  projectMeetings?: Array<MeetingRow & { relevant_summary: string | null }>
 }
 
 export function ProjectDetail({
@@ -184,6 +188,7 @@ export function ProjectDetail({
   hubInsights = [],
   hubCohortDocuments = [],
   hubPersonas = [],
+  projectMeetings = [],
 }: ProjectDetailProps) {
   if (project.tool_key === 'customer_hub') {
     return (
@@ -257,6 +262,7 @@ export function ProjectDetail({
       : []),
     { id: 'materials', label: 'Materials', icon: Paperclip },
     { id: 'discussions', label: 'Discussions', icon: MessageCircle },
+    { id: 'meetings', label: 'Meetings', icon: Video },
   ]
 
   useEffect(() => {
@@ -637,6 +643,10 @@ export function ProjectDetail({
                     organizationId={organizationId}
                   />
                 </div>
+              )}
+
+              {activeTab === 'meetings' && (
+                <ProjectMeetingsTab projectMeetings={projectMeetings} />
               )}
             </div>
           </>

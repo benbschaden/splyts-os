@@ -12,7 +12,7 @@ export type OutputWithCreator = {
   created_at: string
   updated_at: string
   published_at: string | null
-  status: 'draft' | 'published'
+  status: 'draft' | 'generated' | 'published'
   draft_messages: Array<{ role: 'user' | 'assistant'; content: string }> | null
   reach: number | null
   reach_metric: string | null
@@ -59,7 +59,7 @@ async function attachCreatorNames(rows: OutputRow[] | null): Promise<OutputWithC
   const names = await getUserDisplayNamesByIds(ids)
   return rows.map((r) => ({
     ...r,
-    status: (r.status ?? 'published') as 'draft' | 'published',
+    status: (r.status ?? 'generated') as 'draft' | 'generated' | 'published',
     draft_messages: r.draft_messages ?? null,
     metadata: null,
     creator_full_name: names[r.created_by] ?? null,
@@ -122,6 +122,33 @@ export async function getPublishedOutputsForOrg(
   return rows.map((r) => ({ ...r, creator_full_name: names[r.created_by] ?? null }))
 }
 
+export async function getPublishedOutputsForProject(
+  projectId: string,
+  organizationId: string,
+  limit = 100,
+): Promise<PublishedOutput[]> {
+  const supabase = createServiceClient()
+
+  const { data, error } = await supabase
+    .from('outputs')
+    .select(
+      'id, brief, content, content_type_id, model_id, project_id, created_by, created_at, updated_at, published_at, reach, reach_metric, engagement, performance_notes, views_1d, views_7d, views_30d, website_visits, email_signups, performance_recorded_at, content_types(name), projects(name)',
+    )
+    .eq('project_id', projectId)
+    .eq('organization_id', organizationId)
+    .eq('status', 'published')
+    .not('published_at', 'is', null)
+    .is('deleted_at', null)
+    .order('published_at', { ascending: false })
+    .limit(limit)
+
+  if (error) return []
+  const rows = (data ?? []) as unknown as Array<Omit<PublishedOutput, 'creator_full_name'>>
+  const ids = rows.map((r) => r.created_by)
+  const names = await getUserDisplayNamesByIds(ids)
+  return rows.map((r) => ({ ...r, creator_full_name: names[r.created_by] ?? null }))
+}
+
 export async function getOutputsForProject(
   projectId: string,
   organizationId: string,
@@ -140,10 +167,10 @@ export async function getOutputsForProject(
     .is('deleted_at', null)
 
   if (userId) {
-    // Show published outputs to everyone + this user's own drafts
-    query = query.or(`status.eq.published,and(status.eq.draft,created_by.eq.${userId})`)
+    // Show generated/published outputs to everyone + this user's own drafts
+    query = query.or(`status.eq.published,status.eq.generated,and(status.eq.draft,created_by.eq.${userId})`)
   } else {
-    query = query.eq('status', 'published')
+    query = query.or('status.eq.published,status.eq.generated')
   }
 
   // Drafts first (most recently updated), then published by created_at
@@ -195,7 +222,7 @@ export async function createOutput(params: {
       summary: params.summary ?? null,
       created_by: params.userId,
       model_id: params.modelId,
-      status: params.status ?? 'published',
+      status: params.status ?? 'generated',
     })
     .select('id, brief, content, summary, content_type_id, model_id, created_by, created_at, updated_at, published_at, status, reach, reach_metric, engagement, performance_notes')
     .single()
@@ -296,15 +323,17 @@ export async function updateOutput(
   return { output: data, error: null }
 }
 
-export async function publishOutput(id: string, organizationId: string, userId: string) {
+export async function publishOutput(id: string, organizationId: string, userId: string, publishedAt?: string) {
   const supabase = createServiceClient()
+
+  const resolvedPublishedAt = publishedAt ?? new Date().toISOString()
 
   const { data, error } = await supabase
     .from('outputs')
     .update({
       status: 'published',
       draft_messages: null,
-      published_at: new Date().toISOString(),
+      published_at: resolvedPublishedAt,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)

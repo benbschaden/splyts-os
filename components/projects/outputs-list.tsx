@@ -27,7 +27,7 @@ interface Output {
   projects: { name: string } | null
   creator_full_name: string | null
   published_at: string | null
-  status?: 'draft' | 'published'
+  status?: 'draft' | 'generated' | 'published'
   draft_messages?: Array<{ role: 'user' | 'assistant'; content: string }> | null
   reach: number | null
   reach_metric: string | null
@@ -333,6 +333,8 @@ function OutputCard({
   })
   const [perfSaving, setPerfSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
+  const [showPublishForm, setShowPublishForm] = useState(false)
+  const [publishDate, setPublishDate] = useState(() => new Date().toISOString().slice(0, 10))
 
   async function handleSave() {
     if (!editContent.trim()) return
@@ -375,15 +377,18 @@ function OutputCard({
   async function handlePublish() {
     if (output.published_at) return
     setPublishing(true)
+    // Convert date-only string to ISO timestamp at start of day UTC
+    const publishedAt = publishDate ? new Date(publishDate + 'T00:00:00.000Z').toISOString() : undefined
     const res = await fetch(`/api/outputs/${output.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ publish: true }),
+      body: JSON.stringify({ publish: true, publishedAt }),
     })
     setPublishing(false)
     if (!res.ok) return
     const { output: updated } = await res.json()
-    onUpdated({ ...output, published_at: updated.published_at })
+    onUpdated({ ...output, published_at: updated.published_at, status: 'published' })
+    setShowPublishForm(false)
   }
 
   async function handleSavePerf() {
@@ -451,15 +456,20 @@ function OutputCard({
         <div className="flex items-center gap-1 shrink-0">
           {showPublish && !output.published_at && (
             <button
-              onClick={handlePublish}
+              onClick={() => setShowPublishForm((v) => !v)}
               disabled={publishing}
-              title="Mark as published"
-              className="rounded-md p-1.5 text-muted-foreground hover:bg-green-500/10 hover:text-green-600 transition-colors disabled:opacity-50"
+              title="Move to Published"
+              className={cn(
+                'rounded-md px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50',
+                showPublishForm
+                  ? 'bg-green-600 text-white hover:bg-green-700'
+                  : 'text-muted-foreground hover:bg-green-500/10 hover:text-green-600',
+              )}
             >
-              <Send className="h-3.5 w-3.5" />
+              Publish
             </button>
           )}
-          {showPublish && (
+          {showPublish && output.published_at && (
             <button
               onClick={() => setShowPerf(!showPerf)}
               title="Performance stats"
@@ -506,6 +516,46 @@ function OutputCard({
           </button>
         </div>
       </div>
+
+      {/* Publish date form */}
+      {showPublish && showPublishForm && !output.published_at && (
+        <div className="border-b border-border bg-green-500/5 px-4 py-3">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-green-600 mb-2">
+            Mark as published
+          </p>
+          <div className="flex items-center gap-3">
+            <div className="space-y-1">
+              <label htmlFor={`publish-date-${output.id}`} className="text-xs font-medium text-foreground">
+                Publish date
+              </label>
+              <input
+                id={`publish-date-${output.id}`}
+                type="date"
+                value={publishDate}
+                onChange={(e) => setPublishDate(e.target.value)}
+                className="rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button
+                type="button"
+                onClick={handlePublish}
+                disabled={publishing || !publishDate}
+                className="rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 transition-colors disabled:opacity-50"
+              >
+                {publishing ? 'Publishing…' : 'Confirm publish'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowPublishForm(false)}
+                className="rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Performance stats panel — marketing projects only */}
       {showPublish && showPerf && (
@@ -858,8 +908,8 @@ export function OutputsList({
       content_types: ct ? { name: ct.name } : null,
       projects: null,
       creator_full_name: newOutput.creator_full_name,
-      published_at: null,
-      status: 'published',
+      published_at: newOutput.status === 'published' ? (newOutput.published_at ?? null) : null,
+      status: newOutput.status === 'published' ? 'published' : 'generated',
       draft_messages: null,
       reach: null,
       reach_metric: null,

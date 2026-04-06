@@ -24,6 +24,7 @@ type StudioOutput = {
   created_at: string
   updated_at: string
   published_at: string | null
+  status?: 'draft' | 'generated' | 'published'
   reach: number | null
   reach_metric: string | null
   engagement: number | null
@@ -123,7 +124,7 @@ export function ContentStudioDetail({
       created_by: newOutput.created_by,
       created_at: newOutput.created_at,
       updated_at: newOutput.updated_at,
-      published_at: null,
+      published_at: newOutput.status === 'published' ? (newOutput.published_at ?? null) : null,
       reach: null,
       reach_metric: null,
       engagement: null,

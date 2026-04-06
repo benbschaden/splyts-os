@@ -9,6 +9,7 @@ import { isAtLeastAdmin } from '@/lib/auth/roles'
 const patchSchema = z.object({
   content: z.string().min(1, 'Content is required').optional(),
   publish: z.boolean().optional(),
+  publishedAt: z.string().datetime().optional(),
   reach: z.number().int().min(0).nullable().optional(),
   reach_metric: z.enum(['impressions', 'views', 'opens', 'plays', 'other']).nullable().optional(),
   engagement: z.number().int().min(0).nullable().optional(),
@@ -56,14 +57,14 @@ export async function PATCH(
   }
 
   const {
-    content, publish,
+    content, publish, publishedAt,
     reach, reach_metric, engagement, performance_notes,
     views_1d, views_7d, views_30d, website_visits, email_signups,
   } = parsed.data
 
   // Handle publish
   if (publish === true) {
-    const { output, error } = await publishOutput(id, org.id, user.id)
+    const { output, error } = await publishOutput(id, org.id, user.id, publishedAt)
     if (error || !output) return Response.json({ error }, { status: 500 })
     indexContent('output', output, org.id).catch(err =>
       console.error('[content-index] Index failed:', err)

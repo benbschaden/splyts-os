@@ -19,7 +19,7 @@ import { getCohortDocumentsForProject } from '@/lib/queries/cohort-documents'
 import { getPersonas } from '@/lib/queries/personas'
 import { getTeamsForOrg, getOrgMembersWithProfiles } from '@/lib/queries/teams'
 import { getContentIdeasForProject } from '@/lib/queries/content-ideas'
-import { getPublishedOutputsForOrg } from '@/lib/queries/outputs'
+import { getPublishedOutputsForProject } from '@/lib/queries/outputs'
 import { getMeetingsForProject } from '@/lib/queries/meetings'
 import { getPublishedMeetingDocumentsForProject } from '@/lib/queries/meeting-documents'
 import { ProjectDetail } from '@/components/projects/project-detail'
@@ -66,7 +66,7 @@ export default async function ProjectPage({ params }: PageProps) {
     getTeamsForOrg(org.id),
     getOrgMembersWithProfiles(org.id),
     getContentIdeasForProject(id, org.id),
-    getPublishedOutputsForOrg(org.id),
+    getPublishedOutputsForProject(id, org.id),
     getDiscoveryStudies(id, org.id),
     getMeetingsForProject(id, org.id, user.id),
     getPublishedMeetingDocumentsForProject(id, org.id, user.id),

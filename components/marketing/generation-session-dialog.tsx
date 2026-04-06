@@ -17,8 +17,9 @@ export interface GeneratedOutputPayload {
   created_by: string
   created_at: string
   updated_at: string
+  published_at?: string | null
   creator_full_name: string | null
-  status: 'draft' | 'published'
+  status: 'draft' | 'generated' | 'published'
 }
 
 interface Author {

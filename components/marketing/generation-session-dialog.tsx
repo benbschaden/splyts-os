@@ -59,6 +59,8 @@ interface GenerationSessionDialogProps {
   initialUserMessage?: string
   initialAuthorId?: string
   resumeDraft?: ResumeDraft | null
+  /** When true, hides the inline "publish now" link — use in contexts with a dedicated publish step */
+  hidePublish?: boolean
 }
 
 export function GenerationSessionDialog({
@@ -73,6 +75,7 @@ export function GenerationSessionDialog({
   initialUserMessage,
   initialAuthorId,
   resumeDraft,
+  hidePublish = false,
 }: GenerationSessionDialogProps) {
   const router = useRouter()
   const [phase, setPhase] = useState<Phase>('setup')
@@ -507,7 +510,7 @@ export function GenerationSessionDialog({
                   Keep going — the AI will produce a draft once it has what it needs.
                 </p>
               )}
-              {hasAiResponse && !publishError && (
+              {hasAiResponse && !publishError && !hidePublish && (
                 <p className="mb-2 text-xs text-muted-foreground">
                   Draft saved automatically. Close any time and resume later, or{' '}
                   <button
@@ -519,6 +522,11 @@ export function GenerationSessionDialog({
                     publish now
                   </button>
                   .
+                </p>
+              )}
+              {hasAiResponse && !publishError && hidePublish && (
+                <p className="mb-2 text-xs text-muted-foreground">
+                  Draft saved automatically. Close any time to resume, or send another message to refine.
                 </p>
               )}
               <div className="flex gap-2">

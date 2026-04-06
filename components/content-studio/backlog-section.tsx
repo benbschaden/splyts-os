@@ -102,6 +102,16 @@ export function BacklogSection({ projectId, initialIdeas, contentTypes, authors,
     }
   }
 
+  function handleBuild(idea: ContentIdeaRow) {
+    // Remove from backlog immediately — it has been promoted to Generate
+    setIdeas((prev) => prev.filter((i) => i.id !== idea.id))
+    fetch(`/api/content-ideas/${idea.id}`, { method: 'DELETE' }).catch(() => {
+      // Non-critical: if the API call fails the idea may reappear on next page load,
+      // but the generation session has already started
+    })
+    onBuildIdea(idea)
+  }
+
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Enter') {
       e.preventDefault()
@@ -276,11 +286,11 @@ export function BacklogSection({ projectId, initialIdeas, contentTypes, authors,
                 <div className="flex shrink-0 items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => onBuildIdea(idea)}
+                    onClick={() => handleBuild(idea)}
                     title="Build this idea"
                     className="inline-flex items-center gap-1 rounded-md bg-foreground px-2.5 py-1.5 text-xs font-medium text-background hover:opacity-80 transition-opacity"
                   >
-                    Build
+                    Create
                     <ArrowRight className="h-3 w-3" aria-hidden />
                   </button>
                   <button

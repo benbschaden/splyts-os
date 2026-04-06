@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Sparkles, Copy, Pencil, Trash2, Check, X, FileText, BarChart2, Send, File, RotateCcw, Loader2, MessageSquare } from 'lucide-react'
+import { Sparkles, Copy, Pencil, Trash2, Check, X, FileText, Send, File, RotateCcw, Loader2, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   GenerationSessionDialog,
@@ -76,7 +76,6 @@ function formatDateTime(iso: string) {
   })
 }
 
-const REACH_METRICS = ['impressions', 'views', 'reach', 'plays', 'opens', 'clicks']
 
 function safeMetadataString(meta: Record<string, unknown> | null | undefined, key: string): string | undefined {
   const v = meta?.[key]
@@ -324,14 +323,6 @@ function OutputCard({
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showChat, setShowChat] = useState(false)
-  const [showPerf, setShowPerf] = useState(false)
-  const [perfForm, setPerfForm] = useState({
-    reach: output.reach?.toString() ?? '',
-    reach_metric: output.reach_metric ?? 'impressions',
-    engagement: output.engagement?.toString() ?? '',
-    performance_notes: output.performance_notes ?? '',
-  })
-  const [perfSaving, setPerfSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [showPublishForm, setShowPublishForm] = useState(false)
   const [publishDate, setPublishDate] = useState(() => new Date().toISOString().slice(0, 10))
@@ -392,31 +383,6 @@ function OutputCard({
     setShowPublishForm(false)
   }
 
-  async function handleSavePerf() {
-    setPerfSaving(true)
-    const res = await fetch(`/api/outputs/${output.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        reach: perfForm.reach ? parseInt(perfForm.reach, 10) : null,
-        reach_metric: perfForm.reach_metric || null,
-        engagement: perfForm.engagement ? parseInt(perfForm.engagement, 10) : null,
-        performance_notes: perfForm.performance_notes.trim() || null,
-      }),
-    })
-    setPerfSaving(false)
-    if (!res.ok) return
-    const { output: updated } = await res.json()
-    onUpdated({
-      ...output,
-      reach: updated.reach,
-      reach_metric: updated.reach_metric,
-      engagement: updated.engagement,
-      performance_notes: updated.performance_notes,
-    })
-    setShowPerf(false)
-  }
-
   function handleCopy() {
     navigator.clipboard.writeText(output.content)
     setCopied(true)
@@ -425,7 +391,6 @@ function OutputCard({
 
   const preview = output.content.slice(0, 180) + (output.content.length > 180 ? '…' : '')
   const modelLabel = getModelById(output.model_id)?.label ?? output.model_id
-  const hasPerf = output.reach !== null || output.engagement !== null || output.performance_notes
   const showExpandedContent = expanded || output.content.length <= 180
   const meta = output.metadata
   const abstractText = safeMetadataString(meta, 'abstract')
@@ -468,18 +433,6 @@ function OutputCard({
               )}
             >
               Publish
-            </button>
-          )}
-          {showPublish && output.published_at && (
-            <button
-              onClick={() => setShowPerf(!showPerf)}
-              title="Performance stats"
-              className={cn(
-                'rounded-md p-1.5 transition-colors',
-                hasPerf ? 'text-violet-600 hover:bg-violet-500/10' : 'text-muted-foreground hover:bg-accent',
-              )}
-            >
-              <BarChart2 className="h-3.5 w-3.5" />
             </button>
           )}
           <button
@@ -567,91 +520,6 @@ function OutputCard({
               </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Performance stats panel — marketing projects only */}
-      {showPublish && showPerf && (
-        <div className="border-b border-border bg-muted/10 px-4 py-4 space-y-4">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-violet-600">Performance</p>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-foreground">Reach / views</label>
-              <input
-                type="number"
-                value={perfForm.reach}
-                onChange={(e) => setPerfForm((p) => ({ ...p, reach: e.target.value }))}
-                placeholder="e.g. 4200"
-                className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-foreground">Metric type</label>
-              <select
-                value={perfForm.reach_metric}
-                onChange={(e) => setPerfForm((p) => ({ ...p, reach_metric: e.target.value }))}
-                className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                {REACH_METRICS.map((m) => <option key={m} value={m}>{m}</option>)}
-              </select>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-foreground">Engagement (likes, saves, clicks)</label>
-            <input
-              type="number"
-              value={perfForm.engagement}
-              onChange={(e) => setPerfForm((p) => ({ ...p, engagement: e.target.value }))}
-              placeholder="e.g. 312"
-              className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-foreground">Notes</label>
-            <textarea
-              value={perfForm.performance_notes}
-              onChange={(e) => setPerfForm((p) => ({ ...p, performance_notes: e.target.value }))}
-              rows={2}
-              placeholder="What worked, what didn't, any context…"
-              className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={handleSavePerf}
-              disabled={perfSaving}
-              className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
-            >
-              {perfSaving ? 'Saving…' : 'Save stats'}
-            </button>
-            <button
-              onClick={() => setShowPerf(false)}
-              className="rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Performance summary — marketing projects only */}
-      {showPublish && !showPerf && hasPerf && (
-        <div className="flex flex-wrap items-center gap-4 border-b border-border px-4 py-2 bg-violet-500/5">
-          {output.reach !== null && (
-            <p className="text-xs text-muted-foreground">
-              <span className="font-semibold text-foreground">{output.reach.toLocaleString()}</span>{' '}
-              {output.reach_metric ?? 'reach'}
-            </p>
-          )}
-          {output.engagement !== null && (
-            <p className="text-xs text-muted-foreground">
-              <span className="font-semibold text-foreground">{output.engagement.toLocaleString()}</span>{' '}
-              engagement
-            </p>
-          )}
-          {output.performance_notes && (
-            <p className="text-xs text-muted-foreground truncate max-w-xs">{output.performance_notes}</p>
-          )}
         </div>
       )}
 

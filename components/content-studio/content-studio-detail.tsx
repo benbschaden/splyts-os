@@ -171,7 +171,7 @@ export function ContentStudioDetail({
           className="flex w-full items-center justify-between px-6 py-4 hover:bg-accent/30 transition-colors"
         >
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-foreground">Generate</span>
+            <span className="text-sm font-semibold text-foreground">Content</span>
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
               {initialOutputs.length}
             </span>
@@ -216,6 +216,7 @@ export function ContentStudioDetail({
         hasBrandContext={hasBrandContext}
         initialUserMessage={initialMessage}
         initialAuthorId={initialAuthorId}
+        hidePublish
       />
     </div>
   )

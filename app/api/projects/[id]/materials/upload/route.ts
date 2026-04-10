@@ -163,11 +163,11 @@ export async function POST(
         if (mime === 'text/csv' || mime === 'application/json') {
           // extractText only supports pdf/docx/txt/md; handle csv + json as plain text
           const text = Buffer.from(fileBuffer).toString('utf-8')
-          extractedContent = text.slice(0, 60_000) || null
+          extractedContent = text.trim() || null
         } else {
           const mimeForExtraction = mime === 'text/x-markdown' ? 'text/markdown' : mime
           const text = await extractText(Buffer.from(fileBuffer), mimeForExtraction)
-          extractedContent = text.slice(0, 60_000) || null
+          extractedContent = text || null
         }
       } catch (err) {
         console.error('[projects/[id]/materials/upload] text extraction failed:', err)

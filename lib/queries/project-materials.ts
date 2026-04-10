@@ -85,6 +85,33 @@ export async function updateProjectMaterial(
   return { material: data as ProjectMaterialRow, error: null }
 }
 
+/** Row fields needed to sign storage URLs for file materials. */
+export async function getProjectMaterialFileRow(
+  materialId: string,
+  projectId: string,
+  organizationId: string,
+): Promise<Pick<
+  ProjectMaterialRow,
+  'id' | 'material_type' | 'file_url' | 'file_mime' | 'file_name'
+> | null> {
+  const supabase = createServiceClient()
+
+  const { data, error } = await supabase
+    .from('project_materials')
+    .select('id, material_type, file_url, file_mime, file_name')
+    .eq('id', materialId)
+    .eq('project_id', projectId)
+    .eq('organization_id', organizationId)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  if (error || !data) return null
+  return data as Pick<
+    ProjectMaterialRow,
+    'id' | 'material_type' | 'file_url' | 'file_mime' | 'file_name'
+  >
+}
+
 export async function deleteProjectMaterial(
   materialId: string,
   projectId: string,

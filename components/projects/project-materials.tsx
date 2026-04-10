@@ -17,8 +17,10 @@ import {
   ChevronRight,
   ExternalLink,
   File,
+  Eye,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { MaterialMarkdownDialog } from '@/components/projects/material-markdown-dialog'
 
 interface Material {
   id: string
@@ -49,6 +51,18 @@ function formatDate(iso: string): string {
   })
 }
 
+function isMarkdownFileMaterial(m: { file_mime: string | null; file_name: string | null }): boolean {
+  const mime = m.file_mime ?? ''
+  if (mime === 'text/markdown' || mime === 'text/x-markdown') return true
+  const ext = m.file_name?.split('.').pop()?.toLowerCase()
+  return ext === 'md'
+}
+
+function isPlainTextFileMaterial(m: { file_mime: string | null; file_name: string | null }): boolean {
+  if (m.file_mime === 'text/plain') return true
+  return m.file_name?.split('.').pop()?.toLowerCase() === 'txt'
+}
+
 function mimeBadge(mime: string | null): string {
   if (!mime) return 'File'
   const map: Record<string, string> = {
@@ -60,6 +74,8 @@ function mimeBadge(mime: string | null): string {
     'image/svg+xml': 'SVG',
     'text/csv': 'CSV',
     'text/plain': 'TXT',
+    'text/markdown': 'MD',
+    'text/x-markdown': 'MD',
     'application/json': 'JSON',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'XLSX',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'DOCX',
@@ -257,68 +273,112 @@ function NoteCard({
 }
 
 function FileCard({
+  projectId,
   material,
   onDelete,
 }: {
+  projectId: string
   material: Material
   onDelete: (id: string) => void
 }) {
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [mdOpen, setMdOpen] = useState(false)
+
+  const fileMeta = { file_mime: material.file_mime, file_name: material.file_name }
+  const showReader =
+    isMarkdownFileMaterial(fileMeta) || isPlainTextFileMaterial(fileMeta)
 
   async function handleDelete(): Promise<void> {
     setDeleting(true)
     await onDelete(material.id)
   }
 
+  function openFileInNewTab(): void {
+    window.open(`/api/projects/${projectId}/materials/${material.id}/file`, '_blank')
+  }
+
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-border bg-background px-4 py-3">
-      <div className="flex h-9 w-9 items-center justify-center rounded-md bg-muted shrink-0">
-        <File className="h-4 w-4 text-muted-foreground" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-foreground truncate">
-          {material.file_name ?? 'Uploaded file'}
-        </p>
-        <div className="flex items-center gap-2 mt-0.5">
-          <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-            {mimeBadge(material.file_mime)}
-          </span>
-          <span className="text-[11px] text-muted-foreground">
-            {formatDate(material.created_at)}
-          </span>
+    <>
+      <div className="flex items-center gap-3 rounded-lg border border-border bg-background px-4 py-3">
+        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-muted shrink-0">
+          <File className="h-4 w-4 text-muted-foreground" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-foreground truncate">
+            {material.file_name ?? 'Uploaded file'}
+          </p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+              {mimeBadge(material.file_mime)}
+            </span>
+            <span className="text-[11px] text-muted-foreground">
+              {formatDate(material.created_at)}
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-0.5 shrink-0">
+          {showReader && (
+            <button
+              type="button"
+              onClick={() => setMdOpen(true)}
+              title="View in app"
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              <Eye className="h-3.5 w-3.5" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={openFileInNewTab}
+            title="Open file in new tab"
+            className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </button>
+          {confirmDelete ? (
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                title="Confirm delete"
+                className="rounded-md p-1.5 text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+              >
+                {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(false)}
+                title="Cancel delete"
+                className="rounded-md p-1.5 text-muted-foreground hover:bg-accent transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              title="Delete file"
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
       </div>
-      <div className="flex items-center gap-0.5 shrink-0">
-        {confirmDelete ? (
-          <div className="flex items-center gap-0.5">
-            <button
-              onClick={handleDelete}
-              disabled={deleting}
-              title="Confirm delete"
-              className="rounded-md p-1.5 text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
-            >
-              {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-            </button>
-            <button
-              onClick={() => setConfirmDelete(false)}
-              title="Cancel delete"
-              className="rounded-md p-1.5 text-muted-foreground hover:bg-accent transition-colors"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setConfirmDelete(true)}
-            title="Delete file"
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        )}
-      </div>
-    </div>
+      {showReader && (
+        <MaterialMarkdownDialog
+          open={mdOpen}
+          onClose={() => setMdOpen(false)}
+          projectId={projectId}
+          materialId={material.id}
+          title={material.file_name ?? material.title ?? 'Document'}
+          contentFromDb={material.content}
+        />
+      )}
+    </>
   )
 }
 
@@ -475,16 +535,11 @@ function mapMaterialsPayload(list: unknown[]): Material[] {
     const m = row as Record<string, unknown>
     const materialType = m.material_type as Material['material_type']
     const rawContent = (m.content as string | null) ?? null
-    const shouldTruncateContent = materialType === 'file'
     return {
       id: String(m.id),
       material_type: materialType,
       title: (m.title as string | null) ?? null,
-      // Keep note/link content intact so authored text doesn't get clipped after refetch.
-      // Only truncate extracted file content to protect client memory.
-      content: rawContent
-        ? (shouldTruncateContent ? rawContent.slice(0, 500) : rawContent)
-        : null,
+      content: rawContent,
       file_url: (m.file_url as string | null) ?? null,
       file_name: (m.file_name as string | null) ?? null,
       file_mime: (m.file_mime as string | null) ?? null,
@@ -843,7 +898,7 @@ export function ProjectMaterials({ projectId, initialMaterials }: ProjectMateria
           </h3>
           <div className="flex flex-col gap-2">
             {files.map((m) => (
-              <FileCard key={m.id} material={m} onDelete={handleDelete} />
+              <FileCard key={m.id} projectId={projectId} material={m} onDelete={handleDelete} />
             ))}
           </div>
         </section>

@@ -18,6 +18,11 @@ const patchSchema = z.object({
   tags: z.array(z.string().max(100)).max(20).optional(),
   notes: z.string().max(10000).nullable().optional(),
   last_contacted_at: z.string().nullable().optional(),
+  funnel_stage: z
+    .enum(['signup', 'form_completed', 'downloaded', 'first_session', 'activated'])
+    .nullable()
+    .optional(),
+  acquisition_source: z.string().max(500).nullable().optional(),
 })
 
 export async function PATCH(

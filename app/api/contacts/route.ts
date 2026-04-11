@@ -16,6 +16,11 @@ const createSchema = z.object({
   health: z.enum(['green', 'yellow', 'red']).nullable().optional(),
   tags: z.array(z.string().max(100)).max(20).default([]),
   notes: z.string().max(10000).nullable().optional(),
+  funnel_stage: z
+    .enum(['signup', 'form_completed', 'downloaded', 'first_session', 'activated'])
+    .nullable()
+    .optional(),
+  acquisition_source: z.string().max(500).nullable().optional(),
 })
 
 export async function POST(request: Request) {
@@ -47,6 +52,8 @@ export async function POST(request: Request) {
       health: d.health ?? null,
       tags: d.tags,
       notes: d.notes ?? null,
+      funnel_stage: d.funnel_stage ?? null,
+      acquisition_source: d.acquisition_source ?? null,
     })
 
     if (error || !contact) return Response.json({ error: 'Failed to create contact' }, { status: 500 })

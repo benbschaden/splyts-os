@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { ContactRow, ContactSegment, ContactHealth, ContactStatus } from '@/lib/queries/contacts'
+import type { ContactRow, ContactSegment, ContactHealth, ContactStatus, FunnelStage } from '@/lib/queries/contacts'
 
 interface AddContactDialogProps {
   open: boolean
@@ -20,6 +20,8 @@ interface FormData {
   health: ContactHealth | ''
   status: ContactStatus
   notes: string
+  funnel_stage: FunnelStage | ''
+  acquisition_source: string
 }
 
 const EMPTY: FormData = {
@@ -29,6 +31,8 @@ const EMPTY: FormData = {
   health: '',
   status: 'active',
   notes: '',
+  funnel_stage: '',
+  acquisition_source: '',
 }
 
 const STATUS_LABELS: Record<ContactStatus, string> = {
@@ -53,6 +57,14 @@ const HEALTH_LABELS: Record<ContactHealth, string> = {
   red: 'At risk',
 }
 
+const FUNNEL_STAGE_LABELS: Record<FunnelStage, string> = {
+  signup: 'Signup',
+  form_completed: 'Form Completed',
+  downloaded: 'Downloaded',
+  first_session: 'First Session',
+  activated: 'Activated',
+}
+
 const INPUT_CLASS =
   'w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring'
 
@@ -75,6 +87,8 @@ export function AddContactDialog({ open, onClose, onSaved, initialContact, avail
           health: initialContact.health ?? '',
           status: initialContact.status,
           notes: initialContact.notes ?? '',
+          funnel_stage: initialContact.funnel_stage ?? '',
+          acquisition_source: initialContact.acquisition_source ?? '',
         })
         setSelectedTags(initialContact.tags)
       } else {
@@ -147,6 +161,8 @@ export function AddContactDialog({ open, onClose, onSaved, initialContact, avail
       status: form.status,
       tags: finalTags,
       notes: form.notes.trim() || null,
+      funnel_stage: form.funnel_stage || null,
+      acquisition_source: form.acquisition_source.trim() || null,
     }
 
     const res = isEditing
@@ -260,6 +276,40 @@ export function AddContactDialog({ open, onClose, onSaved, initialContact, avail
                     </option>
                   ))}
                 </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="contact-funnel-stage" className="block text-xs font-medium text-foreground mb-1">
+                  Funnel Stage
+                </label>
+                <select
+                  id="contact-funnel-stage"
+                  value={form.funnel_stage}
+                  onChange={(e) => set('funnel_stage', e.target.value as FunnelStage | '')}
+                  className={INPUT_CLASS}
+                >
+                  <option value="">No stage</option>
+                  {(Object.keys(FUNNEL_STAGE_LABELS) as FunnelStage[]).map((s) => (
+                    <option key={s} value={s}>
+                      {FUNNEL_STAGE_LABELS[s]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="contact-acquisition-source" className="block text-xs font-medium text-foreground mb-1">
+                  Source
+                </label>
+                <input
+                  id="contact-acquisition-source"
+                  type="text"
+                  value={form.acquisition_source}
+                  onChange={(e) => set('acquisition_source', e.target.value)}
+                  placeholder="e.g. reddit-r-hyrox"
+                  className={INPUT_CLASS}
+                />
               </div>
             </div>
 

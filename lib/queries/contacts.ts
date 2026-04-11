@@ -3,6 +3,15 @@ import { createUntypedServiceClient } from '@/lib/supabase/service'
 export type ContactSegment = 'beta_user' | 'free_user' | 'customer' | 'power_user' | 'prospect' | 'churned' | 'other'
 export type ContactStatus = 'active' | 'inactive' | 'archived'
 export type ContactHealth = 'green' | 'yellow' | 'red'
+export type FunnelStage = 'signup' | 'form_completed' | 'downloaded' | 'first_session' | 'activated'
+
+export const FUNNEL_STAGE_ORDER: Record<FunnelStage, number> = {
+  signup: 1,
+  form_completed: 2,
+  downloaded: 3,
+  first_session: 4,
+  activated: 5,
+}
 
 export interface ContactRow {
   id: string
@@ -25,10 +34,17 @@ export interface ContactRow {
   persona_match_score: number | null
   persona_match_reasoning: string | null
   persona_matched_at: string | null
+  funnel_stage: FunnelStage | null
+  acquisition_source: string | null
+  funnel_stage_updated_at: string | null
+  first_session_at: string | null
+  activated_at: string | null
+  tally_submission_id: string | null
+  loops_contact_id: string | null
 }
 
 const SELECT_COLUMNS =
-  'id, organization_id, created_by, name, email, company, role, segment, status, health, tags, notes, last_contacted_at, created_at, updated_at, deleted_at, persona_id, persona_match_score, persona_match_reasoning, persona_matched_at'
+  'id, organization_id, created_by, name, email, company, role, segment, status, health, tags, notes, last_contacted_at, created_at, updated_at, deleted_at, persona_id, persona_match_score, persona_match_reasoning, persona_matched_at, funnel_stage, acquisition_source, funnel_stage_updated_at, first_session_at, activated_at, tally_submission_id, loops_contact_id'
 
 export async function getContactsForOrg(orgId: string): Promise<ContactRow[]> {
   const supabase = createUntypedServiceClient()
@@ -68,8 +84,15 @@ export async function createContact(params: {
   health?: ContactHealth | null
   tags?: string[]
   notes?: string | null
+  funnel_stage?: FunnelStage | null
+  acquisition_source?: string | null
+  tally_submission_id?: string | null
+  loops_contact_id?: string | null
+  first_session_at?: string | null
+  activated_at?: string | null
 }): Promise<{ contact: ContactRow | null; error: string | null }> {
   const supabase = createUntypedServiceClient()
+  const now = new Date().toISOString()
   const { data, error } = await supabase
     .from('contacts')
     .insert({
@@ -83,6 +106,13 @@ export async function createContact(params: {
       health: params.health ?? null,
       tags: params.tags ?? [],
       notes: params.notes ?? null,
+      funnel_stage: params.funnel_stage ?? null,
+      acquisition_source: params.acquisition_source ?? null,
+      funnel_stage_updated_at: params.funnel_stage ? now : null,
+      tally_submission_id: params.tally_submission_id ?? null,
+      loops_contact_id: params.loops_contact_id ?? null,
+      first_session_at: params.first_session_at ?? null,
+      activated_at: params.activated_at ?? null,
     })
     .select(SELECT_COLUMNS)
     .single()
@@ -97,9 +127,15 @@ export async function updateContact(
   updates: Partial<Omit<ContactRow, 'id' | 'organization_id' | 'created_by' | 'created_at' | 'updated_at' | 'deleted_at'>>,
 ): Promise<{ contact: ContactRow | null; error: string | null }> {
   const supabase = createUntypedServiceClient()
+  const now = new Date().toISOString()
+  const finalUpdates = {
+    ...updates,
+    updated_at: now,
+    ...(updates.funnel_stage !== undefined ? { funnel_stage_updated_at: now } : {}),
+  }
   const { data, error } = await supabase
     .from('contacts')
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    .update(finalUpdates)
     .eq('id', id)
     .eq('organization_id', orgId)
     .is('deleted_at', null)
@@ -108,6 +144,88 @@ export async function updateContact(
 
   if (error || !data) return { contact: null, error: 'Failed to update contact' }
   return { contact: data as unknown as ContactRow, error: null }
+}
+
+/**
+ * Find an existing contact by email and org, then update it with the provided fields.
+ * If no contact exists, create a new one. Funnel stage only advances — it never regresses.
+ * Used by webhook handlers (Tally, Loops, app events).
+ */
+export async function upsertContactByEmail(
+  email: string,
+  orgId: string,
+  userId: string,
+  fields: {
+    name?: string
+    funnel_stage?: FunnelStage | null
+    acquisition_source?: string | null
+    tally_submission_id?: string | null
+    loops_contact_id?: string | null
+    segment?: ContactSegment | null
+    tags?: string[]
+    notes?: string | null
+    first_session_at?: string | null
+    activated_at?: string | null
+    health?: ContactHealth | null
+  },
+): Promise<{ contact: ContactRow | null; created: boolean; error: string | null }> {
+  const supabase = createUntypedServiceClient()
+
+  const { data: existing, error: lookupError } = await supabase
+    .from('contacts')
+    .select(SELECT_COLUMNS)
+    .eq('organization_id', orgId)
+    .eq('email', email)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  if (lookupError) return { contact: null, created: false, error: 'Lookup failed' }
+
+  if (!existing) {
+    const { contact, error } = await createContact({
+      organizationId: orgId,
+      userId,
+      name: fields.name ?? email,
+      email,
+      segment: fields.segment ?? null,
+      health: fields.health ?? null,
+      tags: fields.tags ?? [],
+      notes: fields.notes ?? null,
+      funnel_stage: fields.funnel_stage ?? null,
+      acquisition_source: fields.acquisition_source ?? null,
+      tally_submission_id: fields.tally_submission_id ?? null,
+      loops_contact_id: fields.loops_contact_id ?? null,
+      first_session_at: fields.first_session_at ?? null,
+      activated_at: fields.activated_at ?? null,
+    })
+    return { contact, created: true, error }
+  }
+
+  const existingContact = existing as unknown as ContactRow
+
+  // Only advance funnel stage — never move it backward
+  const existingOrder = existingContact.funnel_stage
+    ? FUNNEL_STAGE_ORDER[existingContact.funnel_stage]
+    : 0
+  const newOrder = fields.funnel_stage ? FUNNEL_STAGE_ORDER[fields.funnel_stage] : 0
+  const shouldAdvanceStage = newOrder > existingOrder
+
+  const updates: Partial<Omit<ContactRow, 'id' | 'organization_id' | 'created_by' | 'created_at' | 'updated_at' | 'deleted_at'>> = {}
+
+  if (shouldAdvanceStage && fields.funnel_stage) updates.funnel_stage = fields.funnel_stage
+  if (fields.acquisition_source && !existingContact.acquisition_source) updates.acquisition_source = fields.acquisition_source
+  if (fields.tally_submission_id && !existingContact.tally_submission_id) updates.tally_submission_id = fields.tally_submission_id
+  if (fields.loops_contact_id && !existingContact.loops_contact_id) updates.loops_contact_id = fields.loops_contact_id
+  if (fields.first_session_at && !existingContact.first_session_at) updates.first_session_at = fields.first_session_at
+  if (fields.activated_at && !existingContact.activated_at) updates.activated_at = fields.activated_at
+  if (fields.health && !existingContact.health) updates.health = fields.health
+
+  if (Object.keys(updates).length === 0) {
+    return { contact: existingContact, created: false, error: null }
+  }
+
+  const { contact, error } = await updateContact(existingContact.id, orgId, updates)
+  return { contact, created: false, error }
 }
 
 export async function getPersonaMatchStats(

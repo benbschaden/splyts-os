@@ -1,10 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Plus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { ContactRow, ContactSegment, ContactStatus } from '@/lib/queries/contacts'
+import type { ContactRow, ContactSegment, ContactStatus, FunnelStage } from '@/lib/queries/contacts'
 import { AddContactDialog } from './add-contact-dialog'
+
+const FUNNEL_STAGES: Array<{ stage: FunnelStage; label: string; shortLabel: string }> = [
+  { stage: 'signup', label: 'Signup', shortLabel: 'Signup' },
+  { stage: 'form_completed', label: 'Form Completed', shortLabel: 'Form' },
+  { stage: 'downloaded', label: 'Downloaded', shortLabel: 'DL' },
+  { stage: 'first_session', label: 'First Session', shortLabel: 'Session' },
+  { stage: 'activated', label: 'Activated', shortLabel: 'Active' },
+]
 
 interface ContactsListProps {
   contacts: ContactRow[]
@@ -74,6 +82,35 @@ export function ContactsList({
   const [segmentFilter, setSegmentFilter] = useState<ContactSegment | 'all'>('all')
   const [statusFilter, setStatusFilter] = useState<ContactStatus | 'all'>('all')
   const [tagFilter, setTagFilter] = useState<string | 'all'>('all')
+  const [funnelStageFilter, setFunnelStageFilter] = useState<FunnelStage | 'all'>('all')
+
+  const funnelCounts = useMemo(() => {
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+    const counts = new Map<string, number>()
+    const weeklyAdds = new Map<string, number>()
+
+    for (const c of contacts) {
+      if (!c.funnel_stage) continue
+      counts.set(c.funnel_stage, (counts.get(c.funnel_stage) ?? 0) + 1)
+      const t =
+        c.funnel_stage === 'signup'
+          ? new Date(c.created_at).getTime()
+          : new Date(c.funnel_stage_updated_at ?? c.created_at).getTime()
+      if (t >= weekAgo) {
+        weeklyAdds.set(c.funnel_stage, (weeklyAdds.get(c.funnel_stage) ?? 0) + 1)
+      }
+    }
+
+    return FUNNEL_STAGES.map(({ stage, label, shortLabel }) => ({
+      stage,
+      label,
+      shortLabel,
+      current: counts.get(stage) ?? 0,
+      addedThisWeek: weeklyAdds.get(stage) ?? 0,
+    }))
+  }, [contacts])
+
+  const hasFunnelData = funnelCounts.some((s) => s.current > 0)
 
   const filtered = contacts.filter((c) => {
     const matchesSearch =
@@ -84,11 +121,17 @@ export function ContactsList({
     const matchesSegment = segmentFilter === 'all' || c.segment === segmentFilter
     const matchesStatus = statusFilter === 'all' || c.status === statusFilter
     const matchesTag = tagFilter === 'all' || c.tags.includes(tagFilter)
+    const matchesFunnel = funnelStageFilter === 'all' || c.funnel_stage === funnelStageFilter
 
-    return matchesSearch && matchesSegment && matchesStatus && matchesTag
+    return matchesSearch && matchesSegment && matchesStatus && matchesTag && matchesFunnel
   })
 
-  const isFiltering = search.trim() !== '' || segmentFilter !== 'all' || statusFilter !== 'all' || tagFilter !== 'all'
+  const isFiltering =
+    search.trim() !== '' ||
+    segmentFilter !== 'all' ||
+    statusFilter !== 'all' ||
+    tagFilter !== 'all' ||
+    funnelStageFilter !== 'all'
 
   return (
     <div className="flex h-full w-[260px] shrink-0 flex-col border-r border-border bg-background">
@@ -110,6 +153,48 @@ export function ContactsList({
           Add
         </button>
       </div>
+
+      {/* Funnel strip — only shown once at least one contact has a funnel stage set */}
+      {hasFunnelData && (
+        <div className="px-2 pt-2 pb-1.5 border-b border-border">
+          <p className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground mb-1.5 px-1">
+            Funnel
+          </p>
+          <div className="flex gap-1">
+            {funnelCounts.map(({ stage, label, shortLabel, current, addedThisWeek }) => {
+              const isActive = funnelStageFilter === stage
+              return (
+                <button
+                  key={stage}
+                  type="button"
+                  title={label}
+                  onClick={() => setFunnelStageFilter(isActive ? 'all' : stage)}
+                  className={cn(
+                    'flex flex-1 min-w-0 flex-col items-center rounded-md border px-0.5 py-1.5 transition-colors',
+                    isActive
+                      ? 'border-primary/40 bg-primary/10 text-primary'
+                      : 'border-border bg-muted/40 text-muted-foreground hover:border-primary/20 hover:bg-primary/5 hover:text-foreground',
+                  )}
+                >
+                  <span className="text-[8px] font-medium leading-none truncate w-full text-center">
+                    {shortLabel}
+                  </span>
+                  <span className={cn('text-sm font-bold leading-none mt-1', isActive ? 'text-primary' : 'text-foreground')}>
+                    {current}
+                  </span>
+                  {addedThisWeek > 0 ? (
+                    <span className="text-[8px] font-medium leading-none mt-0.5 text-green-600 dark:text-green-400">
+                      +{addedThisWeek}
+                    </span>
+                  ) : (
+                    <span className="text-[8px] leading-none mt-0.5 opacity-0">·</span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="px-3 py-2.5 space-y-2 border-b border-border">

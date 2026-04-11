@@ -33,6 +33,7 @@ interface ContactDetailProps {
   insights: CustomerInsightRow[]
   personas: PersonaRow[]
   allTags?: string[]
+  allAcquisitionSources?: string[]
   onCommunicationAdded: (comm: ContactCommunicationRow) => void
   onCommunicationDeleted: (id: string) => void
   onCommunicationUpdated: (comm: ContactCommunicationRow) => void
@@ -361,6 +362,7 @@ export function ContactDetail({
   insights,
   personas,
   allTags = [],
+  allAcquisitionSources = [],
   onCommunicationAdded,
   onCommunicationDeleted,
   onCommunicationUpdated,
@@ -1048,6 +1050,7 @@ export function ContactDetail({
         open={editContactOpen}
         initialContact={contact}
         availableTags={allTags}
+        availableAcquisitionSources={allAcquisitionSources}
         onClose={() => setEditContactOpen(false)}
         onSaved={(updated) => {
           onContactUpdated(updated)

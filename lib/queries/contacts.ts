@@ -1,4 +1,5 @@
 import { createUntypedServiceClient } from '@/lib/supabase/service'
+import { normalizeContactLabel, normalizeTagList } from '@/lib/contact-labels'
 
 export type ContactSegment = 'beta_user' | 'free_user' | 'customer' | 'power_user' | 'prospect' | 'churned' | 'other'
 export type ContactStatus = 'active' | 'inactive' | 'archived'
@@ -93,6 +94,11 @@ export async function createContact(params: {
 }): Promise<{ contact: ContactRow | null; error: string | null }> {
   const supabase = createUntypedServiceClient()
   const now = new Date().toISOString()
+  const tags = normalizeTagList(params.tags ?? [])
+  const acquisitionSource = params.acquisition_source
+    ? normalizeContactLabel(params.acquisition_source)
+    : null
+
   const { data, error } = await supabase
     .from('contacts')
     .insert({
@@ -104,10 +110,10 @@ export async function createContact(params: {
       role: params.role ?? null,
       segment: params.segment ?? null,
       health: params.health ?? null,
-      tags: params.tags ?? [],
+      tags,
       notes: params.notes ?? null,
       funnel_stage: params.funnel_stage ?? null,
-      acquisition_source: params.acquisition_source ?? null,
+      acquisition_source: acquisitionSource || null,
       funnel_stage_updated_at: params.funnel_stage ? now : null,
       tally_submission_id: params.tally_submission_id ?? null,
       loops_contact_id: params.loops_contact_id ?? null,
@@ -128,8 +134,15 @@ export async function updateContact(
 ): Promise<{ contact: ContactRow | null; error: string | null }> {
   const supabase = createUntypedServiceClient()
   const now = new Date().toISOString()
+  const normalized: typeof updates = { ...updates }
+  if (updates.tags !== undefined) normalized.tags = normalizeTagList(updates.tags)
+  if (updates.acquisition_source !== undefined) {
+    normalized.acquisition_source = updates.acquisition_source
+      ? normalizeContactLabel(updates.acquisition_source)
+      : null
+  }
   const finalUpdates = {
-    ...updates,
+    ...normalized,
     updated_at: now,
     ...(updates.funnel_stage !== undefined ? { funnel_stage_updated_at: now } : {}),
   }
@@ -213,7 +226,9 @@ export async function upsertContactByEmail(
   const updates: Partial<Omit<ContactRow, 'id' | 'organization_id' | 'created_by' | 'created_at' | 'updated_at' | 'deleted_at'>> = {}
 
   if (shouldAdvanceStage && fields.funnel_stage) updates.funnel_stage = fields.funnel_stage
-  if (fields.acquisition_source && !existingContact.acquisition_source) updates.acquisition_source = fields.acquisition_source
+  if (fields.acquisition_source && !existingContact.acquisition_source) {
+    updates.acquisition_source = normalizeContactLabel(fields.acquisition_source)
+  }
   if (fields.tally_submission_id && !existingContact.tally_submission_id) updates.tally_submission_id = fields.tally_submission_id
   if (fields.loops_contact_id && !existingContact.loops_contact_id) updates.loops_contact_id = fields.loops_contact_id
   if (fields.first_session_at && !existingContact.first_session_at) updates.first_session_at = fields.first_session_at

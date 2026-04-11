@@ -13,6 +13,7 @@ import { InboxView } from './inbox-view'
 import { InsightsBoard } from './insights-board'
 import { CohortsView } from './cohorts-view'
 import type { CohortDocumentRow } from '@/lib/queries/cohort-documents'
+import { normalizeContactLabel, normalizeTagList } from '@/lib/contact-labels'
 
 interface Project {
   id: string
@@ -56,10 +57,25 @@ export function CustomerHubDetail({
 
   const refresh = useCallback(() => router.refresh(), [router])
 
-  const allTags = useMemo(
-    () => [...new Set(contacts.flatMap((c) => c.tags))].sort(),
-    [contacts],
-  )
+  const allTags = useMemo(() => {
+    const s = new Set<string>()
+    for (const c of contacts) {
+      for (const t of c.tags) {
+        const n = normalizeContactLabel(t)
+        if (n) s.add(n)
+      }
+    }
+    return [...s].sort()
+  }, [contacts])
+
+  const allAcquisitionSources = useMemo(() => {
+    const s = new Set<string>()
+    for (const c of contacts) {
+      const n = normalizeContactLabel(c.acquisition_source ?? '')
+      if (n) s.add(n)
+    }
+    return [...s].sort()
+  }, [contacts])
 
   const selectedContactComms = selectedContact
     ? communications.filter((c) => c.contact_id === selectedContact.id)
@@ -88,24 +104,35 @@ export function CustomerHubDetail({
   }
 
   async function handleDeleteTag(tag: string) {
-    const affected = contacts.filter((c) => c.tags.includes(tag))
+    const affected = contacts.filter((c) =>
+      c.tags.some((t) => normalizeContactLabel(t) === tag),
+    )
     await Promise.all(
       affected.map((c) =>
         fetch(`/api/contacts/${c.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tags: c.tags.filter((t) => t !== tag) }),
+          body: JSON.stringify({
+            tags: normalizeTagList(c.tags.filter((t) => normalizeContactLabel(t) !== tag)),
+          }),
         }),
       ),
     )
     setContacts((prev) =>
       prev.map((c) =>
-        c.tags.includes(tag) ? { ...c, tags: c.tags.filter((t) => t !== tag) } : c,
+        c.tags.some((t) => normalizeContactLabel(t) === tag)
+          ? { ...c, tags: normalizeTagList(c.tags.filter((t) => normalizeContactLabel(t) !== tag)) }
+          : c,
       ),
     )
-    if (selectedContact?.tags.includes(tag)) {
+    if (selectedContact?.tags.some((t) => normalizeContactLabel(t) === tag)) {
       setSelectedContact((prev) =>
-        prev ? { ...prev, tags: prev.tags.filter((t) => t !== tag) } : null,
+        prev
+          ? {
+              ...prev,
+              tags: normalizeTagList(prev.tags.filter((t) => normalizeContactLabel(t) !== tag)),
+            }
+          : null,
       )
     }
   }
@@ -192,6 +219,7 @@ export function CustomerHubDetail({
                 onContactCreated={handleContactCreated}
                 onContactDeleted={handleContactDeleted}
                 allTags={allTags}
+                allAcquisitionSources={allAcquisitionSources}
                 onDeleteTag={handleDeleteTag}
               />
             </div>
@@ -205,6 +233,7 @@ export function CustomerHubDetail({
                   insights={selectedContactInsights}
                   personas={personas}
                   allTags={allTags}
+                  allAcquisitionSources={allAcquisitionSources}
                   onCommunicationAdded={handleCommunicationAdded}
                   onCommunicationDeleted={handleCommunicationDeleted}
                   onCommunicationUpdated={handleCommunicationUpdated}

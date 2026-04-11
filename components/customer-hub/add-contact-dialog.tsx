@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ContactRow, ContactSegment, ContactHealth, ContactStatus, FunnelStage } from '@/lib/queries/contacts'
+import { normalizeContactLabel, normalizeTagList } from '@/lib/contact-labels'
 
 interface AddContactDialogProps {
   open: boolean
@@ -11,6 +12,7 @@ interface AddContactDialogProps {
   onSaved: (contact: ContactRow) => void
   initialContact?: ContactRow
   availableTags?: string[]
+  availableAcquisitionSources?: string[]
 }
 
 interface FormData {
@@ -68,14 +70,23 @@ const FUNNEL_STAGE_LABELS: Record<FunnelStage, string> = {
 const INPUT_CLASS =
   'w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring'
 
-export function AddContactDialog({ open, onClose, onSaved, initialContact, availableTags = [] }: AddContactDialogProps) {
+export function AddContactDialog({
+  open,
+  onClose,
+  onSaved,
+  initialContact,
+  availableTags = [],
+  availableAcquisitionSources = [],
+}: AddContactDialogProps) {
   const isEditing = !!initialContact
   const [form, setForm] = useState<FormData>(EMPTY)
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [tagInput, setTagInput] = useState('')
+  const [sourceInput, setSourceInput] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const tagInputRef = useRef<HTMLInputElement>(null)
+  const sourceInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (open) {
@@ -88,14 +99,15 @@ export function AddContactDialog({ open, onClose, onSaved, initialContact, avail
           status: initialContact.status,
           notes: initialContact.notes ?? '',
           funnel_stage: initialContact.funnel_stage ?? '',
-          acquisition_source: initialContact.acquisition_source ?? '',
+          acquisition_source: normalizeContactLabel(initialContact.acquisition_source ?? ''),
         })
-        setSelectedTags(initialContact.tags)
+        setSelectedTags(normalizeTagList(initialContact.tags))
       } else {
         setForm(EMPTY)
         setSelectedTags([])
       }
       setTagInput('')
+      setSourceInput('')
       setError(null)
     }
   }, [open, initialContact])
@@ -113,7 +125,7 @@ export function AddContactDialog({ open, onClose, onSaved, initialContact, avail
   }
 
   function addTag(tag: string) {
-    const trimmed = tag.trim().toLowerCase().replace(/\s+/g, '-')
+    const trimmed = normalizeContactLabel(tag)
     if (!trimmed || selectedTags.includes(trimmed)) return
     setSelectedTags((prev) => [...prev, trimmed])
   }
@@ -132,19 +144,30 @@ export function AddContactDialog({ open, onClose, onSaved, initialContact, avail
     }
   }
 
-  // Tags from other contacts that aren't already selected
+  const tagQuery = normalizeContactLabel(tagInput)
   const suggestedTags = availableTags.filter(
     (t) =>
       !selectedTags.includes(t) &&
-      (tagInput === '' || t.includes(tagInput.toLowerCase())),
+      (tagInput === '' || !tagQuery || t.includes(tagQuery)),
+  )
+
+  const sourceQuery = normalizeContactLabel(sourceInput)
+  const suggestedSources = availableAcquisitionSources.filter(
+    (s) =>
+      s !== form.acquisition_source &&
+      (sourceInput === '' || !sourceQuery || s.includes(sourceQuery)),
   )
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    // Commit any pending tag input on submit
-    const finalTags = tagInput.trim()
-      ? [...new Set([...selectedTags, tagInput.trim().toLowerCase().replace(/\s+/g, '-')])]
-      : selectedTags
+    const finalTags = normalizeTagList(
+      tagInput.trim() ? [...selectedTags, tagInput] : selectedTags,
+    )
+
+    const pendingSource = normalizeContactLabel(sourceInput)
+    const acquisitionSource =
+      form.acquisition_source ||
+      (pendingSource || null)
 
     if (!form.name.trim()) {
       setError('Name is required.')
@@ -162,7 +185,7 @@ export function AddContactDialog({ open, onClose, onSaved, initialContact, avail
       tags: finalTags,
       notes: form.notes.trim() || null,
       funnel_stage: form.funnel_stage || null,
-      acquisition_source: form.acquisition_source.trim() || null,
+      acquisition_source: acquisitionSource ? normalizeContactLabel(acquisitionSource) : null,
     }
 
     const res = isEditing
@@ -279,38 +302,88 @@ export function AddContactDialog({ open, onClose, onSaved, initialContact, avail
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label htmlFor="contact-funnel-stage" className="block text-xs font-medium text-foreground mb-1">
-                  Funnel Stage
-                </label>
-                <select
-                  id="contact-funnel-stage"
-                  value={form.funnel_stage}
-                  onChange={(e) => set('funnel_stage', e.target.value as FunnelStage | '')}
-                  className={INPUT_CLASS}
-                >
-                  <option value="">No stage</option>
-                  {(Object.keys(FUNNEL_STAGE_LABELS) as FunnelStage[]).map((s) => (
-                    <option key={s} value={s}>
-                      {FUNNEL_STAGE_LABELS[s]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="contact-acquisition-source" className="block text-xs font-medium text-foreground mb-1">
-                  Source
-                </label>
+            <div>
+              <label htmlFor="contact-funnel-stage" className="block text-xs font-medium text-foreground mb-1">
+                Funnel Stage
+              </label>
+              <select
+                id="contact-funnel-stage"
+                value={form.funnel_stage}
+                onChange={(e) => set('funnel_stage', e.target.value as FunnelStage | '')}
+                className={INPUT_CLASS}
+              >
+                <option value="">No stage</option>
+                {(Object.keys(FUNNEL_STAGE_LABELS) as FunnelStage[]).map((s) => (
+                  <option key={s} value={s}>
+                    {FUNNEL_STAGE_LABELS[s]}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-foreground mb-1">Source</label>
+              <p className="text-[10px] text-muted-foreground mb-1.5">
+                Type and press Enter, or pick a value used on another contact. Normalized to lowercase with hyphens.
+              </p>
+              <div
+                className="flex flex-wrap gap-1.5 rounded-md border border-input bg-background px-2.5 py-2 focus-within:ring-2 focus-within:ring-ring cursor-text min-h-[38px]"
+                onClick={() => sourceInputRef.current?.focus()}
+              >
+                {form.acquisition_source ? (
+                  <span className="flex items-center gap-1 rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                    {form.acquisition_source}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        set('acquisition_source', '')
+                        setSourceInput('')
+                      }}
+                      className="text-primary/60 hover:text-primary transition-colors"
+                      aria-label="Clear source"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ) : null}
                 <input
-                  id="contact-acquisition-source"
+                  ref={sourceInputRef}
                   type="text"
-                  value={form.acquisition_source}
-                  onChange={(e) => set('acquisition_source', e.target.value)}
-                  placeholder="e.g. reddit-r-hyrox"
-                  className={INPUT_CLASS}
+                  value={sourceInput}
+                  onChange={(e) => setSourceInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      const n = normalizeContactLabel(sourceInput)
+                      if (n) {
+                        set('acquisition_source', n)
+                        setSourceInput('')
+                      }
+                    }
+                  }}
+                  placeholder={form.acquisition_source ? '' : 'e.g. reddit-r-hyrox'}
+                  className="flex-1 min-w-[120px] bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                  disabled={!!form.acquisition_source}
                 />
               </div>
+              {suggestedSources.length > 0 && !form.acquisition_source && (
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {suggestedSources.map((src) => (
+                    <button
+                      key={src}
+                      type="button"
+                      onClick={() => {
+                        set('acquisition_source', src)
+                        setSourceInput('')
+                      }}
+                      className="rounded border border-border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-colors"
+                    >
+                      + {src}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div>

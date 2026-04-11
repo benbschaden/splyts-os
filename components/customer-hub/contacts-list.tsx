@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { Plus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ContactRow, ContactSegment, ContactStatus, FunnelStage } from '@/lib/queries/contacts'
+import { normalizeContactLabel } from '@/lib/contact-labels'
 import { AddContactDialog } from './add-contact-dialog'
 
 const FUNNEL_STAGES: Array<{ stage: FunnelStage; label: string; shortLabel: string }> = [
@@ -21,6 +22,7 @@ interface ContactsListProps {
   onContactCreated: (contact: ContactRow) => void
   onContactDeleted: (id: string) => void
   allTags?: string[]
+  allAcquisitionSources?: string[]
   onDeleteTag?: (tag: string) => void
 }
 
@@ -75,6 +77,7 @@ export function ContactsList({
   onContactCreated,
   onContactDeleted,
   allTags = [],
+  allAcquisitionSources = [],
   onDeleteTag,
 }: ContactsListProps) {
   const [addOpen, setAddOpen] = useState(false)
@@ -112,6 +115,18 @@ export function ContactsList({
 
   const hasFunnelData = funnelCounts.some((s) => s.current > 0)
 
+  const tagUsageCounts = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const c of contacts) {
+      for (const t of c.tags) {
+        const n = normalizeContactLabel(t)
+        if (!n) continue
+        m.set(n, (m.get(n) ?? 0) + 1)
+      }
+    }
+    return m
+  }, [contacts])
+
   const filtered = contacts.filter((c) => {
     const matchesSearch =
       !search.trim() ||
@@ -120,7 +135,9 @@ export function ContactsList({
 
     const matchesSegment = segmentFilter === 'all' || c.segment === segmentFilter
     const matchesStatus = statusFilter === 'all' || c.status === statusFilter
-    const matchesTag = tagFilter === 'all' || c.tags.includes(tagFilter)
+    const matchesTag =
+      tagFilter === 'all' ||
+      c.tags.some((t) => normalizeContactLabel(t) === tagFilter)
     const matchesFunnel = funnelStageFilter === 'all' || c.funnel_stage === funnelStageFilter
 
     return matchesSearch && matchesSegment && matchesStatus && matchesTag && matchesFunnel
@@ -235,6 +252,7 @@ export function ContactsList({
             <div className="flex flex-wrap gap-1">
               {allTags.map((tag) => {
                 const isActive = tagFilter === tag
+                const count = tagUsageCounts.get(tag) ?? 0
                 return (
                   <div key={tag} className="flex items-center">
                     <button
@@ -248,8 +266,9 @@ export function ContactsList({
                       )}
                     >
                       {tag}
+                      <span className="text-muted-foreground/80 font-normal"> ({count})</span>
                     </button>
-                    {onDeleteTag && (
+                    {onDeleteTag && count > 0 && (
                       <button
                         type="button"
                         onClick={() => {
@@ -257,8 +276,8 @@ export function ContactsList({
                           onDeleteTag(tag)
                         }}
                         className="rounded-r border border-l-0 border-border bg-muted px-1 py-0.5 text-muted-foreground/50 hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive transition-colors"
-                        aria-label={`Delete tag ${tag} from all contacts`}
-                        title="Remove this tag from all contacts"
+                        aria-label={`Remove tag ${tag} from all contacts`}
+                        title="Remove this tag from every contact (deletes it from the list when unused)"
                       >
                         <X className="h-2.5 w-2.5" />
                       </button>
@@ -295,6 +314,9 @@ export function ContactsList({
         {filtered.map((contact) => {
           const isSelected = contact.id === selectedId
           const isInactive = contact.status === 'inactive' || contact.status === 'archived'
+          const displayTags = Array.from(
+            new Set(contact.tags.map((t) => normalizeContactLabel(t)).filter(Boolean)),
+          )
           return (
             <button
               key={contact.id}
@@ -325,9 +347,9 @@ export function ContactsList({
                   {contact.email && (
                     <p className="text-[11px] text-muted-foreground/70 truncate mt-0.5">{contact.email}</p>
                   )}
-                  {contact.tags.length > 0 && (
+                  {displayTags.length > 0 && (
                     <div className="mt-1 flex flex-wrap gap-1">
-                      {contact.tags.slice(0, 3).map((tag) => (
+                      {displayTags.slice(0, 3).map((tag) => (
                         <span
                           key={tag}
                           className="rounded bg-muted px-1 py-0.5 text-[9px] font-medium text-muted-foreground"
@@ -335,8 +357,10 @@ export function ContactsList({
                           {tag}
                         </span>
                       ))}
-                      {contact.tags.length > 3 && (
-                        <span className="text-[9px] text-muted-foreground/60">+{contact.tags.length - 3}</span>
+                      {displayTags.length > 3 && (
+                        <span className="text-[9px] text-muted-foreground/60">
+                          +{displayTags.length - 3}
+                        </span>
                       )}
                     </div>
                   )}
@@ -360,6 +384,7 @@ export function ContactsList({
       <AddContactDialog
         open={addOpen}
         availableTags={allTags}
+        availableAcquisitionSources={allAcquisitionSources}
         onClose={() => setAddOpen(false)}
         onSaved={(contact) => {
           onContactCreated(contact)

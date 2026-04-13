@@ -23,6 +23,25 @@ const createSchema = z.object({
   source_material_id: z.string().uuid().nullable().optional(),
   study_id: z.string().uuid().nullable().optional(),
   participant: z.string().max(200).nullable().optional(),
+  // Audio + speaker metrics
+  audio_url: z.string().nullable().optional(),
+  diarized_transcript: z.unknown().nullable().optional(),
+  interviewer_talk_pct: z.number().nullable().optional(),
+  interviewee_talk_pct: z.number().nullable().optional(),
+  interviewer_wpm: z.number().nullable().optional(),
+  interviewee_wpm: z.number().nullable().optional(),
+  interviewer_turns: z.number().int().nullable().optional(),
+  interviewee_turns: z.number().int().nullable().optional(),
+  total_interruptions: z.number().int().nullable().optional(),
+  ijl_median_s: z.number().nullable().optional(),
+  ijl_mean_s: z.number().nullable().optional(),
+  isr_pct: z.number().nullable().optional(),
+  spr_pct: z.number().nullable().optional(),
+  // AI content signals
+  wtp_signal: z.enum(['strong', 'moderate', 'weak', 'none']).nullable().optional(),
+  wtp_price_points: z.array(z.number()).nullable().optional(),
+  problem_severity: z.number().int().min(1).max(5).nullable().optional(),
+  adoption_willingness: z.number().int().min(1).max(5).nullable().optional(),
 })
 
 export async function POST(request: Request) {
@@ -62,6 +81,25 @@ export async function POST(request: Request) {
       source_material_id: d.source_material_id ?? null,
       study_id: d.study_id ?? null,
       participant: d.participant ?? null,
+      // Audio + speaker metrics
+      audio_url: d.audio_url ?? null,
+      diarized_transcript: d.diarized_transcript ?? null,
+      interviewer_talk_pct: d.interviewer_talk_pct ?? null,
+      interviewee_talk_pct: d.interviewee_talk_pct ?? null,
+      interviewer_wpm: d.interviewer_wpm ?? null,
+      interviewee_wpm: d.interviewee_wpm ?? null,
+      interviewer_turns: d.interviewer_turns ?? null,
+      interviewee_turns: d.interviewee_turns ?? null,
+      total_interruptions: d.total_interruptions ?? null,
+      ijl_median_s: d.ijl_median_s ?? null,
+      ijl_mean_s: d.ijl_mean_s ?? null,
+      isr_pct: d.isr_pct ?? null,
+      spr_pct: d.spr_pct ?? null,
+      // AI content signals
+      wtp_signal: d.wtp_signal ?? null,
+      wtp_price_points: d.wtp_price_points ?? null,
+      problem_severity: d.problem_severity ?? null,
+      adoption_willingness: d.adoption_willingness ?? null,
     })
 
     if (error || !entry) return Response.json({ error: 'Failed to create entry' }, { status: 500 })

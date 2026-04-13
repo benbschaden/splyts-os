@@ -22,6 +22,25 @@ const patchSchema = z.object({
   source_material_id: z.string().uuid().nullable().optional(),
   study_id: z.string().uuid().nullable().optional(),
   participant: z.string().max(200).nullable().optional(),
+  // Audio + speaker metrics
+  audio_url: z.string().nullable().optional(),
+  diarized_transcript: z.unknown().nullable().optional(),
+  interviewer_talk_pct: z.number().nullable().optional(),
+  interviewee_talk_pct: z.number().nullable().optional(),
+  interviewer_wpm: z.number().nullable().optional(),
+  interviewee_wpm: z.number().nullable().optional(),
+  interviewer_turns: z.number().int().nullable().optional(),
+  interviewee_turns: z.number().int().nullable().optional(),
+  total_interruptions: z.number().int().nullable().optional(),
+  ijl_median_s: z.number().nullable().optional(),
+  ijl_mean_s: z.number().nullable().optional(),
+  isr_pct: z.number().nullable().optional(),
+  spr_pct: z.number().nullable().optional(),
+  // AI content signals
+  wtp_signal: z.enum(['strong', 'moderate', 'weak', 'none']).nullable().optional(),
+  wtp_price_points: z.array(z.number()).nullable().optional(),
+  problem_severity: z.number().int().min(1).max(5).nullable().optional(),
+  adoption_willingness: z.number().int().min(1).max(5).nullable().optional(),
 })
 
 export async function PATCH(

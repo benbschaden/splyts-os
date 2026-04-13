@@ -10,7 +10,11 @@ import type {
   DiscoveryUserSegment,
   DiscoveryPlatform,
 } from '@/lib/queries/discovery-entries'
-import type { SpeakerMetrics } from '@/lib/discovery/speaker-metrics'
+import {
+  computeSpeakerMetrics,
+  buildPlainTranscript,
+} from '@/lib/discovery/speaker-metrics'
+import type { DeepgramWord, SpeakerMetrics } from '@/lib/discovery/speaker-metrics'
 
 interface DiscoveryDrawerProps {
   open: boolean
@@ -42,10 +46,17 @@ interface FormData {
   platform: DiscoveryPlatform | ''
 }
 
+// Raw response from the transcribe API — no metrics yet, just diarized words
+type DgResponse = {
+  audio_url: string
+  words: DeepgramWord[]
+}
+
+// What we store after the user identifies the interviewer speaker
 type TranscribeResult = {
   transcript: string
   audio_url: string
-  diarized_transcript: unknown
+  diarized_transcript: DeepgramWord[]
   metrics: SpeakerMetrics
 }
 
@@ -123,6 +134,94 @@ const SOURCE_PLACEHOLDERS: Record<DiscoveryEntryType, string> = {
   email: 'e.g. sender@email.com',
 }
 
+// Extracts the first ~15 words spoken in each turn by each speaker as a preview snippet
+function getSpeakerPreviews(words: DeepgramWord[]): Record<number, string[]> {
+  const previews: Record<number, string[]> = {}
+  let currentSpeaker: number | null = null
+  let currentTurnWords: string[] = []
+
+  function flushTurn() {
+    if (currentSpeaker === null || currentTurnWords.length === 0) return
+    if (!previews[currentSpeaker]) previews[currentSpeaker] = []
+    if (previews[currentSpeaker].length < 3) {
+      previews[currentSpeaker].push(currentTurnWords.slice(0, 15).join(' ') + (currentTurnWords.length > 15 ? '…' : ''))
+    }
+    currentTurnWords = []
+  }
+
+  for (const w of words) {
+    const spk = w.speaker ?? 0
+    if (spk !== currentSpeaker) {
+      flushTurn()
+      currentSpeaker = spk
+    }
+    currentTurnWords.push(w.word)
+  }
+  flushTurn()
+
+  return previews
+}
+
+function SpeakerPicker({
+  words,
+  selected,
+  onSelect,
+  onConfirm,
+}: {
+  words: DeepgramWord[]
+  selected: 0 | 1
+  onSelect: (n: 0 | 1) => void
+  onConfirm: () => void
+}) {
+  const previews = getSpeakerPreviews(words)
+  const speakerIds = Object.keys(previews).map(Number).sort() as (0 | 1)[]
+
+  return (
+    <div className="space-y-3">
+      <p className="text-[11px] font-medium text-foreground">
+        Which speaker is the interviewer? Select based on the lines below.
+      </p>
+      <div className="space-y-2">
+        {speakerIds.map((n) => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => onSelect(n)}
+            className={cn(
+              'w-full rounded-lg border p-3 text-left transition-colors',
+              selected === n
+                ? 'border-primary bg-primary/5'
+                : 'border-border bg-background hover:bg-accent/50'
+            )}
+          >
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className={cn(
+                'h-3.5 w-3.5 rounded-full border-2 shrink-0',
+                selected === n ? 'border-primary bg-primary' : 'border-muted-foreground'
+              )} />
+              <span className="text-xs font-semibold text-foreground">Speaker {n + 1}</span>
+            </div>
+            <div className="pl-5 space-y-0.5">
+              {(previews[n] ?? []).map((line, i) => (
+                <p key={i} className="text-[11px] text-muted-foreground leading-snug">
+                  &ldquo;{line}&rdquo;
+                </p>
+              ))}
+            </div>
+          </button>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={onConfirm}
+        className="flex items-center gap-1.5 rounded-md bg-foreground px-4 py-1.5 text-xs font-medium text-background hover:bg-foreground/90 transition-colors"
+      >
+        Confirm — this is the interviewer
+      </button>
+    </div>
+  )
+}
+
 export function DiscoveryDrawer({
   open,
   onClose,
@@ -137,9 +236,13 @@ export function DiscoveryDrawer({
   const [error, setError] = useState<string | null>(null)
   // Audio upload state
   const [audioFile, setAudioFile] = useState<File | null>(null)
-  const [interviewerSpeaker, setInterviewerSpeaker] = useState<0 | 1>(0)
   const [transcribing, setTranscribing] = useState(false)
   const [transcribeError, setTranscribeError] = useState<string | null>(null)
+  // Raw Deepgram response — populated after upload, before speaker is identified
+  const [dgResponse, setDgResponse] = useState<DgResponse | null>(null)
+  // Which speaker (0-indexed) is the interviewer — chosen after seeing previews
+  const [interviewerSpeaker, setInterviewerSpeaker] = useState<0 | 1>(0)
+  // Final computed result — populated after speaker is confirmed
   const [transcribeResult, setTranscribeResult] = useState<TranscribeResult | null>(null)
   // AI analysis state
   const [analysing, setAnalysing] = useState(false)
@@ -172,6 +275,8 @@ export function DiscoveryDrawer({
       }
       setError(null)
       setAudioFile(null)
+      setDgResponse(null)
+      setInterviewerSpeaker(0)
       setTranscribeResult(null)
       setTranscribeError(null)
       setAnalyseError(null)
@@ -203,10 +308,11 @@ export function DiscoveryDrawer({
     if (!audioFile) return
     setTranscribing(true)
     setTranscribeError(null)
+    setDgResponse(null)
+    setTranscribeResult(null)
 
     const fd = new FormData()
     fd.append('file', audioFile)
-    fd.append('interviewer_speaker', String(interviewerSpeaker))
 
     const res = await fetch('/api/discovery-entries/transcribe', { method: 'POST', body: fd })
     setTranscribing(false)
@@ -217,9 +323,24 @@ export function DiscoveryDrawer({
       return
     }
 
-    const json = await res.json() as { data: TranscribeResult }
-    setTranscribeResult(json.data)
-    set('raw_content', json.data.transcript)
+    const json = await res.json() as { data: DgResponse }
+    setDgResponse(json.data)
+    setInterviewerSpeaker(0)
+    // Don't populate raw_content yet — wait for the user to confirm the interviewer
+  }
+
+  function handleConfirmSpeaker() {
+    if (!dgResponse) return
+    const transcript = buildPlainTranscript(dgResponse.words, interviewerSpeaker)
+    const metrics = computeSpeakerMetrics(dgResponse.words, interviewerSpeaker)
+    const result: TranscribeResult = {
+      transcript,
+      audio_url: dgResponse.audio_url,
+      diarized_transcript: dgResponse.words,
+      metrics,
+    }
+    setTranscribeResult(result)
+    set('raw_content', transcript)
   }
 
   async function handleAnalyse() {
@@ -435,6 +556,7 @@ export function DiscoveryDrawer({
                 onChange={(e) => {
                   const f = e.target.files?.[0] ?? null
                   setAudioFile(f)
+                  setDgResponse(null)
                   setTranscribeResult(null)
                   setTranscribeError(null)
                 }}
@@ -455,41 +577,33 @@ export function DiscoveryDrawer({
                 )}
               </div>
 
-              {audioFile && (
-                <div className="space-y-2">
-                  <p className="text-[11px] text-foreground font-medium">Which speaker is the interviewer?</p>
-                  <div className="flex gap-3">
-                    {([0, 1] as const).map((n) => (
-                      <label key={n} className="flex items-center gap-1.5 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="interviewer-speaker"
-                          checked={interviewerSpeaker === n}
-                          onChange={() => setInterviewerSpeaker(n)}
-                          className="accent-primary"
-                        />
-                        <span className="text-xs text-foreground">Speaker {n + 1}</span>
-                      </label>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleTranscribe}
-                    disabled={transcribing}
-                    className="flex items-center gap-1.5 rounded-md bg-foreground px-4 py-1.5 text-xs font-medium text-background hover:bg-foreground/90 transition-colors disabled:opacity-50"
-                  >
-                    {transcribing ? (
-                      <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Transcribing…</>
-                    ) : (
-                      'Transcribe'
-                    )}
-                  </button>
-                </div>
+              {audioFile && !dgResponse && (
+                <button
+                  type="button"
+                  onClick={handleTranscribe}
+                  disabled={transcribing}
+                  className="flex items-center gap-1.5 rounded-md bg-foreground px-4 py-1.5 text-xs font-medium text-background hover:bg-foreground/90 transition-colors disabled:opacity-50"
+                >
+                  {transcribing ? (
+                    <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Transcribing…</>
+                  ) : (
+                    'Transcribe'
+                  )}
+                </button>
               )}
 
               {transcribeError && (
                 <p className="text-xs text-destructive">{transcribeError}</p>
+              )}
+
+              {/* Step 2: speaker identification — shown after Deepgram returns */}
+              {dgResponse && !transcribeResult && (
+                <SpeakerPicker
+                  words={dgResponse.words}
+                  selected={interviewerSpeaker}
+                  onSelect={setInterviewerSpeaker}
+                  onConfirm={handleConfirmSpeaker}
+                />
               )}
 
               {transcribeResult && (

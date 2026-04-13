@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createUntypedServiceClient } from '@/lib/supabase/service'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
-import { computeSpeakerMetrics, buildPlainTranscript } from '@/lib/discovery/speaker-metrics'
 import type { DeepgramWord } from '@/lib/discovery/speaker-metrics'
 
 const ALLOWED_MIME_TYPES = new Set([
@@ -30,16 +29,10 @@ export async function POST(request: Request): Promise<Response> {
 
     const formData = await request.formData()
     const file = formData.get('file')
-    const interviewerSpeakerRaw = formData.get('interviewer_speaker')
 
     if (!(file instanceof File)) {
       return Response.json({ error: 'file is required' }, { status: 400 })
     }
-    if (!interviewerSpeakerRaw || isNaN(Number(interviewerSpeakerRaw))) {
-      return Response.json({ error: 'interviewer_speaker (0 or 1) is required' }, { status: 400 })
-    }
-    const interviewerSpeaker = Number(interviewerSpeakerRaw)
-
     if (!ALLOWED_MIME_TYPES.has(file.type)) {
       return Response.json({ error: 'Unsupported file type. Use mp3, m4a, wav, or webm.' }, { status: 400 })
     }
@@ -104,15 +97,12 @@ export async function POST(request: Request): Promise<Response> {
       return Response.json({ error: 'No transcript returned from Deepgram' }, { status: 502 })
     }
 
-    const transcript = buildPlainTranscript(words, interviewerSpeaker)
-    const metrics = computeSpeakerMetrics(words, interviewerSpeaker)
-
+    // Return raw diarized words + storage path.
+    // The client computes metrics and transcript after the user identifies which speaker is the interviewer.
     return Response.json({
       data: {
-        transcript,
         audio_url: audioStoragePath,
-        diarized_transcript: words,
-        metrics,
+        words,
       },
     })
   } catch (err) {

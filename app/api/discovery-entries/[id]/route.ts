@@ -12,7 +12,7 @@ const patchSchema = z.object({
   sentiment: z.enum(['positive', 'neutral', 'negative', 'mixed']).nullable().optional(),
   tags: z.array(z.string().max(100)).max(20).optional(),
   include_in_ai: z.boolean().optional(),
-  user_segment: z.enum(['new', 'active', 'power', 'churned', 'free', 'paid']).nullable().optional(),
+  user_segment: z.enum(['new', 'active', 'power', 'churned', 'free', 'paid', 'prospect']).nullable().optional(),
   key_quote_1: z.string().max(2000).nullable().optional(),
   key_quote_2: z.string().max(2000).nullable().optional(),
   key_quote_3: z.string().max(2000).nullable().optional(),

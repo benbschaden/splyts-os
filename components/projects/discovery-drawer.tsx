@@ -89,6 +89,7 @@ const TYPE_OPTIONS: { value: DiscoveryEntryType; label: string; desc: string }[]
 ]
 
 const SEGMENT_OPTIONS: { value: DiscoveryUserSegment; label: string }[] = [
+  { value: 'prospect', label: 'Prospect' },
   { value: 'new', label: 'New user' },
   { value: 'active', label: 'Active user' },
   { value: 'power', label: 'Power user' },

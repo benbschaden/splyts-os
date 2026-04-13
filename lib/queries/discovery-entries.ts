@@ -2,7 +2,7 @@ import { createServiceClient, createUntypedServiceClient } from '@/lib/supabase/
 
 export type DiscoveryEntryType = 'interview' | 'review' | 'survey' | 'observation' | 'email'
 export type DiscoverySentiment = 'positive' | 'neutral' | 'negative' | 'mixed'
-export type DiscoveryUserSegment = 'new' | 'active' | 'power' | 'churned' | 'free' | 'paid'
+export type DiscoveryUserSegment = 'new' | 'active' | 'power' | 'churned' | 'free' | 'paid' | 'prospect'
 export type DiscoveryPlatform = 'app_store' | 'product_hunt' | 'g2' | 'reddit' | 'twitter' | 'other'
 
 export type DiscoveryEntryRow = {

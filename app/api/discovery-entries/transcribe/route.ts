@@ -69,9 +69,9 @@ export async function POST(request: Request): Promise<Response> {
       return Response.json({ error: 'Failed to store audio file' }, { status: 500 })
     }
 
-    const { data: { publicUrl } } = serviceClient.storage
-      .from('discovery-audio')
-      .getPublicUrl(storagePath)
+    // Store the storage path (not a public URL) so it works with a private bucket.
+    // Generate a signed URL on demand if audio playback is added later.
+    const audioStoragePath = `discovery-audio/${storagePath}`
 
     // Call Deepgram Nova-3 with diarization
     const deepgramRes = await fetch('https://api.deepgram.com/v1/listen?model=nova-3&diarize=true&punctuate=true&utterances=false&words=true', {
@@ -110,7 +110,7 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({
       data: {
         transcript,
-        audio_url: publicUrl,
+        audio_url: audioStoragePath,
         diarized_transcript: words,
         metrics,
       },

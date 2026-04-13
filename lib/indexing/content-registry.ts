@@ -80,14 +80,36 @@ export const CONTENT_REGISTRY: Record<string, ContentTypeConfig> = {
   },
 
   discovery_entry: {
-    deriveText: (row) => ({
-      title: str(row.source || row.entry_type || ''),
-      summary: truncate(str(row.raw_content), 500),
-    }),
+    deriveText: (row) => {
+      const parts = [
+        str(row.source || row.entry_type),
+        row.participant ? `Participant: ${str(row.participant)}` : '',
+        row.jtbd        ? `Job to be done: ${str(row.jtbd)}` : '',
+        row.key_quote_1 ? `Key quote: ${str(row.key_quote_1)}` : '',
+        Array.isArray(row.tags) && (row.tags as string[]).length > 0
+          ? (row.tags as string[]).join(' ')
+          : '',
+        row.wtp_signal && row.wtp_signal !== 'none'
+          ? `WTP signal: ${str(row.wtp_signal)}`
+          : '',
+        row.problem_severity ? `Problem severity: ${row.problem_severity}/5` : '',
+        truncate(str(row.raw_content), 300),
+      ].filter(Boolean).join(' — ')
+
+      return {
+        title: str(row.source || row.entry_type || ''),
+        summary: parts,
+      }
+    },
     deriveMetadata: (row) => ({
-      project_id: row.project_id ?? null,
-      entry_type: row.entry_type ?? null,
-      sentiment: row.sentiment ?? null,
+      project_id:           row.project_id ?? null,
+      entry_type:           row.entry_type ?? null,
+      sentiment:            row.sentiment ?? null,
+      participant:          row.participant ?? null,
+      tags:                 Array.isArray(row.tags) ? row.tags : [],
+      wtp_signal:           row.wtp_signal ?? null,
+      problem_severity:     row.problem_severity ?? null,
+      adoption_willingness: row.adoption_willingness ?? null,
     }),
   },
 

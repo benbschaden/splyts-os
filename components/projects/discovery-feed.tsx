@@ -6,6 +6,7 @@ import { Plus, Pencil, Trash2, Sparkles, MessageSquare, Star } from 'lucide-reac
 import { cn } from '@/lib/utils'
 import type { DiscoveryEntryRow, DiscoveryEntryType, DiscoverySentiment } from '@/lib/queries/discovery-entries'
 import { DiscoveryDrawer } from './discovery-drawer'
+import { InterviewMetricsPanel } from './interview-metrics-panel'
 
 const DISCOVERY_TAGS = [
   'activation', 'retention', 'churn', 'pricing',
@@ -339,6 +340,11 @@ export function DiscoveryFeed({
                         </span>
                       )}
                     </div>
+                  )}
+
+                  {/* Interview metrics panel */}
+                  {entry.entry_type === 'interview' && (
+                    <InterviewMetricsPanel entry={entry} />
                   )}
                 </div>
 

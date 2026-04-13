@@ -477,6 +477,16 @@ export function buildChatSystemPrompt(params: {
       lines.push(`- [${entry.entry_type}${src}${who}${date}] ${entry.raw_content.slice(0, 800)}`)
       if (entry.key_quote_1) lines.push(`  Key quote: "${entry.key_quote_1}"`)
       if (entry.jtbd) lines.push(`  JTBD: ${entry.jtbd}`)
+      const row = entry as Record<string, unknown>
+      if (row.wtp_signal && row.wtp_signal !== 'none') {
+        const prices = Array.isArray(row.wtp_price_points) && row.wtp_price_points.length > 0
+          ? ` — prices mentioned: ${(row.wtp_price_points as number[]).join(', ')}`
+          : ''
+        lines.push(`  WTP signal: ${row.wtp_signal}${prices}`)
+      }
+      if (typeof row.problem_severity === 'number') lines.push(`  Problem severity: ${row.problem_severity}/5`)
+      if (typeof row.adoption_willingness === 'number') lines.push(`  Adoption willingness: ${row.adoption_willingness}/5`)
+      if (Array.isArray(row.tags) && (row.tags as string[]).length > 0) lines.push(`  Tags: ${(row.tags as string[]).join(', ')}`)
     })
     lines.push('')
   }
@@ -2271,6 +2281,78 @@ export function buildMeetingChatSystemPrompt(params: {
   lines.push('')
   lines.push('### Transcript (may be truncated for context limits)')
   lines.push(meeting.transcriptExcerpt)
+
+  return lines.join('\n')
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Discovery Entry Analysis
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function buildDiscoveryEntryAnalysisPrompt(params: {
+  rawContent: string
+  entryType: string
+  availableTags: string[]
+}): string {
+  const { rawContent, entryType, availableTags } = params
+  const typeLabel =
+    entryType === 'interview' ? 'customer interview transcript'
+    : entryType === 'review'  ? 'customer review'
+    : entryType === 'survey'  ? 'survey response'
+    : entryType === 'email'   ? 'customer email'
+    : 'customer observation'
+
+  const lines: string[] = []
+
+  lines.push('You are a world-class customer discovery expert trained in Jobs to be Done theory, qualitative research synthesis, and commercial signal detection.')
+  lines.push('')
+  lines.push(`Analyse the following ${typeLabel}. Extract structured insight WITHOUT interpreting beyond what is stated.`)
+  lines.push('Do not add assumptions. Do not filter for what sounds positive. Report what is actually present in the data.')
+  lines.push('')
+  lines.push(`[${typeLabel.toUpperCase()}]`)
+  lines.push(rawContent.slice(0, 30000))
+  lines.push('')
+
+  if (availableTags.length > 0) {
+    lines.push('AVAILABLE TAGS — only pick from this list. Return [] if none genuinely apply:')
+    lines.push(availableTags.join(', '))
+    lines.push('')
+  }
+
+  lines.push('Return a JSON object with EXACTLY these fields:')
+  lines.push('')
+  lines.push('  sentiment         — "positive" | "neutral" | "negative" | "mixed"')
+  lines.push('                      mixed = genuine positives AND negatives both present.')
+  lines.push('')
+  lines.push('  tags              — array of strings from available tags that genuinely apply. [] if none.')
+  lines.push('')
+  lines.push('  key_quote_1       — Single most revealing verbatim line from the content. Exact words only, no paraphrase.')
+  lines.push('  key_quote_2       — Second most revealing verbatim line. null if fewer than 2 standouts exist.')
+  lines.push('  key_quote_3       — Third most revealing verbatim line. null if fewer than 3.')
+  lines.push('')
+  lines.push('  jtbd              — The underlying job-to-be-done in "Help me ___ so I can ___" format.')
+  lines.push('                      This is what the person is ACTUALLY trying to accomplish, not what they said literally.')
+  lines.push('                      null if this content type does not support JTBD extraction.')
+  lines.push('')
+  lines.push('  wtp_signal        — "strong" | "moderate" | "weak" | "none"')
+  lines.push('                      strong   = unprompted price mention or explicit willingness to pay stated.')
+  lines.push('                      moderate = discussed value, budget, or comparison with paid alternatives.')
+  lines.push('                      weak     = vague positive signal with no pricing language.')
+  lines.push('                      none     = no commercial signal.')
+  lines.push('')
+  lines.push('  wtp_price_points  — array of numbers for any specific prices mentioned (e.g. [29, 49]). [] if none.')
+  lines.push('')
+  lines.push('  problem_severity  — integer 1–5. How acutely does this person feel the problem?')
+  lines.push('                      5 = actively painful, causing them to seek a solution now.')
+  lines.push('                      1 = mild awareness, not a priority.')
+  lines.push('                      null if cannot be assessed from this content.')
+  lines.push('')
+  lines.push('  adoption_willingness — integer 1–5. How willing do they seem to adopt a solution?')
+  lines.push('                      5 = eager, already taking action or asking how to sign up.')
+  lines.push('                      1 = resistant or indifferent.')
+  lines.push('                      null if cannot be assessed.')
+  lines.push('')
+  lines.push('Output ONLY valid JSON. No preamble, no markdown fences, no explanation.')
 
   return lines.join('\n')
 }

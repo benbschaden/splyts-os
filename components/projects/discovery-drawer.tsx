@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { X, Sparkles, ShieldOff, Star } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { X, Sparkles, ShieldOff, Star, Mic, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type {
   DiscoveryEntryRow,
@@ -10,6 +10,7 @@ import type {
   DiscoveryUserSegment,
   DiscoveryPlatform,
 } from '@/lib/queries/discovery-entries'
+import type { SpeakerMetrics } from '@/lib/discovery/speaker-metrics'
 
 interface DiscoveryDrawerProps {
   open: boolean
@@ -39,6 +40,26 @@ interface FormData {
   // review
   star_rating: number | null
   platform: DiscoveryPlatform | ''
+}
+
+type TranscribeResult = {
+  transcript: string
+  audio_url: string
+  diarized_transcript: unknown
+  metrics: SpeakerMetrics
+}
+
+type AnalyseResult = {
+  sentiment: DiscoverySentiment
+  tags: string[]
+  key_quote_1: string | null
+  key_quote_2: string | null
+  key_quote_3: string | null
+  jtbd: string | null
+  wtp_signal: 'strong' | 'moderate' | 'weak' | 'none'
+  wtp_price_points: number[]
+  problem_severity: number | null
+  adoption_willingness: number | null
 }
 
 const EMPTY: FormData = {
@@ -113,6 +134,17 @@ export function DiscoveryDrawer({
   const [form, setForm] = useState<FormData>(EMPTY)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Audio upload state
+  const [audioFile, setAudioFile] = useState<File | null>(null)
+  const [interviewerSpeaker, setInterviewerSpeaker] = useState<0 | 1>(0)
+  const [transcribing, setTranscribing] = useState(false)
+  const [transcribeError, setTranscribeError] = useState<string | null>(null)
+  const [transcribeResult, setTranscribeResult] = useState<TranscribeResult | null>(null)
+  // AI analysis state
+  const [analysing, setAnalysing] = useState(false)
+  const [analyseError, setAnalyseError] = useState<string | null>(null)
+  const [pendingSignals, setPendingSignals] = useState<AnalyseResult | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (open) {
@@ -138,6 +170,10 @@ export function DiscoveryDrawer({
         setForm(EMPTY)
       }
       setError(null)
+      setAudioFile(null)
+      setTranscribeResult(null)
+      setTranscribeError(null)
+      setAnalyseError(null)
     }
   }, [open, editing])
 
@@ -160,6 +196,66 @@ export function DiscoveryDrawer({
         ? prev.tags.filter((t) => t !== tag)
         : [...prev.tags, tag],
     }))
+  }
+
+  async function handleTranscribe() {
+    if (!audioFile) return
+    setTranscribing(true)
+    setTranscribeError(null)
+
+    const fd = new FormData()
+    fd.append('file', audioFile)
+    fd.append('interviewer_speaker', String(interviewerSpeaker))
+
+    const res = await fetch('/api/discovery-entries/transcribe', { method: 'POST', body: fd })
+    setTranscribing(false)
+
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({})) as { error?: string }
+      setTranscribeError(json.error ?? 'Transcription failed. Please try again.')
+      return
+    }
+
+    const json = await res.json() as { data: TranscribeResult }
+    setTranscribeResult(json.data)
+    set('raw_content', json.data.transcript)
+  }
+
+  async function handleAnalyse() {
+    if (!form.raw_content.trim()) return
+    setAnalysing(true)
+    setAnalyseError(null)
+
+    const res = await fetch('/api/discovery-entries/analyse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        raw_content: form.raw_content,
+        entry_type: form.entry_type,
+        available_tags: availableTags,
+      }),
+    })
+    setAnalysing(false)
+
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({})) as { error?: string }
+      setAnalyseError(json.error ?? 'Analysis failed. Please try again.')
+      return
+    }
+
+    const json = await res.json() as { data: AnalyseResult }
+    const a = json.data
+    setForm((prev) => ({
+      ...prev,
+      sentiment: a.sentiment,
+      tags: a.tags,
+      key_quote_1: a.key_quote_1 ?? '',
+      key_quote_2: a.key_quote_2 ?? '',
+      key_quote_3: a.key_quote_3 ?? '',
+      jtbd: a.jtbd ?? '',
+    }))
+    // Store extended fields for save
+    setPendingSignals(a)
   }
 
   async function handleSave() {
@@ -191,6 +287,15 @@ export function DiscoveryDrawer({
       platform: form.entry_type === 'review' ? (form.platform || null) : null,
       source_material_id: null,
       study_id: studyId ?? null,
+      // audio + transcription
+      audio_url: transcribeResult?.audio_url ?? null,
+      diarized_transcript: transcribeResult?.diarized_transcript ?? null,
+      ...(transcribeResult?.metrics ?? {}),
+      // AI content signals
+      wtp_signal: pendingSignals?.wtp_signal ?? null,
+      wtp_price_points: pendingSignals?.wtp_price_points ?? null,
+      problem_severity: pendingSignals?.problem_severity ?? null,
+      adoption_willingness: pendingSignals?.adoption_willingness ?? null,
     }
 
     const url = editing ? `/api/discovery-entries/${editing.id}` : '/api/discovery-entries'
@@ -310,6 +415,90 @@ export function DiscoveryDrawer({
             </div>
           </div>
 
+          {/* Audio upload (interview only) */}
+          {form.entry_type === 'interview' && (
+            <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-4">
+              <p className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                <Mic className="h-3.5 w-3.5 text-muted-foreground" />
+                Upload interview audio
+              </p>
+              <p className="text-[11px] text-muted-foreground -mt-1">
+                Upload an audio file to auto-transcribe and compute speaker metrics. Or paste a transcript below.
+              </p>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="audio/mpeg,audio/mp4,audio/m4a,audio/x-m4a,audio/wav,audio/webm,video/webm"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0] ?? null
+                  setAudioFile(f)
+                  setTranscribeResult(null)
+                  setTranscribeError(null)
+                }}
+              />
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+                >
+                  {audioFile ? audioFile.name : 'Choose file'}
+                </button>
+                {audioFile && (
+                  <span className="text-[11px] text-muted-foreground">
+                    {(audioFile.size / 1024 / 1024).toFixed(1)} MB
+                  </span>
+                )}
+              </div>
+
+              {audioFile && (
+                <div className="space-y-2">
+                  <p className="text-[11px] text-foreground font-medium">Which speaker is the interviewer?</p>
+                  <div className="flex gap-3">
+                    {([0, 1] as const).map((n) => (
+                      <label key={n} className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="interviewer-speaker"
+                          checked={interviewerSpeaker === n}
+                          onChange={() => setInterviewerSpeaker(n)}
+                          className="accent-primary"
+                        />
+                        <span className="text-xs text-foreground">Speaker {n + 1}</span>
+                      </label>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleTranscribe}
+                    disabled={transcribing}
+                    className="flex items-center gap-1.5 rounded-md bg-foreground px-4 py-1.5 text-xs font-medium text-background hover:bg-foreground/90 transition-colors disabled:opacity-50"
+                  >
+                    {transcribing ? (
+                      <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Transcribing…</>
+                    ) : (
+                      'Transcribe'
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {transcribeError && (
+                <p className="text-xs text-destructive">{transcribeError}</p>
+              )}
+
+              {transcribeResult && (
+                <p className="text-[11px] text-green-700 dark:text-green-400 font-medium">
+                  ✓ Transcribed — speaker metrics computed. Review the transcript below.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Raw content */}
           <div className="space-y-1.5">
             <label htmlFor="entry-content" className="text-xs font-medium text-foreground">
@@ -339,6 +528,34 @@ export function DiscoveryDrawer({
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground resize-none placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
+
+          {/* Analyse with AI */}
+          {form.raw_content.trim().length > 0 && (
+            <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-2">
+              <p className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-blue-500" />
+                Analyse with AI
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Claude will extract sentiment, tags, key quotes, JTBD, WTP signal, problem severity, and adoption willingness — without bias.
+              </p>
+              {analyseError && (
+                <p className="text-xs text-destructive">{analyseError}</p>
+              )}
+              <button
+                type="button"
+                onClick={handleAnalyse}
+                disabled={analysing}
+                className="flex items-center gap-1.5 rounded-md bg-blue-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
+              >
+                {analysing ? (
+                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Analysing…</>
+                ) : (
+                  'Analyse with AI'
+                )}
+              </button>
+            </div>
+          )}
 
           {/* Sentiment */}
           <div className="space-y-1.5">

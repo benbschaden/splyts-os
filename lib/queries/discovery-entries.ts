@@ -27,12 +27,32 @@ export type DiscoveryEntryRow = {
   source_material_id: string | null
   study_id: string | null
   participant: string | null
+  // Audio + transcription
+  audio_url: string | null
+  diarized_transcript: unknown | null
+  // Conversation metrics (from Deepgram diarized output)
+  interviewer_talk_pct: number | null
+  interviewee_talk_pct: number | null
+  interviewer_wpm: number | null
+  interviewee_wpm: number | null
+  interviewer_turns: number | null
+  interviewee_turns: number | null
+  total_interruptions: number | null
+  ijl_median_s: number | null
+  ijl_mean_s: number | null
+  isr_pct: number | null
+  spr_pct: number | null
+  // Content signals (Claude extracted)
+  wtp_signal: 'strong' | 'moderate' | 'weak' | 'none' | null
+  wtp_price_points: number[] | null
+  problem_severity: number | null
+  adoption_willingness: number | null
   created_at: string
   updated_at: string
 }
 
 const SELECT_COLUMNS =
-  'id, organization_id, project_id, created_by, entry_type, source, entry_date, raw_content, sentiment, tags, include_in_ai, user_segment, key_quote_1, key_quote_2, key_quote_3, jtbd, star_rating, platform, source_material_id, study_id, participant, created_at, updated_at'
+  'id, organization_id, project_id, created_by, entry_type, source, entry_date, raw_content, sentiment, tags, include_in_ai, user_segment, key_quote_1, key_quote_2, key_quote_3, jtbd, star_rating, platform, source_material_id, study_id, participant, audio_url, diarized_transcript, interviewer_talk_pct, interviewee_talk_pct, interviewer_wpm, interviewee_wpm, interviewer_turns, interviewee_turns, total_interruptions, ijl_median_s, ijl_mean_s, isr_pct, spr_pct, wtp_signal, wtp_price_points, problem_severity, adoption_willingness, created_at, updated_at'
 
 export async function getDiscoveryEntries(
   projectId: string,
@@ -112,6 +132,23 @@ export type CreateDiscoveryEntryParams = {
   source_material_id: string | null
   study_id: string | null
   participant: string | null
+  audio_url?: string | null
+  diarized_transcript?: unknown | null
+  interviewer_talk_pct?: number | null
+  interviewee_talk_pct?: number | null
+  interviewer_wpm?: number | null
+  interviewee_wpm?: number | null
+  interviewer_turns?: number | null
+  interviewee_turns?: number | null
+  total_interruptions?: number | null
+  ijl_median_s?: number | null
+  ijl_mean_s?: number | null
+  isr_pct?: number | null
+  spr_pct?: number | null
+  wtp_signal?: 'strong' | 'moderate' | 'weak' | 'none' | null
+  wtp_price_points?: number[] | null
+  problem_severity?: number | null
+  adoption_willingness?: number | null
 }
 
 export async function createDiscoveryEntry(
@@ -141,6 +178,23 @@ export async function createDiscoveryEntry(
       source_material_id: params.source_material_id,
       study_id: params.study_id,
       participant: params.participant,
+      audio_url: params.audio_url ?? null,
+      diarized_transcript: params.diarized_transcript ?? null,
+      interviewer_talk_pct: params.interviewer_talk_pct ?? null,
+      interviewee_talk_pct: params.interviewee_talk_pct ?? null,
+      interviewer_wpm: params.interviewer_wpm ?? null,
+      interviewee_wpm: params.interviewee_wpm ?? null,
+      interviewer_turns: params.interviewer_turns ?? null,
+      interviewee_turns: params.interviewee_turns ?? null,
+      total_interruptions: params.total_interruptions ?? null,
+      ijl_median_s: params.ijl_median_s ?? null,
+      ijl_mean_s: params.ijl_mean_s ?? null,
+      isr_pct: params.isr_pct ?? null,
+      spr_pct: params.spr_pct ?? null,
+      wtp_signal: params.wtp_signal ?? null,
+      wtp_price_points: params.wtp_price_points ?? null,
+      problem_severity: params.problem_severity ?? null,
+      adoption_willingness: params.adoption_willingness ?? null,
     })
     .select(SELECT_COLUMNS)
     .single()
@@ -167,6 +221,23 @@ export type UpdateDiscoveryEntryParams = {
   source_material_id?: string | null
   study_id?: string | null
   participant?: string | null
+  audio_url?: string | null
+  diarized_transcript?: unknown | null
+  interviewer_talk_pct?: number | null
+  interviewee_talk_pct?: number | null
+  interviewer_wpm?: number | null
+  interviewee_wpm?: number | null
+  interviewer_turns?: number | null
+  interviewee_turns?: number | null
+  total_interruptions?: number | null
+  ijl_median_s?: number | null
+  ijl_mean_s?: number | null
+  isr_pct?: number | null
+  spr_pct?: number | null
+  wtp_signal?: 'strong' | 'moderate' | 'weak' | 'none' | null
+  wtp_price_points?: number[] | null
+  problem_severity?: number | null
+  adoption_willingness?: number | null
 }
 
 export async function updateDiscoveryEntry(

@@ -2367,3 +2367,93 @@ export function buildDiscoveryEntryAnalysisPrompt(params: {
 
   return lines.join('\n')
 }
+
+export type StudyEntryDigest = {
+  participant: string | null
+  entry_type: string
+  sentiment: string | null
+  tags: string[]
+  key_quote_1: string | null
+  key_quote_2: string | null
+  key_quote_3: string | null
+  jtbd: string | null
+  wtp_signal: string | null
+  wtp_price_points: number[]
+  problem_severity: number | null
+  adoption_willingness: number | null
+  raw_content_excerpt: string
+}
+
+export function buildStudySynthesisPrompt(params: {
+  studyName: string
+  studyGoal: string | null
+  method: string | null
+  entries: StudyEntryDigest[]
+}): string {
+  const { studyName, studyGoal, method, entries } = params
+  const lines: string[] = []
+
+  lines.push('You are a world-class qualitative research synthesiser with deep expertise in customer discovery, Jobs to be Done theory, and commercial signal detection.')
+  lines.push('')
+  lines.push(`You are synthesising the findings from a research study titled "${studyName}".`)
+  if (studyGoal) lines.push(`Study goal: ${studyGoal}`)
+  if (method) lines.push(`Method: ${method}`)
+  lines.push(`Total entries: ${entries.length}`)
+  lines.push('')
+  lines.push('Your job is to identify patterns ACROSS participants — not summarise individual entries. Look for:')
+  lines.push('- Themes that appear in multiple entries (even if worded differently)')
+  lines.push('- Contradictions or segment differences worth calling out')
+  lines.push('- The strongest commercial and emotional signals')
+  lines.push('- What is conspicuously absent (things you expected but did not find)')
+  lines.push('')
+  lines.push('Do not interpret beyond the data. Do not add assumptions.')
+  lines.push('')
+  lines.push('--- ENTRIES ---')
+  lines.push('')
+
+  entries.forEach((e, i) => {
+    lines.push(`[Entry ${i + 1}${e.participant ? ` — ${e.participant}` : ''}] (${e.entry_type})`)
+    if (e.sentiment) lines.push(`  Sentiment: ${e.sentiment}`)
+    if (e.tags.length > 0) lines.push(`  Tags: ${e.tags.join(', ')}`)
+    if (e.jtbd) lines.push(`  JTBD: ${e.jtbd}`)
+    if (e.key_quote_1) lines.push(`  Quote 1: "${e.key_quote_1}"`)
+    if (e.key_quote_2) lines.push(`  Quote 2: "${e.key_quote_2}"`)
+    if (e.key_quote_3) lines.push(`  Quote 3: "${e.key_quote_3}"`)
+    if (e.wtp_signal && e.wtp_signal !== 'none') {
+      const prices = e.wtp_price_points.length > 0 ? ` (prices: ${e.wtp_price_points.map(p => `$${p}`).join(', ')})` : ''
+      lines.push(`  WTP signal: ${e.wtp_signal}${prices}`)
+    }
+    if (e.problem_severity !== null) lines.push(`  Problem severity: ${e.problem_severity}/5`)
+    if (e.adoption_willingness !== null) lines.push(`  Adoption willingness: ${e.adoption_willingness}/5`)
+    if (e.raw_content_excerpt) lines.push(`  Excerpt: ${e.raw_content_excerpt}`)
+    lines.push('')
+  })
+
+  lines.push('--- END OF ENTRIES ---')
+  lines.push('')
+  lines.push('Write a synthesis report in clean Markdown. Structure it exactly as follows:')
+  lines.push('')
+  lines.push('# Key findings')
+  lines.push('3–5 bullet points summarising the most important cross-cutting insights.')
+  lines.push('Each bullet must be a complete, specific statement — not generic.')
+  lines.push('')
+  lines.push('# Themes')
+  lines.push('For each recurring theme (2–5 themes), use a ## heading with the theme name.')
+  lines.push('Under each theme: 1–2 sentences describing the pattern, supported by the most compelling')
+  lines.push('verbatim quotes from entries. Cite participant name if available.')
+  lines.push('')
+  lines.push('# Signal summary')
+  lines.push('A short paragraph covering: overall sentiment distribution, WTP signal strength across')
+  lines.push('participants, average problem severity and adoption willingness, and what the aggregate')
+  lines.push('signals suggest about readiness to buy / adopt.')
+  lines.push('')
+  lines.push('# Gaps and contradictions')
+  lines.push('Anything surprising, absent, or inconsistent across the data. Be direct.')
+  lines.push('')
+  lines.push('# Recommended next steps')
+  lines.push('3–5 specific, actionable next steps based solely on what this data reveals.')
+  lines.push('')
+  lines.push('Output ONLY the Markdown report. No preamble, no explanation outside the report structure.')
+
+  return lines.join('\n')
+}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Pencil, FileText, List, BarChart3 } from 'lucide-react'
+import { ArrowLeft, Pencil, FileText, List, BarChart3, Sparkles, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { DiscoveryStudyRow, DiscoveryStudyMethod } from '@/lib/queries/discovery-studies'
 import type { DiscoveryEntryRow } from '@/lib/queries/discovery-entries'
@@ -54,6 +54,8 @@ export function DiscoveryStudyDetail({
   const [analysisSaved, setAnalysisSaved] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [statusSaving, setStatusSaving] = useState(false)
+  const [synthesising, setSynthesising] = useState(false)
+  const [synthesisError, setSynthesisError] = useState<string | null>(null)
 
   useEffect(() => {
     setScript(study.script_markdown ?? '')
@@ -91,6 +93,21 @@ export function DiscoveryStudyDetail({
       setAnalysisSaved(true)
       setTimeout(() => setAnalysisSaved(false), 2000)
     }
+  }
+
+  async function handleSynthesise() {
+    setSynthesising(true)
+    setSynthesisError(null)
+    const res = await fetch(`/api/discovery-studies/${study.id}/synthesise`, { method: 'POST' })
+    setSynthesising(false)
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({})) as { error?: string }
+      setSynthesisError(json.error ?? 'Synthesis failed. Please try again.')
+      return
+    }
+    const json = await res.json() as { data: { analysis_markdown: string } }
+    setAnalysis(json.data.analysis_markdown)
+    onStudyUpdated({ ...study, analysis_markdown: json.data.analysis_markdown })
   }
 
   async function handleStatusChange(status: string) {
@@ -227,18 +244,40 @@ export function DiscoveryStudyDetail({
 
         {/* Analysis */}
         {activeTab === 'analysis' && (
-          <div className="space-y-3">
-            <p className="text-xs text-muted-foreground">
-              Synthesise what you found. Key themes, surprising insights, patterns across
-              participants, and recommended next steps.
-            </p>
+          <div className="space-y-4">
+            {/* AI synthesis controls */}
+            <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-2">
+              <p className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-blue-500" />
+                {analysis.trim() ? 'Re-synthesise with AI' : 'Synthesise with AI'}
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Claude reads all {entries.length} {entries.length === 1 ? 'entry' : 'entries'} in this study and writes a structured report covering themes, signal strength, gaps, and recommended next steps.
+                {analysis.trim() ? ' This will overwrite the current analysis.' : ''}
+              </p>
+              {synthesisError && (
+                <p className="text-xs text-destructive">{synthesisError}</p>
+              )}
+              <button
+                type="button"
+                onClick={handleSynthesise}
+                disabled={synthesising || entries.length === 0}
+                title={entries.length === 0 ? 'Add entries to this study first' : undefined}
+                className="flex items-center gap-1.5 rounded-md bg-foreground px-4 py-1.5 text-xs font-medium text-background hover:bg-foreground/90 transition-colors disabled:opacity-50"
+              >
+                {synthesising ? (
+                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Synthesising…</>
+                ) : (
+                  analysis.trim() ? 'Re-synthesise' : 'Synthesise'
+                )}
+              </button>
+            </div>
+
             <textarea
               value={analysis}
               onChange={(e) => setAnalysis(e.target.value)}
               rows={20}
-              placeholder={
-                '# Key findings\n\n## Theme 1: ...\n\n## Theme 2: ...\n\n# Recommendations\n\n- ...'
-              }
+              placeholder={'# Key findings\n\n## Theme 1: ...\n\n## Theme 2: ...\n\n# Recommendations\n\n- ...'}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground font-mono resize-y placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-ring"
             />
             <div className="flex justify-end">

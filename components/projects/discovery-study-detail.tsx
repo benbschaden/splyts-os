@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Pencil, FileText, List, BarChart3, Sparkles, Loader2 } from 'lucide-react'
+import { ArrowLeft, Pencil, FileText, List, BarChart3, Sparkles, Loader2, PenLine, Eye } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils'
 import type { DiscoveryStudyRow, DiscoveryStudyMethod } from '@/lib/queries/discovery-studies'
 import type { DiscoveryEntryRow } from '@/lib/queries/discovery-entries'
@@ -56,6 +58,7 @@ export function DiscoveryStudyDetail({
   const [statusSaving, setStatusSaving] = useState(false)
   const [synthesising, setSynthesising] = useState(false)
   const [synthesisError, setSynthesisError] = useState<string | null>(null)
+  const [analysisEditing, setAnalysisEditing] = useState(false)
 
   useEffect(() => {
     setScript(study.script_markdown ?? '')
@@ -107,6 +110,7 @@ export function DiscoveryStudyDetail({
     }
     const json = await res.json() as { data: { analysis_markdown: string } }
     setAnalysis(json.data.analysis_markdown)
+    setAnalysisEditing(false)
     onStudyUpdated({ ...study, analysis_markdown: json.data.analysis_markdown })
   }
 
@@ -273,22 +277,45 @@ export function DiscoveryStudyDetail({
               </button>
             </div>
 
-            <textarea
-              value={analysis}
-              onChange={(e) => setAnalysis(e.target.value)}
-              rows={20}
-              placeholder={'# Key findings\n\n## Theme 1: ...\n\n## Theme 2: ...\n\n# Recommendations\n\n- ...'}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground font-mono resize-y placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-            <div className="flex justify-end">
+            {analysis.trim() && !analysisEditing ? (
+              // Rendered markdown view
+              <div className="rounded-md border border-border bg-background px-5 py-5">
+                <div className="prose prose-sm max-w-none text-foreground prose-headings:font-semibold prose-headings:text-foreground prose-h1:text-base prose-h1:mt-0 prose-h2:text-sm prose-h2:mt-5 prose-h3:text-sm prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 prose-strong:font-semibold prose-strong:text-foreground prose-a:text-foreground prose-blockquote:border-border prose-blockquote:text-muted-foreground">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{analysis}</ReactMarkdown>
+                </div>
+              </div>
+            ) : (
+              <textarea
+                value={analysis}
+                onChange={(e) => setAnalysis(e.target.value)}
+                rows={20}
+                placeholder={'# Key findings\n\n## Theme 1: ...\n\n## Theme 2: ...\n\n# Recommendations\n\n- ...'}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground font-mono resize-y placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            )}
+
+            <div className="flex items-center justify-between">
               <button
                 type="button"
-                onClick={saveAnalysis}
-                disabled={savingAnalysis}
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                onClick={() => setAnalysisEditing(!analysisEditing)}
+                className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               >
-                {analysisSaved ? 'Saved ✓' : savingAnalysis ? 'Saving…' : 'Save analysis'}
+                {analysisEditing ? (
+                  <><Eye className="h-3.5 w-3.5" /> Preview</>
+                ) : (
+                  <><PenLine className="h-3.5 w-3.5" /> Edit</>
+                )}
               </button>
+              {analysisEditing && (
+                <button
+                  type="button"
+                  onClick={saveAnalysis}
+                  disabled={savingAnalysis}
+                  className="rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  {analysisSaved ? 'Saved ✓' : savingAnalysis ? 'Saving…' : 'Save'}
+                </button>
+              )}
             </div>
           </div>
         )}

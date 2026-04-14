@@ -41,6 +41,7 @@ const patchSchema = z.object({
   wtp_price_points: z.array(z.number()).nullable().optional(),
   problem_severity: z.number().int().min(1).max(5).nullable().optional(),
   adoption_willingness: z.number().int().min(1).max(5).nullable().optional(),
+  discussion_notes: z.string().nullable().optional(),
 })
 
 export async function PATCH(

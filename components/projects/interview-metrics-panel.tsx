@@ -1,5 +1,7 @@
 'use client'
 
+import { useState } from 'react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { DiscoveryEntryRow } from '@/lib/queries/discovery-entries'
 
@@ -117,13 +119,23 @@ function SeverityDots({ value, max = 5 }: { value: number; max?: number }) {
 }
 
 export function InterviewMetricsPanel({ entry }: InterviewMetricsPanelProps) {
+  const [open, setOpen] = useState(false)
   const hasMetrics = entry.interviewer_talk_pct !== null
   const hasSignals = entry.wtp_signal !== null || entry.problem_severity !== null || entry.adoption_willingness !== null
 
   if (!hasMetrics && !hasSignals) return null
 
   return (
-    <div className="mt-3 space-y-4">
+    <div className="mt-2">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+      >
+        {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+        Talk dynamics &amp; signals
+      </button>
+    <div className={cn('mt-3 space-y-4', !open && 'hidden')}>
       {/* Content signals */}
       {hasSignals && (
         <div className="rounded-lg border border-border bg-background p-4 space-y-3">
@@ -266,6 +278,7 @@ export function InterviewMetricsPanel({ entry }: InterviewMetricsPanelProps) {
           </div>
         </div>
       )}
+    </div>
     </div>
   )
 }

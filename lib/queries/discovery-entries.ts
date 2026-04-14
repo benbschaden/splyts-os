@@ -47,12 +47,14 @@ export type DiscoveryEntryRow = {
   wtp_price_points: number[] | null
   problem_severity: number | null
   adoption_willingness: number | null
+  // Saved AI discussion transcript
+  discussion_notes: string | null
   created_at: string
   updated_at: string
 }
 
 const SELECT_COLUMNS =
-  'id, organization_id, project_id, created_by, entry_type, source, entry_date, raw_content, sentiment, tags, include_in_ai, user_segment, key_quote_1, key_quote_2, key_quote_3, jtbd, star_rating, platform, source_material_id, study_id, participant, audio_url, diarized_transcript, interviewer_talk_pct, interviewee_talk_pct, interviewer_wpm, interviewee_wpm, interviewer_turns, interviewee_turns, total_interruptions, ijl_median_s, ijl_mean_s, isr_pct, spr_pct, wtp_signal, wtp_price_points, problem_severity, adoption_willingness, created_at, updated_at'
+  'id, organization_id, project_id, created_by, entry_type, source, entry_date, raw_content, sentiment, tags, include_in_ai, user_segment, key_quote_1, key_quote_2, key_quote_3, jtbd, star_rating, platform, source_material_id, study_id, participant, audio_url, diarized_transcript, interviewer_talk_pct, interviewee_talk_pct, interviewer_wpm, interviewee_wpm, interviewer_turns, interviewee_turns, total_interruptions, ijl_median_s, ijl_mean_s, isr_pct, spr_pct, wtp_signal, wtp_price_points, problem_severity, adoption_willingness, discussion_notes, created_at, updated_at'
 
 export async function getDiscoveryEntries(
   projectId: string,
@@ -149,6 +151,7 @@ export type CreateDiscoveryEntryParams = {
   wtp_price_points?: number[] | null
   problem_severity?: number | null
   adoption_willingness?: number | null
+  discussion_notes?: string | null
 }
 
 export async function createDiscoveryEntry(
@@ -195,6 +198,7 @@ export async function createDiscoveryEntry(
       wtp_price_points: params.wtp_price_points ?? null,
       problem_severity: params.problem_severity ?? null,
       adoption_willingness: params.adoption_willingness ?? null,
+      discussion_notes: params.discussion_notes ?? null,
     })
     .select(SELECT_COLUMNS)
     .single()
@@ -238,6 +242,7 @@ export type UpdateDiscoveryEntryParams = {
   wtp_price_points?: number[] | null
   problem_severity?: number | null
   adoption_willingness?: number | null
+  discussion_notes?: string | null
 }
 
 export async function updateDiscoveryEntry(

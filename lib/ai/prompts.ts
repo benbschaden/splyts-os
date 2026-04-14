@@ -2368,6 +2368,44 @@ export function buildDiscoveryEntryAnalysisPrompt(params: {
   return lines.join('\n')
 }
 
+export function buildEntryDiscussionPrompt(params: {
+  entry: {
+    entry_type: string
+    participant: string | null
+    entry_date: string | null
+    raw_content: string
+    jtbd: string | null
+    key_quote_1: string | null
+    key_quote_2: string | null
+    key_quote_3: string | null
+    sentiment: string | null
+    tags: string[]
+  }
+}): string {
+  const { entry } = params
+  const lines: string[] = []
+
+  lines.push('You are a world-class customer discovery expert. You are helping analyse a specific discovery entry.')
+  lines.push('Answer questions about this entry only. Do not invent details not present in the content.')
+  lines.push('Be specific, direct, and commercially minded. Reference exact quotes when relevant.')
+  lines.push('')
+  lines.push(`Entry type: ${entry.entry_type}`)
+  if (entry.participant) lines.push(`Participant: ${entry.participant}`)
+  if (entry.entry_date) lines.push(`Date: ${entry.entry_date}`)
+  if (entry.sentiment) lines.push(`Sentiment: ${entry.sentiment}`)
+  if (entry.tags.length > 0) lines.push(`Tags: ${entry.tags.join(', ')}`)
+  if (entry.jtbd) lines.push(`JTBD: ${entry.jtbd}`)
+  if (entry.key_quote_1) lines.push(`Key quote 1: "${entry.key_quote_1}"`)
+  if (entry.key_quote_2) lines.push(`Key quote 2: "${entry.key_quote_2}"`)
+  if (entry.key_quote_3) lines.push(`Key quote 3: "${entry.key_quote_3}"`)
+  lines.push('')
+  lines.push('--- FULL CONTENT ---')
+  lines.push(entry.raw_content.slice(0, 30000))
+  lines.push('--- END ---')
+
+  return lines.join('\n')
+}
+
 export type StudyEntryDigest = {
   participant: string | null
   entry_type: string

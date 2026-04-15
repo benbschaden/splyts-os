@@ -197,7 +197,7 @@ export const CONTENT_REGISTRY: Record<string, ContentTypeConfig> = {
   product_feature: {
     deriveText: (row) => ({
       title: str(row.name),
-      summary: truncate(`${str(row.tagline)} ${str(row.description)}`, 500),
+      summary: truncate(`${str(row.tagline)} ${str(row.description)} ${str(row.related_features)}`, 500),
     }),
     deriveMetadata: (row) => ({
       status: row.status ?? null,

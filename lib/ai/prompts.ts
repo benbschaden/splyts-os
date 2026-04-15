@@ -75,10 +75,13 @@ function buildProductFeaturesBlock(features: ProductFeatureRow[], nameOnly = fal
   if (visible.length === 0) return ''
   return visible.map((f) => {
     if (nameOnly) return `- ${f.name}`
-    const parts = [`- ${f.name}`]
-    if (f.tagline) parts[0] += `: ${f.tagline}`
-    if (f.status !== 'live') parts[0] += ` (${f.status})`
-    return parts[0]
+    let headline = `- ${f.name}`
+    if (f.tagline) headline += `: ${f.tagline}`
+    if (f.status !== 'live') headline += ` (${f.status})`
+    const lines = [headline]
+    if (f.description) lines.push(`  ${f.description}`)
+    if (f.related_features) lines.push(`  Related: ${f.related_features}`)
+    return lines.join('\n')
   }).join('\n')
 }
 

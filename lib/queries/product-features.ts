@@ -6,6 +6,7 @@ export type ProductFeatureRow = {
   name: string
   tagline: string | null
   description: string | null
+  related_features: string | null
   category: string
   surfaces: string[]
   status: 'live' | 'beta' | 'planned' | 'deprecated'
@@ -21,7 +22,7 @@ export async function getProductFeatures(organizationId: string): Promise<Produc
   const supabase = createServiceClient()
   const { data, error } = await supabase
     .from('product_features')
-    .select('id, organization_id, name, tagline, description, category, surfaces, status, include_in_ai, sort_order, created_by, updated_by, created_at, updated_at')
+    .select('id, organization_id, name, tagline, description, related_features, category, surfaces, status, include_in_ai, sort_order, created_by, updated_by, created_at, updated_at')
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
     .order('category', { ascending: true })
@@ -36,7 +37,7 @@ export async function getAiVisibleProductFeatures(organizationId: string, limit 
   const supabase = createServiceClient()
   const { data, error } = await supabase
     .from('product_features')
-    .select('id, organization_id, name, tagline, description, category, surfaces, status, include_in_ai, sort_order, created_by, updated_by, created_at, updated_at')
+    .select('id, organization_id, name, tagline, description, related_features, category, surfaces, status, include_in_ai, sort_order, created_by, updated_by, created_at, updated_at')
     .eq('organization_id', organizationId)
     .eq('include_in_ai', true)
     .is('deleted_at', null)
@@ -52,6 +53,7 @@ export async function createProductFeature(params: {
   name: string
   tagline: string | null
   description: string | null
+  relatedFeatures: string | null
   category: string
   surfaces: string[]
   status: string
@@ -66,13 +68,14 @@ export async function createProductFeature(params: {
       name: params.name,
       tagline: params.tagline,
       description: params.description,
+      related_features: params.relatedFeatures,
       category: params.category,
       surfaces: params.surfaces,
       status: params.status,
       include_in_ai: params.includeInAi,
       created_by: params.userId,
     })
-    .select('id, organization_id, name, tagline, description, category, surfaces, status, include_in_ai, sort_order, created_by, updated_by, created_at, updated_at')
+    .select('id, organization_id, name, tagline, description, related_features, category, surfaces, status, include_in_ai, sort_order, created_by, updated_by, created_at, updated_at')
     .single()
 
   if (error) return { feature: null, error: 'Failed to create feature' }
@@ -86,6 +89,7 @@ export async function updateProductFeature(
     name?: string
     tagline?: string | null
     description?: string | null
+    related_features?: string | null
     category?: string
     surfaces?: string[]
     status?: string
@@ -100,7 +104,7 @@ export async function updateProductFeature(
     .eq('id', id)
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
-    .select('id, organization_id, name, tagline, description, category, surfaces, status, include_in_ai, sort_order, created_by, updated_by, created_at, updated_at')
+    .select('id, organization_id, name, tagline, description, related_features, category, surfaces, status, include_in_ai, sort_order, created_by, updated_by, created_at, updated_at')
     .single()
 
   if (error) return { feature: null, error: 'Failed to update feature' }

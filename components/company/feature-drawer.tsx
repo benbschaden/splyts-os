@@ -5,13 +5,14 @@ import { X, Sparkles, ShieldOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const KNOWN_SURFACES = ['iOS', 'Android', 'Watch', 'Web', 'API', 'Dashboard', 'Backend']
-const KNOWN_CATEGORIES = ['core', 'AI', 'analytics', 'mobile', 'integrations', 'admin', 'social']
+const KNOWN_CATEGORIES = ['capture', 'analysis', 'readiness', 'planning', 'coaching', 'HYROX', 'tracking', 'social', 'integrations', 'setup', 'admin']
 
 interface Feature {
   id: string
   name: string
   tagline: string | null
   description: string | null
+  related_features: string | null
   category: string
   surfaces: string[]
   status: 'live' | 'beta' | 'planned' | 'deprecated'
@@ -29,6 +30,7 @@ interface FormData {
   name: string
   tagline: string
   description: string
+  related_features: string
   category: string
   surfaces: string[]
   status: 'live' | 'beta' | 'planned' | 'deprecated'
@@ -39,7 +41,8 @@ const EMPTY: FormData = {
   name: '',
   tagline: '',
   description: '',
-  category: 'core',
+  related_features: '',
+  category: '',
   surfaces: [],
   status: 'live',
   include_in_ai: true,
@@ -56,6 +59,7 @@ export function FeatureDrawer({ open, onClose, onSaved, editing }: FeatureDrawer
         name: editing.name,
         tagline: editing.tagline ?? '',
         description: editing.description ?? '',
+        related_features: editing.related_features ?? '',
         category: editing.category,
         surfaces: editing.surfaces,
         status: editing.status,
@@ -99,7 +103,8 @@ export function FeatureDrawer({ open, onClose, onSaved, editing }: FeatureDrawer
         name: form.name.trim(),
         tagline: form.tagline.trim() || null,
         description: form.description.trim() || null,
-        category: form.category.trim() || 'core',
+        related_features: form.related_features.trim() || null,
+        category: form.category.trim() || 'other',
         surfaces: form.surfaces,
         status: form.status,
         include_in_ai: form.include_in_ai,
@@ -167,6 +172,16 @@ export function FeatureDrawer({ open, onClose, onSaved, editing }: FeatureDrawer
                 rows={4}
                 placeholder="Full description — how it works, what it does, key behaviours…"
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground">Related features</label>
+              <input
+                type="text"
+                value={form.related_features}
+                onChange={(e) => set('related_features', e.target.value)}
+                placeholder="Comma-separated feature names this connects to"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
           </section>

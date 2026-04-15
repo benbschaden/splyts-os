@@ -2668,6 +2668,7 @@ export type Database = {
           include_in_ai: boolean
           name: string
           organization_id: string
+          related_features: string | null
           sort_order: number
           status: string
           surfaces: string[]
@@ -2685,6 +2686,7 @@ export type Database = {
           include_in_ai?: boolean
           name: string
           organization_id: string
+          related_features?: string | null
           sort_order?: number
           status?: string
           surfaces?: string[]
@@ -2702,6 +2704,7 @@ export type Database = {
           include_in_ai?: boolean
           name?: string
           organization_id?: string
+          related_features?: string | null
           sort_order?: number
           status?: string
           surfaces?: string[]

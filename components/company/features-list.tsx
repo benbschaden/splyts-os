@@ -10,6 +10,7 @@ interface Feature {
   name: string
   tagline: string | null
   description: string | null
+  related_features: string | null
   category: string
   surfaces: string[]
   status: 'live' | 'beta' | 'planned' | 'deprecated'

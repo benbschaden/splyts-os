@@ -9,6 +9,7 @@ const patchSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   tagline: z.string().max(300).nullable().optional(),
   description: z.string().max(2000).nullable().optional(),
+  related_features: z.string().max(500).nullable().optional(),
   category: z.string().min(1).max(100).optional(),
   surfaces: z.array(z.string().max(100)).optional(),
   status: z.enum(['live', 'beta', 'planned', 'deprecated']).optional(),

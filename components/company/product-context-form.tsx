@@ -1,6 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { ChevronDown, ChevronRight, Pencil, Sparkles, ShieldAlert } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils'
 import { PRODUCT_SECTIONS, type ProductSections } from '@/lib/company/product-sections'
 import { SuggestButton, SuggestBox, type SuggestState, emptySuggestState } from '@/components/company/field-suggest'
@@ -16,11 +19,11 @@ export function ProductContextForm({ initial, isAdmin }: ProductContextFormProps
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  const allProductSections = [...PRODUCT_SECTIONS]
+  const [expandedKey, setExpandedKey] = useState<string | null>(null)
+  const [editingKey, setEditingKey] = useState<string | null>(null)
 
   const [suggests, setSuggests] = useState<Record<string, SuggestState>>(
-    () => Object.fromEntries(allProductSections.map((s) => [s.key, emptySuggestState()])),
+    () => Object.fromEntries(PRODUCT_SECTIONS.map((s) => [s.key, emptySuggestState()])),
   )
   const [isDirty, setIsDirty] = useState(false)
 
@@ -35,7 +38,7 @@ export function ProductContextForm({ initial, isAdmin }: ProductContextFormProps
   async function handleSuggest(section: typeof PRODUCT_SECTIONS[number]) {
     setSuggest(section.key, { loading: true, suggestion: null, error: null })
     const currentValues: Record<string, string> = {}
-    allProductSections.forEach((s) => {
+    PRODUCT_SECTIONS.forEach((s) => {
       if ((values[s.key] ?? '').trim()) currentValues[s.key] = values[s.key]
     })
     const res = await fetch('/api/company/suggest', {
@@ -67,6 +70,16 @@ export function ProductContextForm({ initial, isAdmin }: ProductContextFormProps
     setIsDirty(true)
   }
 
+  function toggleSection(key: string) {
+    setExpandedKey((prev) => {
+      if (prev === key) {
+        setEditingKey(null)
+        return null
+      }
+      return key
+    })
+  }
+
   async function commitSave(): Promise<void> {
     setSaving(true)
     setError(null)
@@ -94,17 +107,16 @@ export function ProductContextForm({ initial, isAdmin }: ProductContextFormProps
     try {
       await commitSave()
     } catch {
-      /* error set */
+      /* error set above */
     }
   }
 
   useRegisterCompanyUnsaved(isAdmin && isDirty, commitSave)
 
-  const aiVisible = PRODUCT_SECTIONS.filter((s) => s.aiVisibleByDefault)
-  const notVisible = PRODUCT_SECTIONS.filter((s) => !s.aiVisibleByDefault)
+  const filledCount = PRODUCT_SECTIONS.filter((s) => (values[s.key] ?? '').trim().length > 0).length
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8 max-w-2xl">
+    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
       <div className="space-y-1">
         <h2 className="text-sm font-semibold text-foreground">Product context</h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
@@ -112,90 +124,140 @@ export function ProductContextForm({ initial, isAdmin }: ProductContextFormProps
         </p>
       </div>
 
-      <div className="space-y-6">
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-blue-500">AI context (always injected)</p>
-        <div className="space-y-5">
-          {aiVisible.map((section) => (
-            <div key={section.key} className="space-y-1.5">
-              <div className="flex items-baseline gap-2">
-                <label htmlFor={section.key} className="text-sm font-medium text-foreground">
-                  {section.label}
-                </label>
-                {isAdmin && (
-                  <SuggestButton
-                    loading={suggests[section.key].loading}
-                    onTrigger={() => handleSuggest(section)}
-                    disabled={saving}
-                    label={section.label}
-                  />
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">{section.description}</p>
-              <textarea
-                id={section.key}
-                value={values[section.key] ?? ''}
-                onChange={(e) => set(section.key, e.target.value)}
-                rows={3}
-                disabled={!isAdmin || saving}
-                readOnly={!isAdmin}
-                placeholder={section.placeholder}
-                className={cn(
-                  'w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 resize-none',
-                  'focus:outline-none focus:ring-2 focus:ring-ring',
-                  'disabled:opacity-60 disabled:cursor-not-allowed',
-                )}
-              />
-              <SuggestBox
-                state={suggests[section.key]}
-                onAccept={(s) => { set(section.key, s); setSuggest(section.key, emptySuggestState()) }}
-                onDismiss={() => setSuggest(section.key, emptySuggestState())}
-              />
-            </div>
-          ))}
-        </div>
+      {/* Progress bar */}
+      <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+        <div
+          className="h-full rounded-full bg-foreground transition-all duration-500"
+          style={{ width: `${(filledCount / PRODUCT_SECTIONS.length) * 100}%` }}
+        />
       </div>
 
-      <div className="border-t border-border pt-6 space-y-6">
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60">Internal reference (not in AI context)</p>
-        <div className="space-y-5">
-          {notVisible.map((section) => (
-            <div key={section.key} className="space-y-1.5">
-              <div className="flex items-baseline gap-2">
-                <label htmlFor={section.key} className="text-sm font-medium text-foreground">
-                  {section.label}
-                </label>
-                {isAdmin && (
-                  <SuggestButton
-                    loading={suggests[section.key].loading}
-                    onTrigger={() => handleSuggest(section)}
-                    disabled={saving}
-                    label={section.label}
-                  />
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">{section.description}</p>
-              <textarea
-                id={section.key}
-                value={values[section.key] ?? ''}
-                onChange={(e) => set(section.key, e.target.value)}
-                rows={3}
-                disabled={!isAdmin || saving}
-                readOnly={!isAdmin}
-                placeholder={section.placeholder}
+      {/* Accordion */}
+      <div className="flex flex-col divide-y divide-border rounded-lg border border-border overflow-hidden">
+        {PRODUCT_SECTIONS.map((section) => {
+          const isExpanded = expandedKey === section.key
+          const value = values[section.key] ?? ''
+          const isFilled = value.trim().length > 0
+
+          return (
+            <div key={section.key} className="bg-background">
+              {/* Header */}
+              <button
+                type="button"
+                onClick={() => toggleSection(section.key)}
                 className={cn(
-                  'w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 resize-none',
-                  'focus:outline-none focus:ring-2 focus:ring-ring',
-                  'disabled:opacity-60 disabled:cursor-not-allowed',
+                  'flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/50',
+                  isExpanded && 'bg-accent/30',
                 )}
-              />
-              <SuggestBox
-                state={suggests[section.key]}
-                onAccept={(s) => { set(section.key, s); setSuggest(section.key, emptySuggestState()) }}
-                onDismiss={() => setSuggest(section.key, emptySuggestState())}
-              />
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{section.label}</p>
+                </div>
+                {section.aiVisibleByDefault ? (
+                  <Sparkles className="h-3 w-3 shrink-0 text-blue-500" aria-label="Included in AI context" />
+                ) : (
+                  <ShieldAlert className="h-3 w-3 shrink-0 text-muted-foreground/40" aria-label="Internal only" />
+                )}
+                {isFilled && (
+                  <span className="shrink-0 h-2 w-2 rounded-full bg-green-500" aria-label="Filled" />
+                )}
+                {isExpanded ? (
+                  <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                )}
+              </button>
+
+              {/* Expanded panel */}
+              {isExpanded && (
+                <div className="px-4 pb-4 pt-1 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-xs text-muted-foreground leading-relaxed">{section.description}</p>
+                    {isAdmin && (
+                      <SuggestButton
+                        loading={suggests[section.key].loading}
+                        onTrigger={() => handleSuggest(section)}
+                        disabled={saving}
+                        label={section.label}
+                      />
+                    )}
+                  </div>
+
+                  <SuggestBox
+                    state={suggests[section.key]}
+                    onAccept={(s) => {
+                      set(section.key, s)
+                      setSuggest(section.key, emptySuggestState())
+                      setEditingKey(null)
+                    }}
+                    onDismiss={() => setSuggest(section.key, emptySuggestState())}
+                  />
+
+                  {isAdmin ? (
+                    value && editingKey !== section.key ? (
+                      <div className="group relative">
+                        <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 prose-headings:text-sm prose-headings:font-semibold prose-headings:mt-2 prose-headings:mb-1 text-foreground text-sm leading-relaxed rounded-md border border-border px-3 py-2.5">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{value}</ReactMarkdown>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setEditingKey(section.key)}
+                          className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent border border-border bg-background"
+                        >
+                          <Pencil className="h-3 w-3" />
+                          Edit
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <textarea
+                          id={section.key}
+                          value={value}
+                          onChange={(e) => set(section.key, e.target.value)}
+                          placeholder={section.placeholder}
+                          rows={6}
+                          autoFocus={editingKey === section.key}
+                          disabled={saving}
+                          className={cn(
+                            'w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 resize-none leading-relaxed font-mono',
+                            'focus:outline-none focus:ring-2 focus:ring-ring',
+                          )}
+                        />
+                        {value && (
+                          <button
+                            type="button"
+                            onClick={() => setEditingKey(null)}
+                            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            Preview
+                          </button>
+                        )}
+                      </div>
+                    )
+                  ) : (
+                    value ? (
+                      <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 prose-headings:text-sm prose-headings:font-semibold prose-headings:mt-2 prose-headings:mb-1 text-foreground text-sm leading-relaxed rounded-md border border-border px-3 py-2.5">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{value}</ReactMarkdown>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic px-1">No content yet.</p>
+                    )
+                  )}
+                </div>
+              )}
             </div>
-          ))}
-        </div>
+          )
+        })}
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <Sparkles className="h-3 w-3 text-blue-500" /> Included in AI context
+        </span>
+        <span className="flex items-center gap-1.5">
+          <ShieldAlert className="h-3 w-3 text-muted-foreground/40" /> Internal only
+        </span>
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}

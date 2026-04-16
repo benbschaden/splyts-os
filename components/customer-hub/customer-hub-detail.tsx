@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { Loader2, MessageCircleWarning } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ContactRow } from '@/lib/queries/contacts'
 import type { ContactCommunicationRow } from '@/lib/queries/contact-communications'
@@ -48,6 +49,7 @@ export function CustomerHubDetail({
   const [personas, setPersonas] = useState<PersonaRow[]>(initialPersonas)
   const [activeTab, setActiveTab] = useState<HubTab>('contacts')
   const [selectedContact, setSelectedContact] = useState<ContactRow | null>(null)
+  const [scanProgress, setScanProgress] = useState<{ done: number; total: number } | null>(null)
 
   useEffect(() => { setContacts(initialContacts) }, [initialContacts])
   useEffect(() => { setCommunications(initialCommunications) }, [initialCommunications])
@@ -161,6 +163,41 @@ export function CustomerHubDetail({
     setInsights((prev) => prev.filter((i) => i.id !== id))
   }
 
+  async function scanAllResponses() {
+    const scannable = contacts.filter((c) =>
+      communications.some((comm) => comm.contact_id === c.id),
+    )
+    if (scannable.length === 0) return
+
+    setScanProgress({ done: 0, total: scannable.length })
+
+    const BATCH_SIZE = 5
+    for (let i = 0; i < scannable.length; i += BATCH_SIZE) {
+      const batch = scannable.slice(i, i + BATCH_SIZE)
+      await Promise.all(
+        batch.map(async (c) => {
+          try {
+            const res = await fetch(`/api/contacts/${c.id}/scan-response`, { method: 'POST' })
+            const data = await res.json()
+            if (res.ok) {
+              const updated = {
+                ...c,
+                response_status: data.status,
+                response_status_reason: data.reason ?? null,
+              }
+              setContacts((prev) => prev.map((contact) => (contact.id === c.id ? updated : contact)))
+              setSelectedContact((prev) => (prev?.id === c.id ? updated : prev))
+            }
+          } catch {
+            // non-blocking — individual scan failures don't stop the batch
+          }
+          setScanProgress((prev) => (prev ? { ...prev, done: prev.done + 1 } : null))
+        }),
+      )
+    }
+    setScanProgress(null)
+  }
+
   const tabs: Array<{ id: HubTab; label: string }> = [
     {
       id: 'contacts',
@@ -183,8 +220,26 @@ export function CustomerHubDetail({
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex h-14 shrink-0 items-center border-b border-border px-6">
+      <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-6">
         <h1 className="text-sm font-semibold text-foreground">{project.name}</h1>
+        <button
+          type="button"
+          onClick={scanAllResponses}
+          disabled={scanProgress !== null}
+          className="flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50/60 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50 transition-colors dark:border-amber-700 dark:bg-amber-900/10 dark:text-amber-300"
+        >
+          {scanProgress !== null ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Scanning {scanProgress.done}/{scanProgress.total}…
+            </>
+          ) : (
+            <>
+              <MessageCircleWarning className="h-3.5 w-3.5" />
+              Scan responses
+            </>
+          )}
+        </button>
       </div>
 
       {/* Tab bar */}

@@ -390,7 +390,6 @@ export function ContactDetail({
   const [matchState, setMatchState] = useState<MatchState>({ status: 'idle' })
   const [responseStatus, setResponseStatus] = useState(contact.response_status)
   const [responseStatusReason, setResponseStatusReason] = useState(contact.response_status_reason)
-  const [isScanning, setIsScanning] = useState(false)
   const [isMarkingResponded, setIsMarkingResponded] = useState(false)
 
   useEffect(() => {
@@ -539,23 +538,6 @@ export function ContactDetail({
     await fetch(`/api/customer-insights/${id}`, { method: 'DELETE' })
     setDeletingInsightId(null)
     onInsightDeleted(id)
-  }
-
-  async function handleScanResponse() {
-    setIsScanning(true)
-    try {
-      const res = await fetch(`/api/contacts/${contact.id}/scan-response`, { method: 'POST' })
-      const data = await res.json()
-      if (res.ok) {
-        setResponseStatus(data.status)
-        setResponseStatusReason(data.reason ?? null)
-        onContactUpdated({ ...contact, response_status: data.status, response_status_reason: data.reason ?? null })
-      }
-    } catch {
-      // non-blocking — scan failures are silently swallowed
-    } finally {
-      setIsScanning(false)
-    }
   }
 
   async function handleMarkResponded() {
@@ -749,19 +731,6 @@ export function ContactDetail({
           className="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
         >
           Add insight
-        </button>
-        <button
-          type="button"
-          onClick={handleScanResponse}
-          disabled={isScanning}
-          className="flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50/60 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/10 dark:text-amber-300 disabled:opacity-50 transition-colors"
-        >
-          {isScanning ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <MessageCircleWarning className="h-3.5 w-3.5" />
-          )}
-          {isScanning ? 'Scanning…' : 'Scan response'}
         </button>
         <button
           type="button"

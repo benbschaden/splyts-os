@@ -319,26 +319,24 @@ export function buildChatSystemPrompt(params: {
   lines.push('IMPORTANT: All data listed below has been loaded directly from the company database into this session. Do NOT tell the user you lack access to any data that appears below — you have it. Use it.')
   lines.push('')
 
-  // Build an explicit inventory of what is loaded so the AI knows what it has
+  // Always emit an explicit inventory so the AI knows exactly what was loaded (including zero counts)
   const inventory: string[] = []
-  if (includeBrand && brand) inventory.push('brand/company context')
-  if (includeBusinessPlan && businessPlanSections) inventory.push('business plan')
-  if (includePersonas && personas.length > 0) inventory.push(`${personas.length} personas`)
-  if (includeProduct && productSections) inventory.push('product context')
-  if (includeCurrentGoals && currentGoals) inventory.push('current goals')
-  if (includeCompetitors && competitors.length > 0) inventory.push(`${competitors.length} competitors`)
-  if (includeSocialProof && socialProof.length > 0) inventory.push(`${socialProof.length} social proof items`)
-  if (includeKpis && kpiDefinitions.length > 0) inventory.push('KPIs')
-  if (includeProjectMaterials && projectMaterials && projectMaterials.length > 0) inventory.push(`${projectMaterials.length} project materials`)
-  if (includeDiscoveryEntries && discoveryEntries && discoveryEntries.length > 0) inventory.push(`${discoveryEntries.length} customer discovery entries`)
-  if (includeCustomerInsights && customerInsights && customerInsights.length > 0) inventory.push(`${customerInsights.length} customer insights`)
-  if (allContacts && allContacts.length > 0) inventory.push(`${allContacts.length} Customer Hub contacts`)
-  if (allRecentComms && allRecentComms.length > 0) inventory.push(`${allRecentComms.length} recent customer communications`)
-  if (includeCustomerHubContact && customerHubContactComms && customerHubContactComms.length > 0) inventory.push(`contact file with ${customerHubContactComms.length} communications`)
-  if (inventory.length > 0) {
-    lines.push(`[DATA LOADED INTO THIS SESSION: ${inventory.join(', ')}]`)
-    lines.push('')
-  }
+  if (includeBrand) inventory.push(brand ? 'brand/company context ✓' : 'brand/company context (empty)')
+  if (includeBusinessPlan) inventory.push(businessPlanSections ? 'business plan ✓' : 'business plan (empty)')
+  if (includePersonas) inventory.push(`${personas.length} personas`)
+  if (includeProduct) inventory.push(productSections ? 'product context ✓' : 'product context (empty)')
+  if (includeCurrentGoals) inventory.push(currentGoals ? 'current goals ✓' : 'current goals (empty)')
+  if (includeCompetitors) inventory.push(`${competitors.length} competitors`)
+  if (includeSocialProof) inventory.push(`${socialProof.length} social proof items`)
+  if (includeKpis) inventory.push(`${kpiDefinitions.length} KPI definitions`)
+  if (includeProjectMaterials) inventory.push(`${projectMaterials?.length ?? 0} project materials`)
+  if (includeDiscoveryEntries) inventory.push(`${discoveryEntries?.length ?? 0} customer discovery entries`)
+  if (includeCustomerInsights) inventory.push(`${customerInsights?.length ?? 0} customer insights`)
+  inventory.push(`${allContacts?.length ?? 0} Customer Hub contacts`)
+  inventory.push(`${allRecentComms?.length ?? 0} recent customer communications`)
+  if (includeCustomerHubContact) inventory.push(`${customerHubContactComms?.length ?? 0} contact-specific communications`)
+  lines.push(`[DATA LOADED INTO THIS SESSION: ${inventory.join(' | ')}]`)
+  lines.push('Use all data listed above. Do not tell the user you lack access to anything shown here.')
 
   if (includeBrand && brand) {
     lines.push('[COMPANY CONTEXT]')

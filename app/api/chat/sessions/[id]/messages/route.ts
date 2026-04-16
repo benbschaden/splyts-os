@@ -20,7 +20,7 @@ import { getTerminologyForAi } from '@/lib/queries/terminology'
 import { getKpiDefinitions } from '@/lib/queries/kpi-definitions'
 import { getLatestSnapshot } from '@/lib/queries/kpi-snapshots'
 import { getProjectMaterials } from '@/lib/queries/project-materials'
-import { getAiVisibleDiscoveryEntries, getParticipantDiscoveryEntries } from '@/lib/queries/discovery-entries'
+import { getDiscoveryEntries, getParticipantDiscoveryEntries } from '@/lib/queries/discovery-entries'
 import { getAiVisibleInsights, getInsightsForContact, getInsightsForSegment, type InsightSourceSegment } from '@/lib/queries/customer-insights'
 import { getCommunicationsForContact, getCommunicationsForSegment } from '@/lib/queries/contact-communications'
 import { buildChatSystemPrompt } from '@/lib/ai/prompts'
@@ -217,7 +217,7 @@ export async function POST(
       shouldLoadDiscovery
         ? discoveryParticipant
           ? getParticipantDiscoveryEntries(session.project_id!, org.id, discoveryParticipant)
-          : getAiVisibleDiscoveryEntries(session.project_id!, org.id)
+          : getDiscoveryEntries(session.project_id!, org.id)
         : Promise.resolve([]),
       includeCustomerInsights ? getAiVisibleInsights(org.id) : Promise.resolve([]),
       customerHubContactId ? getCommunicationsForContact(customerHubContactId, org.id)

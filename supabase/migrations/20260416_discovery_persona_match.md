@@ -28,6 +28,7 @@ Feature: Assess persona for discovery entry
 - `persona_id` uses `ON DELETE SET NULL` so deleting a persona doesn't orphan discovery entries.
 
 ## Design notes
+- `persona_match_name TEXT` is a denormalized copy of the persona name at match time. Stored alongside `persona_id` so the list card can display the name without requiring a join or prop-threading through 4 component layers. If a persona is renamed, the stored name reflects what it was called at the time of assessment.
 - `persona_match_score` is an INTEGER (0–100) not FLOAT — whole number percentage is precise enough and simpler to display.
 - Index on `persona_id` added to support future queries like "all entries matched to persona X".
 - No RLS change needed — discovery_entries already has org-scoped RLS; the new columns inherit it.

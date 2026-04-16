@@ -113,6 +113,7 @@ export async function POST(
       .from('discovery_entries')
       .update({
         persona_id: matchedPersona?.id ?? null,
+        persona_match_name: matchedPersona?.name ?? null,
         persona_match_score: result.score,
         persona_match_reasoning: result.reasoning,
         persona_matched_at: new Date().toISOString(),
@@ -130,6 +131,7 @@ export async function POST(
       match: {
         persona_id: matchedPersona?.id ?? null,
         persona_name: matchedPersona?.name ?? null,
+        persona_match_name: matchedPersona?.name ?? null,
         score: result.score,
         reasoning: result.reasoning,
       },

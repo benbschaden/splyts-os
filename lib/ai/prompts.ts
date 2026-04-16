@@ -477,9 +477,13 @@ export function buildChatSystemPrompt(params: {
       const date = entry.entry_date ? ` (${entry.entry_date})` : ''
       const src = entry.source ? ` · ${entry.source}` : ''
       const who = !discoveryParticipant && entry.participant ? ` — ${entry.participant}` : ''
-      lines.push(`- [${entry.entry_type}${src}${who}${date}] ${entry.raw_content.slice(0, 800)}`)
-      if (entry.key_quote_1) lines.push(`  Key quote: "${entry.key_quote_1}"`)
+      const seg = entry.user_segment ? ` · segment: ${entry.user_segment}` : ''
+      const sent = entry.sentiment ? ` · sentiment: ${entry.sentiment}` : ''
+      lines.push(`- [${entry.entry_type}${src}${who}${seg}${sent}${date}] ${entry.raw_content.slice(0, 800)}`)
       if (entry.jtbd) lines.push(`  JTBD: ${entry.jtbd}`)
+      if (entry.key_quote_1) lines.push(`  Key quote 1: "${entry.key_quote_1}"`)
+      if (entry.key_quote_2) lines.push(`  Key quote 2: "${entry.key_quote_2}"`)
+      if (entry.key_quote_3) lines.push(`  Key quote 3: "${entry.key_quote_3}"`)
       const row = entry as Record<string, unknown>
       if (row.wtp_signal && row.wtp_signal !== 'none') {
         const prices = Array.isArray(row.wtp_price_points) && row.wtp_price_points.length > 0
@@ -490,6 +494,16 @@ export function buildChatSystemPrompt(params: {
       if (typeof row.problem_severity === 'number') lines.push(`  Problem severity: ${row.problem_severity}/5`)
       if (typeof row.adoption_willingness === 'number') lines.push(`  Adoption willingness: ${row.adoption_willingness}/5`)
       if (Array.isArray(row.tags) && (row.tags as string[]).length > 0) lines.push(`  Tags: ${(row.tags as string[]).join(', ')}`)
+      if (typeof row.persona_match_name === 'string' && row.persona_match_name) {
+        const score = typeof row.persona_match_score === 'number' ? ` (${row.persona_match_score}% match)` : ''
+        lines.push(`  Persona: ${row.persona_match_name}${score}`)
+        if (typeof row.persona_match_reasoning === 'string' && row.persona_match_reasoning) {
+          lines.push(`  Persona reasoning: ${row.persona_match_reasoning}`)
+        }
+      }
+      if (typeof row.discussion_notes === 'string' && row.discussion_notes) {
+        lines.push(`  AI discussion notes: ${row.discussion_notes.slice(0, 400)}`)
+      }
     })
     lines.push('')
   }

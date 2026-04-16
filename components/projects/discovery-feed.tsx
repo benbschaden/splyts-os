@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Pencil, Trash2, Sparkles, MessageSquare, Star, ChevronDown, ChevronRight, Send, Loader2, BookmarkCheck } from 'lucide-react'
+import { Plus, Pencil, Trash2, Sparkles, MessageSquare, Star, ChevronDown, ChevronRight, Send, Loader2, BookmarkCheck, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { DiscoveryEntryRow, DiscoveryEntryType, DiscoverySentiment } from '@/lib/queries/discovery-entries'
 import type { DeepgramWord } from '@/lib/discovery/speaker-metrics'
@@ -200,6 +200,13 @@ function EntryCard({
             {entry.entry_date && <span className="text-[11px] text-muted-foreground/60">{formatDate(entry.entry_date)}</span>}
             {entry.include_in_ai && (
               <span title="Included in AI context"><Sparkles className="h-3 w-3 text-blue-500 shrink-0" aria-hidden /></span>
+            )}
+            {entry.persona_match_name && entry.persona_match_score !== null && (
+              <span className="flex items-center gap-1 rounded border border-violet-200 bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-medium text-violet-700 dark:border-violet-800 dark:text-violet-400">
+                <Users className="h-2.5 w-2.5 shrink-0" />
+                {entry.persona_match_name}
+                <span className="opacity-60">· {entry.persona_match_score}%</span>
+              </span>
             )}
           </div>
 

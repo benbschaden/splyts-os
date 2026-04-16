@@ -210,7 +210,7 @@ export async function POST(request: Request): Promise<Response> {
       try {
         const response = await anthropic.messages.create({
           model: model.id,
-          max_tokens: 2048,
+          max_tokens: 8192,
           system: systemPrompt,
           messages: conversationHistory,
         })
@@ -237,7 +237,7 @@ export async function POST(request: Request): Promise<Response> {
         } else {
           const response = await openai.chat.completions.create({
             model: model.id,
-            max_tokens: 2048,
+            max_tokens: 8192,
             messages: [
               { role: 'system', content: systemPrompt },
               ...conversationHistory,

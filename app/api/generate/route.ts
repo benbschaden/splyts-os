@@ -505,7 +505,7 @@ export async function POST(request: Request) {
     try {
       const message = await anthropic.messages.create({
         model: model.id,
-        max_tokens: 2048,
+        max_tokens: 8192,
         messages: [{ role: 'user', content: prompt }],
       })
       const textBlock = message.content.find((b) => b.type === 'text')
@@ -530,7 +530,7 @@ export async function POST(request: Request) {
       } else {
         const response = await openai.chat.completions.create({
           model: model.id,
-          max_tokens: 2048,
+          max_tokens: 8192,
           messages: [{ role: 'user', content: prompt }],
         })
         generatedContent = response.choices[0]?.message?.content?.trim() ?? ''

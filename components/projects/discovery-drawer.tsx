@@ -236,7 +236,7 @@ export function DiscoveryDrawer({
   const [error, setError] = useState<string | null>(null)
   // Audio upload state
   const [audioFile, setAudioFile] = useState<File | null>(null)
-  const [transcribing, setTranscribing] = useState(false)
+  const [transcribeStatus, setTranscribeStatus] = useState<'uploading' | 'transcribing' | null>(null)
   const [transcribeError, setTranscribeError] = useState<string | null>(null)
   // Raw Deepgram response — populated after upload, before speaker is identified
   const [dgResponse, setDgResponse] = useState<DgResponse | null>(null)
@@ -275,6 +275,7 @@ export function DiscoveryDrawer({
       }
       setError(null)
       setAudioFile(null)
+      setTranscribeStatus(null)
       setDgResponse(null)
       setInterviewerSpeaker(0)
       setTranscribeResult(null)
@@ -306,24 +307,60 @@ export function DiscoveryDrawer({
 
   async function handleTranscribe() {
     if (!audioFile) return
-    setTranscribing(true)
+    setTranscribeStatus('uploading')
     setTranscribeError(null)
     setDgResponse(null)
     setTranscribeResult(null)
 
-    const fd = new FormData()
-    fd.append('file', audioFile)
+    // Step 1: get a signed upload URL — tiny JSON request, no file bytes hit Vercel
+    const urlRes = await fetch('/api/discovery-entries/upload-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contentType: audioFile.type }),
+    })
 
-    const res = await fetch('/api/discovery-entries/transcribe', { method: 'POST', body: fd })
-    setTranscribing(false)
+    if (!urlRes.ok) {
+      const json = await urlRes.json().catch(() => ({})) as { error?: string }
+      setTranscribeStatus(null)
+      setTranscribeError(json.error ?? 'Failed to prepare upload. Please try again.')
+      return
+    }
 
-    if (!res.ok) {
-      const json = await res.json().catch(() => ({})) as { error?: string }
+    const { data: uploadData } = await urlRes.json() as {
+      data: { signedUrl: string; storagePath: string }
+    }
+
+    // Step 2: upload directly to Supabase Storage — bypasses Vercel entirely
+    const uploadRes = await fetch(uploadData.signedUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': audioFile.type },
+      body: audioFile,
+    })
+
+    if (!uploadRes.ok) {
+      setTranscribeStatus(null)
+      setTranscribeError('Upload failed. Please try again.')
+      return
+    }
+
+    // Step 3: trigger transcription with the storage path (tiny JSON, no audio bytes)
+    setTranscribeStatus('transcribing')
+
+    const transcribeRes = await fetch('/api/discovery-entries/transcribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storagePath: uploadData.storagePath }),
+    })
+
+    setTranscribeStatus(null)
+
+    if (!transcribeRes.ok) {
+      const json = await transcribeRes.json().catch(() => ({})) as { error?: string }
       setTranscribeError(json.error ?? 'Transcription failed. Please try again.')
       return
     }
 
-    const json = await res.json() as { data: DgResponse }
+    const json = await transcribeRes.json() as { data: DgResponse }
     setDgResponse(json.data)
     setInterviewerSpeaker(0)
     // Don't populate raw_content yet — wait for the user to confirm the interviewer
@@ -581,10 +618,12 @@ export function DiscoveryDrawer({
                 <button
                   type="button"
                   onClick={handleTranscribe}
-                  disabled={transcribing}
+                  disabled={transcribeStatus !== null}
                   className="flex items-center gap-1.5 rounded-md bg-foreground px-4 py-1.5 text-xs font-medium text-background hover:bg-foreground/90 transition-colors disabled:opacity-50"
                 >
-                  {transcribing ? (
+                  {transcribeStatus === 'uploading' ? (
+                    <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading…</>
+                  ) : transcribeStatus === 'transcribing' ? (
                     <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Transcribing…</>
                   ) : (
                     'Transcribe'

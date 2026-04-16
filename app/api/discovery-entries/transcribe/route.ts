@@ -3,20 +3,8 @@ import { createUntypedServiceClient } from '@/lib/supabase/service'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import type { DeepgramWord } from '@/lib/discovery/speaker-metrics'
 
-const ALLOWED_MIME_TYPES = new Set([
-  'audio/mpeg',
-  'audio/mp3',
-  'audio/mp4',
-  'audio/m4a',
-  'audio/x-m4a',
-  'audio/wav',
-  'audio/wave',
-  'audio/webm',
-  'audio/ogg',
-  'video/webm', // browser MediaRecorder sometimes uses this MIME for audio-only webm
-])
-
-const MAX_FILE_BYTES = 500 * 1024 * 1024 // 500 MB
+// Extend timeout to 60s — Deepgram processing of long audio can take 20–40s
+export const maxDuration = 60
 
 export async function POST(request: Request): Promise<Response> {
   try {
@@ -27,17 +15,16 @@ export async function POST(request: Request): Promise<Response> {
     const org = await getOrganizationForUser(user.id)
     if (!org) return Response.json({ error: 'Not found' }, { status: 404 })
 
-    const formData = await request.formData()
-    const file = formData.get('file')
+    const body = await request.json() as { storagePath?: unknown }
+    const storagePath = typeof body.storagePath === 'string' ? body.storagePath : null
 
-    if (!(file instanceof File)) {
-      return Response.json({ error: 'file is required' }, { status: 400 })
+    if (!storagePath) {
+      return Response.json({ error: 'storagePath is required' }, { status: 400 })
     }
-    if (!ALLOWED_MIME_TYPES.has(file.type)) {
-      return Response.json({ error: 'Unsupported file type. Use mp3, m4a, wav, or webm.' }, { status: 400 })
-    }
-    if (file.size > MAX_FILE_BYTES) {
-      return Response.json({ error: 'File too large (max 500 MB).' }, { status: 400 })
+
+    // Verify path belongs to this org — prevents one org accessing another's audio
+    if (!storagePath.startsWith(`${org.id}/`)) {
+      return Response.json({ error: 'Not found' }, { status: 404 })
     }
 
     const apiKey = process.env.DEEPGRAM_API_KEY
@@ -46,34 +33,30 @@ export async function POST(request: Request): Promise<Response> {
       return Response.json({ error: 'Transcription service not configured' }, { status: 500 })
     }
 
-    // Upload to Supabase Storage
-    const ext = file.name.split('.').pop() ?? 'audio'
-    const storagePath = `${org.id}/${crypto.randomUUID()}.${ext}`
-    const arrayBuffer = await file.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
-
+    // Generate a short-lived signed URL so Deepgram can fetch the file directly.
+    // 10 minutes is enough for Deepgram to start the download.
     const serviceClient = createUntypedServiceClient()
-    const { error: uploadError } = await serviceClient.storage
+    const { data: signedData, error: signedError } = await serviceClient.storage
       .from('discovery-audio')
-      .upload(storagePath, buffer, { contentType: file.type, upsert: false })
+      .createSignedUrl(storagePath, 600)
 
-    if (uploadError) {
-      console.error('[transcribe] Storage upload failed:', uploadError.message)
-      return Response.json({ error: 'Failed to store audio file' }, { status: 500 })
+    if (signedError || !signedData?.signedUrl) {
+      console.error('[transcribe] Failed to create signed download URL:', signedError?.message)
+      return Response.json({ error: 'Failed to access audio file' }, { status: 500 })
     }
 
-    // Store the storage path (not a public URL) so it works with a private bucket.
-    // Generate a signed URL on demand if audio playback is added later.
+    // Store bucket-relative path — used to generate signed playback URLs later
     const audioStoragePath = `discovery-audio/${storagePath}`
 
-    // Call Deepgram Nova-3 with diarization
+    // Deepgram URL-based transcription: Deepgram fetches the file itself.
+    // No audio bytes pass through this server — works for any file size.
     const deepgramRes = await fetch('https://api.deepgram.com/v1/listen?model=nova-3&diarize=true&punctuate=true&utterances=false&words=true', {
       method: 'POST',
       headers: {
         Authorization: `Token ${apiKey}`,
-        'Content-Type': file.type,
+        'Content-Type': 'application/json',
       },
-      body: buffer,
+      body: JSON.stringify({ url: signedData.signedUrl }),
     })
 
     if (!deepgramRes.ok) {
@@ -97,8 +80,6 @@ export async function POST(request: Request): Promise<Response> {
       return Response.json({ error: 'No transcript returned from Deepgram' }, { status: 502 })
     }
 
-    // Return raw diarized words + storage path.
-    // The client computes metrics and transcript after the user identifies which speaker is the interviewer.
     return Response.json({
       data: {
         audio_url: audioStoragePath,

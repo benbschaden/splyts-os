@@ -2,7 +2,9 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { createCommunication } from '@/lib/queries/contact-communications'
+import { getContactById } from '@/lib/queries/contacts'
 import { indexContent } from '@/lib/indexing/index-content'
+import { scanContactResponseStatus } from '@/lib/ai/scan-contact-response'
 
 const createSchema = z.object({
   contact_id: z.string().uuid(),
@@ -55,6 +57,15 @@ export async function POST(request: Request) {
     indexContent('contact_communication', communication, org.id).catch(err =>
       console.error('[content-index] Index failed:', err)
     )
+
+    // Auto-scan response status whenever any communication is logged.
+    // We fetch the contact to get name/segment for the prompt.
+    getContactById(d.contact_id, org.id).then((contact) => {
+      if (!contact) return
+      scanContactResponseStatus(contact.id, org.id, contact.name, contact.segment).catch(err =>
+        console.error('[contact-communications] Response scan failed:', err)
+      )
+    }).catch(() => {/* ignore — non-blocking */})
 
     return Response.json({ data: communication }, { status: 201 })
   } catch {

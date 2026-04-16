@@ -23,6 +23,10 @@ const patchSchema = z.object({
     .nullable()
     .optional(),
   acquisition_source: z.string().max(500).nullable().optional(),
+  response_status: z
+    .enum(['needs_response', 'no_action_needed', 'in_progress'])
+    .nullable()
+    .optional(),
 })
 
 export async function PATCH(

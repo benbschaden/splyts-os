@@ -5,6 +5,7 @@ export type ContactSegment = 'beta_user' | 'free_user' | 'customer' | 'power_use
 export type ContactStatus = 'active' | 'inactive' | 'archived'
 export type ContactHealth = 'green' | 'yellow' | 'red'
 export type FunnelStage = 'signup' | 'form_completed' | 'downloaded' | 'first_session' | 'activated'
+export type ContactResponseStatus = 'needs_response' | 'no_action_needed' | 'in_progress'
 
 export const FUNNEL_STAGE_ORDER: Record<FunnelStage, number> = {
   signup: 1,
@@ -42,10 +43,13 @@ export interface ContactRow {
   activated_at: string | null
   tally_submission_id: string | null
   loops_contact_id: string | null
+  response_status: ContactResponseStatus | null
+  response_status_reason: string | null
+  response_status_updated_at: string | null
 }
 
 const SELECT_COLUMNS =
-  'id, organization_id, created_by, name, email, company, role, segment, status, health, tags, notes, last_contacted_at, created_at, updated_at, deleted_at, persona_id, persona_match_score, persona_match_reasoning, persona_matched_at, funnel_stage, acquisition_source, funnel_stage_updated_at, first_session_at, activated_at, tally_submission_id, loops_contact_id'
+  'id, organization_id, created_by, name, email, company, role, segment, status, health, tags, notes, last_contacted_at, created_at, updated_at, deleted_at, persona_id, persona_match_score, persona_match_reasoning, persona_matched_at, funnel_stage, acquisition_source, funnel_stage_updated_at, first_session_at, activated_at, tally_submission_id, loops_contact_id, response_status, response_status_reason, response_status_updated_at'
 
 export async function getContactsForOrg(orgId: string): Promise<ContactRow[]> {
   const supabase = createUntypedServiceClient()

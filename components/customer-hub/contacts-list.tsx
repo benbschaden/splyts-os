@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Plus, X } from 'lucide-react'
+import { Plus, X, MessageCircleWarning } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ContactRow, ContactSegment, ContactStatus, FunnelStage } from '@/lib/queries/contacts'
 import { normalizeContactLabel } from '@/lib/contact-labels'
@@ -86,6 +86,7 @@ export function ContactsList({
   const [statusFilter, setStatusFilter] = useState<ContactStatus | 'all'>('all')
   const [tagFilter, setTagFilter] = useState<string | 'all'>('all')
   const [funnelStageFilter, setFunnelStageFilter] = useState<FunnelStage | 'all'>('all')
+  const [needsResponseOnly, setNeedsResponseOnly] = useState(false)
 
   const funnelCounts = useMemo(() => {
     const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
@@ -127,6 +128,11 @@ export function ContactsList({
     return m
   }, [contacts])
 
+  const needsResponseCount = useMemo(
+    () => contacts.filter((c) => c.response_status === 'needs_response').length,
+    [contacts],
+  )
+
   const filtered = contacts.filter((c) => {
     const matchesSearch =
       !search.trim() ||
@@ -139,8 +145,9 @@ export function ContactsList({
       tagFilter === 'all' ||
       c.tags.some((t) => normalizeContactLabel(t) === tagFilter)
     const matchesFunnel = funnelStageFilter === 'all' || c.funnel_stage === funnelStageFilter
+    const matchesResponse = !needsResponseOnly || c.response_status === 'needs_response'
 
-    return matchesSearch && matchesSegment && matchesStatus && matchesTag && matchesFunnel
+    return matchesSearch && matchesSegment && matchesStatus && matchesTag && matchesFunnel && matchesResponse
   })
 
   const isFiltering =
@@ -148,7 +155,8 @@ export function ContactsList({
     segmentFilter !== 'all' ||
     statusFilter !== 'all' ||
     tagFilter !== 'all' ||
-    funnelStageFilter !== 'all'
+    funnelStageFilter !== 'all' ||
+    needsResponseOnly
 
   return (
     <div className="flex h-full w-[260px] shrink-0 flex-col border-r border-border bg-background">
@@ -245,6 +253,33 @@ export function ContactsList({
           ))}
         </select>
 
+        {/* Needs Response quick filter */}
+        {needsResponseCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setNeedsResponseOnly((v) => !v)}
+            className={cn(
+              'flex w-full items-center justify-between rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
+              needsResponseOnly
+                ? 'border-amber-400/60 bg-amber-50 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-700'
+                : 'border-border bg-muted/40 text-foreground hover:border-amber-300 hover:bg-amber-50/60 dark:hover:bg-amber-900/10',
+            )}
+          >
+            <span className="flex items-center gap-1.5">
+              <MessageCircleWarning className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+              Needs Response
+            </span>
+            <span className={cn(
+              'rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
+              needsResponseOnly
+                ? 'bg-amber-600 text-white dark:bg-amber-500'
+                : 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+            )}>
+              {needsResponseCount}
+            </span>
+          </button>
+        )}
+
         {/* Tag filter chips */}
         {allTags.length > 0 && (
           <div>
@@ -332,6 +367,11 @@ export function ContactsList({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="text-xs font-semibold text-foreground truncate">{contact.name}</span>
+                    {contact.response_status === 'needs_response' && (
+                      <span title="Awaiting response" className="shrink-0">
+                        <MessageCircleWarning className="h-3 w-3 text-amber-500" />
+                      </span>
+                    )}
                     {contact.health && (
                       <span
                         className={cn('h-2 w-2 shrink-0 rounded-full', HEALTH_DOT_CLASSES[contact.health])}

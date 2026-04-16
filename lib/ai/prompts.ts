@@ -2685,3 +2685,58 @@ export function buildStudySynthesisPrompt(params: {
 
   return lines.join('\n')
 }
+
+export interface ResponseScanResult {
+  status: 'needs_response' | 'no_action_needed'
+  reason: string
+}
+
+export function buildResponseScanPrompt(params: {
+  contactName: string
+  contactSegment: string | null
+  communications: Array<{
+    direction: string
+    channel: string
+    subject: string | null
+    content: string
+    sent_at: string | null
+    is_draft: boolean
+  }>
+}): string {
+  const { contactName, contactSegment, communications } = params
+
+  const lines: string[] = []
+
+  lines.push(`You are reviewing the communication history between a team and their contact "${contactName}".`)
+  if (contactSegment) lines.push(`${contactName} is a ${contactSegment.replace(/_/g, ' ')}.`)
+  lines.push('')
+  lines.push('Your task: determine whether the team needs to send a reply to this contact.')
+  lines.push('')
+  lines.push('RULES:')
+  lines.push('- If the most recent non-draft message is inbound (from the contact), a response is likely needed.')
+  lines.push('- If the most recent non-draft message is outbound (from the team) or an internal note, no response is needed unless the contact asked a question or raised an issue that was not addressed.')
+  lines.push('- Draft messages do NOT count as a sent response.')
+  lines.push('- If there are no communications, return no_action_needed.')
+  lines.push('')
+
+  if (communications.length === 0) {
+    lines.push('[COMMUNICATIONS: none]')
+  } else {
+    lines.push('[COMMUNICATIONS — most recent first]')
+    communications.slice(0, 10).forEach((c, i) => {
+      const date = c.sent_at ? new Date(c.sent_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'unknown date'
+      const draftNote = c.is_draft ? ' [DRAFT — not sent]' : ''
+      lines.push(`${i + 1}. [${c.direction.toUpperCase()}${draftNote}] via ${c.channel} on ${date}`)
+      if (c.subject) lines.push(`   Subject: ${c.subject}`)
+      lines.push(`   "${c.content.slice(0, 400)}${c.content.length > 400 ? '…' : ''}"`)
+    })
+  }
+
+  lines.push('')
+  lines.push('Respond with ONLY valid JSON in this exact shape — no markdown, no preamble:')
+  lines.push('{"status":"needs_response","reason":"One sentence explaining why a reply is needed."}')
+  lines.push('or')
+  lines.push('{"status":"no_action_needed","reason":"One sentence explaining why no reply is needed."}')
+
+  return lines.join('\n')
+}

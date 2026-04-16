@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { ArrowDown, ArrowUp, StickyNote, Trash2 } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { ArrowDown, ArrowUp, StickyNote, Trash2, MessageCircleWarning } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type {
   ContactCommunicationRow,
@@ -17,6 +17,8 @@ interface InboxViewProps {
   onCommunicationAdded: (comm: ContactCommunicationRow) => void
   onCommunicationDeleted: (id: string) => void
 }
+
+type InboxTab = 'all' | 'needs_response'
 
 const DIRECTION_LABELS: Record<CommunicationDirection, string> = {
   inbound: 'Inbound',
@@ -66,11 +68,36 @@ export function InboxView({
   onCommunicationAdded: _onCommunicationAdded,
   onCommunicationDeleted,
 }: InboxViewProps) {
+  const [activeTab, setActiveTab] = useState<InboxTab>('all')
   const [directionFilter, setDirectionFilter] = useState<CommunicationDirection | 'all'>('all')
   const [channelFilter, setChannelFilter] = useState<CommunicationChannel | 'all'>('all')
   const [contactFilter, setContactFilter] = useState<string>('all')
   const [sentimentFilter, setSentimentFilter] = useState<CommunicationSentiment | 'all'>('all')
   const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  // Contacts awaiting response — index by contact_id for fast lookup
+  const needsResponseContactIds = useMemo(
+    () => new Set(contacts.filter((c) => c.response_status === 'needs_response').map((c) => c.id)),
+    [contacts],
+  )
+
+  const needsResponseCount = needsResponseContactIds.size
+
+  // "Needs Response" tab: show the most recent inbound non-draft comm per flagged contact
+  const needsResponseItems = useMemo(() => {
+    const byContact = new Map<string, ContactCommunicationRow>()
+    for (const comm of communications) {
+      if (!needsResponseContactIds.has(comm.contact_id)) continue
+      if (comm.direction !== 'inbound' || comm.is_draft) continue
+      const existing = byContact.get(comm.contact_id)
+      const commDate = new Date(comm.sent_at ?? comm.created_at).getTime()
+      const existingDate = existing ? new Date(existing.sent_at ?? existing.created_at).getTime() : 0
+      if (!existing || commDate > existingDate) byContact.set(comm.contact_id, comm)
+    }
+    return [...byContact.values()].sort(
+      (a, b) => new Date(b.sent_at ?? b.created_at).getTime() - new Date(a.sent_at ?? a.created_at).getTime(),
+    )
+  }, [communications, needsResponseContactIds])
 
   const filtered = communications.filter((c) => {
     if (directionFilter !== 'all' && c.direction !== directionFilter) return false
@@ -104,7 +131,47 @@ export function InboxView({
 
   return (
     <div className="flex flex-col min-h-0">
-      {/* Toolbar */}
+      {/* Tab bar */}
+      <div className="flex shrink-0 border-b border-border px-6">
+        <button
+          type="button"
+          onClick={() => setActiveTab('all')}
+          className={cn(
+            'px-3 py-2.5 text-xs font-medium -mb-px border-b-2 transition-colors',
+            activeTab === 'all'
+              ? 'border-foreground text-foreground'
+              : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border',
+          )}
+        >
+          All
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('needs_response')}
+          className={cn(
+            'flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium -mb-px border-b-2 transition-colors',
+            activeTab === 'needs_response'
+              ? 'border-amber-500 text-amber-700 dark:text-amber-400'
+              : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border',
+          )}
+        >
+          <MessageCircleWarning className="h-3.5 w-3.5" />
+          Needs Response
+          {needsResponseCount > 0 && (
+            <span className={cn(
+              'rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
+              activeTab === 'needs_response'
+                ? 'bg-amber-600 text-white dark:bg-amber-500'
+                : 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+            )}>
+              {needsResponseCount}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Toolbar — only shown in All tab */}
+      {activeTab === 'all' && (
       <div className="flex flex-wrap items-center gap-2 px-6 py-3 border-b border-border bg-muted/20">
         <select
           value={directionFilter}
@@ -167,8 +234,65 @@ export function InboxView({
           </span>
         )}
       </div>
+      )}
 
-      {/* List */}
+      {/* Needs Response list */}
+      {activeTab === 'needs_response' && (
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+          {needsResponseItems.length === 0 && (
+            <div className="rounded-lg border border-dashed border-border py-12 text-center">
+              <MessageCircleWarning className="h-6 w-6 mx-auto mb-2 text-muted-foreground/40" />
+              <p className="text-sm text-muted-foreground">No outstanding responses.</p>
+              <p className="mt-1 text-xs text-muted-foreground/70">
+                All contacts are up to date.
+              </p>
+            </div>
+          )}
+          {needsResponseItems.map((comm) => {
+            const contact = contacts.find((c) => c.id === comm.contact_id)
+            return (
+              <div
+                key={comm.id}
+                className={cn(
+                  'group flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50/40 px-4 py-3 transition-colors hover:bg-amber-50/80 dark:border-amber-800/50 dark:bg-amber-900/10',
+                  deletingId === comm.id && 'opacity-50 pointer-events-none',
+                )}
+              >
+                <MessageCircleWarning className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <span className="text-xs font-semibold text-foreground">
+                      {comm.contact_name ?? contact?.name}
+                    </span>
+                    <span className="rounded border border-border bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      {CHANNEL_LABELS[comm.channel]}
+                    </span>
+                    {contact?.response_status_reason && (
+                      <span className="text-[10px] text-amber-700 dark:text-amber-400 italic">
+                        {contact.response_status_reason}
+                      </span>
+                    )}
+                  </div>
+                  {comm.subject && (
+                    <p className="text-xs font-medium text-foreground mb-1 truncate">{comm.subject}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground line-clamp-2">
+                    {comm.content.length > 150 ? comm.content.slice(0, 150) + '…' : comm.content}
+                  </p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-[11px] text-muted-foreground/60">
+                      {formatRelativeDate(comm.sent_at ?? comm.created_at)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* All communications list */}
+      {activeTab === 'all' && (
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
         {communications.length === 0 && (
           <div className="rounded-lg border border-dashed border-border py-12 text-center">
@@ -273,6 +397,7 @@ export function InboxView({
           )
         })}
       </div>
+      )}
     </div>
   )
 }

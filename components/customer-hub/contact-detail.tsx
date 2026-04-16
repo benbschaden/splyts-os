@@ -16,6 +16,7 @@ import {
   AlertCircle,
   ExternalLink,
   Pencil,
+  MessageCircleWarning,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ContactRow, ContactSegment } from '@/lib/queries/contacts'
@@ -387,10 +388,16 @@ export function ContactDetail({
   const [isRefining, setIsRefining] = useState(false)
   const [includeChatContext, setIncludeChatContext] = useState(false)
   const [matchState, setMatchState] = useState<MatchState>({ status: 'idle' })
+  const [responseStatus, setResponseStatus] = useState(contact.response_status)
+  const [responseStatusReason, setResponseStatusReason] = useState(contact.response_status_reason)
+  const [isScanning, setIsScanning] = useState(false)
+  const [isMarkingResponded, setIsMarkingResponded] = useState(false)
 
   useEffect(() => {
     setMatchState({ status: 'idle' })
-  }, [contact.id])
+    setResponseStatus(contact.response_status)
+    setResponseStatusReason(contact.response_status_reason)
+  }, [contact.id, contact.response_status, contact.response_status_reason])
 
   async function handleGenerate() {
     if (!purpose.trim()) return
@@ -534,6 +541,56 @@ export function ContactDetail({
     onInsightDeleted(id)
   }
 
+  async function handleScanResponse() {
+    setIsScanning(true)
+    try {
+      const res = await fetch(`/api/contacts/${contact.id}/scan-response`, { method: 'POST' })
+      const data = await res.json()
+      if (res.ok) {
+        setResponseStatus(data.status)
+        setResponseStatusReason(data.reason ?? null)
+        onContactUpdated({ ...contact, response_status: data.status, response_status_reason: data.reason ?? null })
+      }
+    } catch {
+      // non-blocking — scan failures are silently swallowed
+    } finally {
+      setIsScanning(false)
+    }
+  }
+
+  async function handleMarkResponded() {
+    setIsMarkingResponded(true)
+    try {
+      const res = await fetch(`/api/contacts/${contact.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ response_status: 'no_action_needed' }),
+      })
+      const data = await res.json()
+      if (res.ok && data.data) {
+        setResponseStatus('no_action_needed')
+        setResponseStatusReason(null)
+        onContactUpdated(data.data)
+      }
+    } catch {
+      // non-blocking
+    } finally {
+      setIsMarkingResponded(false)
+    }
+  }
+
+  function handleGenerateReply() {
+    const mostRecentInbound = [...communications]
+      .sort((a, b) => new Date(b.sent_at ?? b.created_at).getTime() - new Date(a.sent_at ?? a.created_at).getTime())
+      .find((c) => c.direction === 'inbound')
+    const prefill = mostRecentInbound
+      ? `Reply to: "${mostRecentInbound.subject ? mostRecentInbound.subject + ' — ' : ''}${mostRecentInbound.content.slice(0, 120)}${mostRecentInbound.content.length > 120 ? '…' : ''}"`
+      : 'Reply to most recent inbound message'
+    setPurpose(prefill)
+    setGenerateState({ status: 'form' })
+    setActiveTab('communications')
+  }
+
   const sortedComms = [...communications].sort((a, b) => {
     const aDate = a.sent_at ?? a.created_at
     const bDate = b.sent_at ?? b.created_at
@@ -626,6 +683,48 @@ export function ContactDetail({
         </div>
       </div>
 
+      {/* Response status banner */}
+      {responseStatus === 'needs_response' && (
+        <div className="shrink-0 flex items-center justify-between gap-3 px-6 py-2.5 bg-amber-50 border-b border-amber-200 dark:bg-amber-900/15 dark:border-amber-800">
+          <div className="flex items-center gap-2 min-w-0">
+            <MessageCircleWarning className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="min-w-0">
+              <span className="text-xs font-semibold text-amber-800 dark:text-amber-300">
+                Awaiting response
+              </span>
+              {responseStatusReason && (
+                <span className="ml-1.5 text-xs text-amber-700/80 dark:text-amber-400/80 truncate">
+                  — {responseStatusReason}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleGenerateReply}
+              className="flex items-center gap-1 rounded-md bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700 transition-colors"
+            >
+              <Sparkles className="h-3 w-3" />
+              Generate reply
+            </button>
+            <button
+              type="button"
+              onClick={handleMarkResponded}
+              disabled={isMarkingResponded}
+              className="flex items-center gap-1 rounded-md border border-amber-300 bg-white px-2.5 py-1 text-xs font-medium text-amber-800 hover:bg-amber-50 transition-colors disabled:opacity-50 dark:bg-transparent dark:border-amber-700 dark:text-amber-300"
+            >
+              {isMarkingResponded ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-3 w-3" />
+              )}
+              Mark as responded
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Action bar */}
       <div className="shrink-0 flex items-center gap-2 px-6 py-3 border-b border-border bg-muted/20">
         <button
@@ -650,6 +749,19 @@ export function ContactDetail({
           className="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
         >
           Add insight
+        </button>
+        <button
+          type="button"
+          onClick={handleScanResponse}
+          disabled={isScanning}
+          className="flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50/60 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/10 dark:text-amber-300 disabled:opacity-50 transition-colors"
+        >
+          {isScanning ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <MessageCircleWarning className="h-3.5 w-3.5" />
+          )}
+          {isScanning ? 'Scanning…' : 'Scan response'}
         </button>
         <button
           type="button"

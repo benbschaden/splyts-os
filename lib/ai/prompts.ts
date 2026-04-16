@@ -316,7 +316,29 @@ export function buildChatSystemPrompt(params: {
   lines.push('You are a knowledgeable AI assistant for a company operating system.')
   lines.push('You help team members think through problems, plan work, and develop ideas.')
   lines.push('Be direct, specific, and grounded in the company context provided below.')
+  lines.push('IMPORTANT: All data listed below has been loaded directly from the company database into this session. Do NOT tell the user you lack access to any data that appears below — you have it. Use it.')
   lines.push('')
+
+  // Build an explicit inventory of what is loaded so the AI knows what it has
+  const inventory: string[] = []
+  if (includeBrand && brand) inventory.push('brand/company context')
+  if (includeBusinessPlan && businessPlanSections) inventory.push('business plan')
+  if (includePersonas && personas.length > 0) inventory.push(`${personas.length} personas`)
+  if (includeProduct && productSections) inventory.push('product context')
+  if (includeCurrentGoals && currentGoals) inventory.push('current goals')
+  if (includeCompetitors && competitors.length > 0) inventory.push(`${competitors.length} competitors`)
+  if (includeSocialProof && socialProof.length > 0) inventory.push(`${socialProof.length} social proof items`)
+  if (includeKpis && kpiDefinitions.length > 0) inventory.push('KPIs')
+  if (includeProjectMaterials && projectMaterials && projectMaterials.length > 0) inventory.push(`${projectMaterials.length} project materials`)
+  if (includeDiscoveryEntries && discoveryEntries && discoveryEntries.length > 0) inventory.push(`${discoveryEntries.length} customer discovery entries`)
+  if (includeCustomerInsights && customerInsights && customerInsights.length > 0) inventory.push(`${customerInsights.length} customer insights`)
+  if (allContacts && allContacts.length > 0) inventory.push(`${allContacts.length} Customer Hub contacts`)
+  if (allRecentComms && allRecentComms.length > 0) inventory.push(`${allRecentComms.length} recent customer communications`)
+  if (includeCustomerHubContact && customerHubContactComms && customerHubContactComms.length > 0) inventory.push(`contact file with ${customerHubContactComms.length} communications`)
+  if (inventory.length > 0) {
+    lines.push(`[DATA LOADED INTO THIS SESSION: ${inventory.join(', ')}]`)
+    lines.push('')
+  }
 
   if (includeBrand && brand) {
     lines.push('[COMPANY CONTEXT]')

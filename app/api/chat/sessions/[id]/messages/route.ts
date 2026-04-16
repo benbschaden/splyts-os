@@ -245,6 +245,20 @@ export async function POST(
       }),
     ])
 
+    // DEBUG — remove after diagnosis
+    console.error('[chat/ctx]', JSON.stringify({
+      sessionId: id,
+      projectId: session.project_id,
+      orgId: org.id,
+      flags: { includeDiscoveryEntries, includeCustomerInsights, shouldLoadDiscovery, loadAllHub },
+      counts: {
+        discoveryEntries: discoveryEntries.length,
+        customerInsights: customerInsightsData.length,
+        contacts: allContactsData.length,
+        comms: allRecentCommsData.length,
+      },
+    }))
+
     // For file materials in this project, load full text from chunk index so the AI sees
     // the complete document — not just the 15 chunks that happened to score highest.
     const fileMaterials = shouldLoadMaterials

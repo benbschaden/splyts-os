@@ -30,6 +30,8 @@ const CHANNEL_LABELS: Record<CommunicationChannel, string> = {
   meeting: 'Meeting',
   chat: 'Chat',
   sms: 'SMS',
+  testflight: 'TestFlight',
+  userjot: 'UserJot',
   other: 'Other',
 }
 

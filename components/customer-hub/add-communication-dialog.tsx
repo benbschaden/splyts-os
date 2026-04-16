@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { X } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { X, Paperclip } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type {
   ContactCommunicationRow,
@@ -52,6 +52,8 @@ const CHANNEL_LABELS: Record<CommunicationChannel, string> = {
   meeting: 'Meeting',
   chat: 'Chat',
   sms: 'SMS',
+  testflight: 'TestFlight',
+  userjot: 'UserJot',
   other: 'Other',
 }
 
@@ -65,6 +67,14 @@ const SENTIMENT_LABELS: Record<CommunicationSentiment, string> = {
 const INPUT_CLASS =
   'w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring'
 
+interface PendingImage {
+  file: File
+  previewUrl: string
+}
+
+const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
+const MAX_IMAGE_BYTES = 10_485_760 // 10 MiB
+
 export function AddCommunicationDialog({
   open,
   onClose,
@@ -75,13 +85,22 @@ export function AddCommunicationDialog({
   const [form, setForm] = useState<FormData>(EMPTY)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pendingImages, setPendingImages] = useState<PendingImage[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (open) {
       setForm(EMPTY)
       setError(null)
+      setPendingImages([])
     }
   }, [open])
+
+  useEffect(() => {
+    return () => {
+      pendingImages.forEach((img) => URL.revokeObjectURL(img.previewUrl))
+    }
+  }, [pendingImages])
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -93,6 +112,48 @@ export function AddCommunicationDialog({
 
   function set<K extends keyof FormData>(key: K, value: FormData[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  function handleImageFiles(files: FileList | null) {
+    if (!files || files.length === 0) return
+    const next: PendingImage[] = []
+    for (const file of Array.from(files)) {
+      if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+        setError('Only images are supported (JPEG, PNG, GIF, WebP)')
+        return
+      }
+      if (file.size > MAX_IMAGE_BYTES) {
+        setError('Images must be 10 MB or smaller')
+        return
+      }
+      next.push({ file, previewUrl: URL.createObjectURL(file) })
+    }
+    setError(null)
+    setPendingImages((prev) => [...prev, ...next])
+  }
+
+  function removeImage(index: number) {
+    setPendingImages((prev) => {
+      URL.revokeObjectURL(prev[index].previewUrl)
+      return prev.filter((_, i) => i !== index)
+    })
+  }
+
+  async function uploadImages(commId: string): Promise<void> {
+    await Promise.all(
+      pendingImages.map(async ({ file }) => {
+        const fd = new FormData()
+        fd.append('file', file)
+        fd.append('communication_id', commId)
+        const res = await fetch('/api/contact-communications/upload', {
+          method: 'POST',
+          body: fd,
+        })
+        if (!res.ok) {
+          console.error('[add-communication-dialog] Image upload failed for', file.name)
+        }
+      }),
+    )
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -123,15 +184,21 @@ export function AddCommunicationDialog({
       }),
     })
 
-    setSaving(false)
-
     if (!res.ok) {
+      setSaving(false)
       setError('Failed to save. Please try again.')
       return
     }
 
     const data = await res.json()
-    onSaved(data.data)
+    const comm: ContactCommunicationRow = data.data
+
+    if (pendingImages.length > 0) {
+      await uploadImages(comm.id)
+    }
+
+    setSaving(false)
+    onSaved(comm)
     onClose()
   }
 
@@ -227,6 +294,47 @@ export function AddCommunicationDialog({
             </div>
 
             <div>
+              <p className="block text-xs font-medium text-foreground mb-1">Attachments</p>
+              <div className="flex flex-wrap gap-2">
+                {pendingImages.map((img, i) => (
+                  <div key={i} className="relative w-16 h-16 rounded-md overflow-hidden border border-border">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={img.previewUrl}
+                      alt={img.file.name}
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(i)}
+                      className="absolute top-0.5 right-0.5 rounded-full bg-background/80 p-0.5 text-foreground hover:bg-background transition-colors"
+                      aria-label={`Remove ${img.file.name}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-1.5 rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground hover:border-ring hover:text-foreground transition-colors"
+                >
+                  <Paperclip className="h-3.5 w-3.5" />
+                  Attach image
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  multiple
+                  className="hidden"
+                  aria-label="Attach images"
+                  onChange={(e) => handleImageFiles(e.target.files)}
+                />
+              </div>
+            </div>
+
+            <div>
               <label htmlFor="comm-sent-at" className="block text-xs font-medium text-foreground mb-1">
                 Date &amp; time
               </label>
@@ -298,7 +406,11 @@ export function AddCommunicationDialog({
               disabled={saving}
               className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
-              {saving ? 'Saving…' : 'Add communication'}
+              {saving
+                ? pendingImages.length > 0
+                  ? 'Saving & uploading…'
+                  : 'Saving…'
+                : 'Add communication'}
             </button>
           </div>
         </form>

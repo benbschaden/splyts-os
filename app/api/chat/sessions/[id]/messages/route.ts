@@ -22,7 +22,7 @@ import { getLatestSnapshot } from '@/lib/queries/kpi-snapshots'
 import { getProjectMaterials } from '@/lib/queries/project-materials'
 import { getDiscoveryEntries, getAllOrgDiscoveryEntries, getParticipantDiscoveryEntries } from '@/lib/queries/discovery-entries'
 import { getCustomerInsightsForOrg, getInsightsForContact, getInsightsForSegment, type InsightSourceSegment } from '@/lib/queries/customer-insights'
-import { getCommunicationsForContact, getCommunicationsForSegment, getRecentCommunicationsForOrg } from '@/lib/queries/contact-communications'
+import { getCommunicationsForContact, getCommunicationsForSegment, getRecentCommunicationsForOrg, getSignedAttachmentUrls } from '@/lib/queries/contact-communications'
 import { getContactsForOrg, type ContactRow } from '@/lib/queries/contacts'
 import type { ContactCommunicationRow } from '@/lib/queries/contact-communications'
 import { buildChatSystemPrompt } from '@/lib/ai/prompts'
@@ -331,7 +331,47 @@ export async function POST(
       fileFullTexts: fileFullTexts.length > 0 ? fileFullTexts : undefined,
     })
 
+    // Collect attachment paths from contact-scoped communications so Claude can see images.
+    // Images are only available in the Anthropic message content — not the system prompt —
+    // so we inject them as a synthetic user/assistant exchange at the start of the history.
+    // This is only done for Anthropic models (OpenAI path strips image blocks below).
+    const commAttachmentPaths: string[] = []
+    if (model.provider === 'anthropic' && customerHubContactId && contactCommsData.length > 0) {
+      for (const comm of contactCommsData) {
+        for (const p of comm.attachment_paths ?? []) {
+          commAttachmentPaths.push(p)
+        }
+      }
+    }
+
+    const signedImageUrls = commAttachmentPaths.length > 0
+      ? await getSignedAttachmentUrls(commAttachmentPaths)
+      : []
+
+    const imageInjectionMessages: Anthropic.MessageParam[] = signedImageUrls.length > 0
+      ? [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: `The following images are screenshots and attachments from this contact's communications. Use them as context when answering questions.`,
+              },
+              ...signedImageUrls.map((url) => ({
+                type: 'image' as const,
+                source: { type: 'url' as const, url },
+              })),
+            ],
+          },
+          {
+            role: 'assistant',
+            content: 'I can see the attached images from this contact\'s communications and will use them as context.',
+          },
+        ]
+      : []
+
     const messageHistory: Anthropic.MessageParam[] = [
+      ...imageInjectionMessages,
       ...existingMessages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
       { role: 'user', content },
     ]

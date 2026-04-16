@@ -7,7 +7,7 @@ import { indexContent } from '@/lib/indexing/index-content'
 const createSchema = z.object({
   contact_id: z.string().uuid(),
   direction: z.enum(['inbound', 'outbound', 'internal_note']),
-  channel: z.enum(['email', 'call', 'meeting', 'chat', 'sms', 'other']),
+  channel: z.enum(['email', 'call', 'meeting', 'chat', 'sms', 'testflight', 'userjot', 'other']),
   subject: z.string().max(1000).nullable().optional(),
   content: z.string().min(1).max(100000),
   sent_at: z.string().nullable().optional(),

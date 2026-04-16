@@ -6,7 +6,7 @@ import { indexContent, removeFromIndex } from '@/lib/indexing/index-content'
 
 const patchSchema = z.object({
   direction: z.enum(['inbound', 'outbound', 'internal_note']).optional(),
-  channel: z.enum(['email', 'call', 'meeting', 'chat', 'sms', 'other']).optional(),
+  channel: z.enum(['email', 'call', 'meeting', 'chat', 'sms', 'testflight', 'userjot', 'other']).optional(),
   subject: z.string().max(1000).nullable().optional(),
   content: z.string().min(1).max(100000).optional(),
   sent_at: z.string().nullable().optional(),

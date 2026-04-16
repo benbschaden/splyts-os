@@ -49,12 +49,17 @@ export type DiscoveryEntryRow = {
   adoption_willingness: number | null
   // Saved AI discussion transcript
   discussion_notes: string | null
+  // Persona match (Claude-powered)
+  persona_id: string | null
+  persona_match_score: number | null
+  persona_match_reasoning: string | null
+  persona_matched_at: string | null
   created_at: string
   updated_at: string
 }
 
 const SELECT_COLUMNS =
-  'id, organization_id, project_id, created_by, entry_type, source, entry_date, raw_content, sentiment, tags, include_in_ai, user_segment, key_quote_1, key_quote_2, key_quote_3, jtbd, star_rating, platform, source_material_id, study_id, participant, audio_url, diarized_transcript, interviewer_talk_pct, interviewee_talk_pct, interviewer_wpm, interviewee_wpm, interviewer_turns, interviewee_turns, total_interruptions, ijl_median_s, ijl_mean_s, isr_pct, spr_pct, wtp_signal, wtp_price_points, problem_severity, adoption_willingness, discussion_notes, created_at, updated_at'
+  'id, organization_id, project_id, created_by, entry_type, source, entry_date, raw_content, sentiment, tags, include_in_ai, user_segment, key_quote_1, key_quote_2, key_quote_3, jtbd, star_rating, platform, source_material_id, study_id, participant, audio_url, diarized_transcript, interviewer_talk_pct, interviewee_talk_pct, interviewer_wpm, interviewee_wpm, interviewer_turns, interviewee_turns, total_interruptions, ijl_median_s, ijl_mean_s, isr_pct, spr_pct, wtp_signal, wtp_price_points, problem_severity, adoption_willingness, discussion_notes, persona_id, persona_match_score, persona_match_reasoning, persona_matched_at, created_at, updated_at'
 
 export async function getDiscoveryEntries(
   projectId: string,
@@ -72,6 +77,23 @@ export async function getDiscoveryEntries(
 
   if (error) return []
   return (data ?? []) as unknown as DiscoveryEntryRow[]
+}
+
+export async function getDiscoveryEntryById(
+  id: string,
+  organizationId: string,
+): Promise<DiscoveryEntryRow | null> {
+  const supabase = createServiceClient()
+  const { data, error } = await supabase
+    .from('discovery_entries')
+    .select(SELECT_COLUMNS)
+    .eq('id', id)
+    .eq('organization_id', organizationId)
+    .is('deleted_at', null)
+    .single()
+
+  if (error || !data) return null
+  return data as unknown as DiscoveryEntryRow
 }
 
 export async function getAiVisibleDiscoveryEntries(

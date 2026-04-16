@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Sparkles, ShieldOff, Star, Mic, Loader2 } from 'lucide-react'
+import { X, Sparkles, ShieldOff, Star, Mic, Loader2, Users, CheckCircle2, AlertCircle, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type {
   DiscoveryEntryRow,
@@ -72,6 +72,14 @@ type AnalyseResult = {
   problem_severity: number | null
   adoption_willingness: number | null
 }
+
+type MatchState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'done'; personaId: string | null; personaName: string | null; score: number; reasoning: string; suggestNew: boolean; newPersonaDraft: Record<string, string | null> | null }
+  | { status: 'creating_persona' }
+  | { status: 'persona_created'; name: string }
+  | { status: 'error'; message: string }
 
 const EMPTY: FormData = {
   entry_type: 'interview',
@@ -248,6 +256,7 @@ export function DiscoveryDrawer({
   const [analysing, setAnalysing] = useState(false)
   const [analyseError, setAnalyseError] = useState<string | null>(null)
   const [pendingSignals, setPendingSignals] = useState<AnalyseResult | null>(null)
+  const [matchState, setMatchState] = useState<MatchState>({ status: 'idle' })
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -281,6 +290,7 @@ export function DiscoveryDrawer({
       setTranscribeResult(null)
       setTranscribeError(null)
       setAnalyseError(null)
+      setMatchState({ status: 'idle' })
     }
   }, [open, editing])
 
@@ -415,6 +425,54 @@ export function DiscoveryDrawer({
     }))
     // Store extended fields for save
     setPendingSignals(a)
+  }
+
+  async function handleAssessPersona() {
+    if (!editing) return
+    setMatchState({ status: 'loading' })
+    try {
+      const res = await fetch(`/api/discovery-entries/${editing.id}/match-persona`, { method: 'POST' })
+      const data = await res.json() as {
+        error?: string
+        match?: { persona_id: string | null; persona_name: string | null; score: number; reasoning: string }
+        suggest_new_persona?: boolean
+        new_persona_draft?: Record<string, string | null> | null
+      }
+      if (!res.ok) {
+        setMatchState({ status: 'error', message: data.error ?? 'Assessment failed.' })
+        return
+      }
+      setMatchState({
+        status: 'done',
+        personaId: data.match?.persona_id ?? null,
+        personaName: data.match?.persona_name ?? null,
+        score: data.match?.score ?? 0,
+        reasoning: data.match?.reasoning ?? '',
+        suggestNew: data.suggest_new_persona ?? false,
+        newPersonaDraft: data.new_persona_draft ?? null,
+      })
+    } catch {
+      setMatchState({ status: 'error', message: 'Something went wrong. Please try again.' })
+    }
+  }
+
+  async function handleCreateSuggestedPersona(draft: Record<string, string | null>) {
+    setMatchState((prev) => ({ ...prev, status: 'creating_persona' } as MatchState))
+    try {
+      const res = await fetch('/api/personas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...draft, include_in_ai: true }),
+      })
+      const data = await res.json() as { error?: string; data?: { name?: string } }
+      if (!res.ok) {
+        setMatchState({ status: 'error', message: data.error ?? 'Failed to create persona.' })
+        return
+      }
+      setMatchState({ status: 'persona_created', name: data.data?.name ?? draft.name ?? 'New persona' })
+    } catch {
+      setMatchState({ status: 'error', message: 'Failed to create persona.' })
+    }
   }
 
   async function handleSave() {
@@ -708,6 +766,107 @@ export function DiscoveryDrawer({
                   'Analyse with AI'
                 )}
               </button>
+            </div>
+          )}
+
+          {/* Assess persona (edit mode only — requires a saved entry ID) */}
+          {editing && (
+            <div className="rounded-lg border border-violet-200 bg-violet-500/5 dark:border-violet-800 p-4 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                  <Users className="h-3.5 w-3.5 text-violet-500" />
+                  Persona match
+                </p>
+                <button
+                  type="button"
+                  onClick={handleAssessPersona}
+                  disabled={matchState.status === 'loading' || matchState.status === 'creating_persona'}
+                  className="flex items-center gap-1.5 rounded-md border border-violet-300 bg-violet-500/10 px-3 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-500/20 dark:border-violet-700 dark:text-violet-400 disabled:opacity-50 transition-colors"
+                >
+                  {matchState.status === 'loading' ? (
+                    <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Assessing…</>
+                  ) : (
+                    <>{editing.persona_id || matchState.status === 'done' ? 'Re-assess' : 'Assess persona'}</>
+                  )}
+                </button>
+              </div>
+
+              {/* Existing stored match (before a fresh assessment) */}
+              {matchState.status === 'idle' && editing.persona_id && editing.persona_match_score !== null && (
+                <p className="text-[11px] text-muted-foreground">
+                  Last match: <span className="font-medium text-violet-700 dark:text-violet-400">{editing.persona_match_score}% confidence</span> — click Re-assess to refresh.
+                </p>
+              )}
+
+              {/* Fresh assessment result */}
+              {(matchState.status === 'done' || matchState.status === 'persona_created' || matchState.status === 'error') && (
+                <div className="space-y-2 pt-1">
+                  {matchState.status === 'done' && (
+                    <>
+                      {matchState.personaId && matchState.personaName ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-violet-500" />
+                          <span className="text-xs font-medium text-foreground">
+                            Matched: <span className="text-violet-700 dark:text-violet-400">{matchState.personaName}</span>
+                          </span>
+                          <span className="text-xs text-muted-foreground">— {matchState.score}% confidence</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4 shrink-0 text-amber-500" />
+                          <span className="text-xs font-medium text-foreground">No strong persona match</span>
+                          <span className="text-xs text-muted-foreground">({matchState.score}% — below threshold)</span>
+                        </div>
+                      )}
+                      {/* Score bar */}
+                      <div className="h-1 w-24 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className={cn(
+                            'h-full rounded-full transition-all',
+                            matchState.score >= 80 ? 'bg-violet-500' :
+                            matchState.score >= 60 ? 'bg-blue-500' :
+                            matchState.score >= 45 ? 'bg-amber-500' : 'bg-red-500',
+                          )}
+                          style={{ width: `${matchState.score}%` }}
+                        />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">{matchState.reasoning}</p>
+                      {matchState.suggestNew && matchState.newPersonaDraft && (
+                        <div className="rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20 p-3 space-y-2">
+                          <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
+                            New persona suggested: <span className="font-semibold">{String(matchState.newPersonaDraft.name ?? '')}</span>
+                          </p>
+                          {matchState.newPersonaDraft.tagline && (
+                            <p className="text-xs text-amber-700 dark:text-amber-400">{String(matchState.newPersonaDraft.tagline)}</p>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleCreateSuggestedPersona(matchState.newPersonaDraft!)}
+                            className="flex items-center gap-1.5 rounded-md bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700 transition-colors"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            Create persona in Company
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {matchState.status === 'persona_created' && (
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      <span className="text-xs text-foreground">
+                        Persona <span className="font-medium">{matchState.name}</span> created in Company → Personas.
+                      </span>
+                    </div>
+                  )}
+                  {matchState.status === 'error' && (
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 text-destructive" />
+                      <span className="text-xs text-destructive">{matchState.message}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

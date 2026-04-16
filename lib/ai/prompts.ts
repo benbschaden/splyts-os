@@ -13,6 +13,7 @@ import type { RetrievedContext } from '@/lib/retrieval/search'
 import type { DiscoveryEntryRow } from '@/lib/queries/discovery-entries'
 import type { CustomerInsightRow } from '@/lib/queries/customer-insights'
 import type { ContactCommunicationRow } from '@/lib/queries/contact-communications'
+import type { ContactRow } from '@/lib/queries/contacts'
 
 export type { BusinessPlanSections }
 
@@ -284,6 +285,8 @@ export function buildChatSystemPrompt(params: {
   discoveryParticipant?: string | null
   customerInsights?: CustomerInsightRow[]
   includeCustomerInsights?: boolean
+  allContacts?: ContactRow[]
+  allRecentComms?: ContactCommunicationRow[]
   customerHubContactComms?: ContactCommunicationRow[]
   includeCustomerHubContact?: boolean
   contactInsights?: CustomerInsightRow[]
@@ -302,6 +305,7 @@ export function buildChatSystemPrompt(params: {
     includeKpis, projectMaterials, includeProjectMaterials,
     discoveryEntries, includeDiscoveryEntries, discoveryParticipant,
     customerInsights, includeCustomerInsights,
+    allContacts, allRecentComms,
     customerHubContactComms, includeCustomerHubContact, contactInsights,
     segmentComms, segmentInsights, hubSegment,
     retrievedContext, fileFullTexts,
@@ -512,10 +516,37 @@ export function buildChatSystemPrompt(params: {
     lines.push('[CUSTOMER INSIGHTS — validated learnings from the field]')
     lines.push('These are structured learnings extracted from customer communications and research.')
     lines.push('Use them to ground answers in real signal from customers.')
-    customerInsights.slice(0, 25).forEach((insight) => {
+    customerInsights.slice(0, 50).forEach((insight) => {
       const src = insight.source_contact_name ? ` (from ${insight.source_contact_name})` : ''
       const category = insight.category.replace(/_/g, ' ')
       lines.push(`- [${category} · ${insight.impact} impact] ${insight.content}${src}`)
+    })
+    lines.push('')
+  }
+
+  if (allContacts && allContacts.length > 0) {
+    lines.push('[CUSTOMER HUB — all contacts]')
+    lines.push('These are all the people tracked in the Customer Hub. Notes and segment reflect what is known about each person.')
+    allContacts.slice(0, 60).forEach((contact) => {
+      const seg = contact.segment ? ` · ${contact.segment.replace(/_/g, ' ')}` : ''
+      const role = contact.role ? ` · ${contact.role}` : ''
+      const stage = contact.funnel_stage ? ` · funnel: ${contact.funnel_stage.replace(/_/g, ' ')}` : ''
+      const health = contact.health ? ` · health: ${contact.health}` : ''
+      lines.push(`- ${contact.name}${seg}${role}${stage}${health}`)
+      if (contact.notes) lines.push(`  Notes: ${contact.notes.slice(0, 500)}`)
+    })
+    lines.push('')
+  }
+
+  if (allRecentComms && allRecentComms.length > 0) {
+    lines.push('[CUSTOMER HUB — recent communications]')
+    lines.push('The 80 most recent customer communications logged in the hub.')
+    allRecentComms.slice(0, 80).forEach((comm) => {
+      const date = comm.sent_at ? ` (${comm.sent_at.slice(0, 10)})` : ''
+      const who = comm.contact_name ? ` · ${comm.contact_name}` : ''
+      const subject = comm.subject ? ` · ${comm.subject}` : ''
+      const dir = comm.direction === 'inbound' ? '→ Received' : comm.direction === 'outbound' ? '← Sent' : '📝 Note'
+      lines.push(`- [${dir}${who} · ${comm.channel}${subject}${date}] ${comm.content.slice(0, 500)}`)
     })
     lines.push('')
   }

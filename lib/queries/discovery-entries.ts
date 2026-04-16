@@ -80,6 +80,23 @@ export async function getDiscoveryEntries(
   return (data ?? []) as unknown as DiscoveryEntryRow[]
 }
 
+export async function getAllOrgDiscoveryEntries(
+  organizationId: string,
+): Promise<DiscoveryEntryRow[]> {
+  const supabase = createServiceClient()
+  const { data, error } = await supabase
+    .from('discovery_entries')
+    .select(SELECT_COLUMNS)
+    .eq('organization_id', organizationId)
+    .is('deleted_at', null)
+    .order('entry_date', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false })
+    .limit(100)
+
+  if (error) return []
+  return (data ?? []) as unknown as DiscoveryEntryRow[]
+}
+
 export async function getDiscoveryEntryById(
   id: string,
   organizationId: string,

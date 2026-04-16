@@ -20,9 +20,11 @@ import { getTerminologyForAi } from '@/lib/queries/terminology'
 import { getKpiDefinitions } from '@/lib/queries/kpi-definitions'
 import { getLatestSnapshot } from '@/lib/queries/kpi-snapshots'
 import { getProjectMaterials } from '@/lib/queries/project-materials'
-import { getDiscoveryEntries, getParticipantDiscoveryEntries } from '@/lib/queries/discovery-entries'
-import { getAiVisibleInsights, getInsightsForContact, getInsightsForSegment, type InsightSourceSegment } from '@/lib/queries/customer-insights'
-import { getCommunicationsForContact, getCommunicationsForSegment } from '@/lib/queries/contact-communications'
+import { getDiscoveryEntries, getAllOrgDiscoveryEntries, getParticipantDiscoveryEntries } from '@/lib/queries/discovery-entries'
+import { getCustomerInsightsForOrg, getInsightsForContact, getInsightsForSegment, type InsightSourceSegment } from '@/lib/queries/customer-insights'
+import { getCommunicationsForContact, getCommunicationsForSegment, getRecentCommunicationsForOrg } from '@/lib/queries/contact-communications'
+import { getContactsForOrg, type ContactRow } from '@/lib/queries/contacts'
+import type { ContactCommunicationRow } from '@/lib/queries/contact-communications'
 import { buildChatSystemPrompt } from '@/lib/ai/prompts'
 import { DEFAULT_MODEL, getModelById } from '@/lib/ai/models'
 import { retrieveRelevantDocuments, fetchFullTextsForMaterials } from '@/lib/retrieval/search'
@@ -172,7 +174,10 @@ export async function POST(
 
     // Fetch all enabled context in parallel
     const shouldLoadMaterials = includeProjectMaterials && !!session.project_id
-    const shouldLoadDiscovery = includeDiscoveryEntries && !!session.project_id
+    // Discovery: load all org entries when no specific participant, otherwise scope to project+participant
+    const shouldLoadDiscovery = includeDiscoveryEntries
+    // Customer Hub: when no specific contact/segment, load all org contacts + recent comms
+    const loadAllHub = includeCustomerInsights && !customerHubContactId && !customerHubSegment
 
     const [
       brand,
@@ -193,6 +198,8 @@ export async function POST(
       projectMaterials,
       discoveryEntries,
       customerInsightsData,
+      allContactsData,
+      allRecentCommsData,
       contactCommsData,
       contactInsightsData,
       existingMessages,
@@ -215,11 +222,13 @@ export async function POST(
       includeKpis ? getLatestSnapshot(org.id) : Promise.resolve(null),
       shouldLoadMaterials ? getProjectMaterials(session.project_id!, org.id) : Promise.resolve([]),
       shouldLoadDiscovery
-        ? discoveryParticipant
-          ? getParticipantDiscoveryEntries(session.project_id!, org.id, discoveryParticipant)
-          : getDiscoveryEntries(session.project_id!, org.id)
+        ? discoveryParticipant && session.project_id
+          ? getParticipantDiscoveryEntries(session.project_id, org.id, discoveryParticipant)
+          : getAllOrgDiscoveryEntries(org.id)
         : Promise.resolve([]),
-      includeCustomerInsights ? getAiVisibleInsights(org.id) : Promise.resolve([]),
+      includeCustomerInsights ? getCustomerInsightsForOrg(org.id) : Promise.resolve([]),
+      loadAllHub ? getContactsForOrg(org.id) : Promise.resolve([] as ContactRow[]),
+      loadAllHub ? getRecentCommunicationsForOrg(org.id, 80) : Promise.resolve([] as ContactCommunicationRow[]),
       customerHubContactId ? getCommunicationsForContact(customerHubContactId, org.id)
         : customerHubSegment ? getCommunicationsForSegment(customerHubSegment, org.id)
         : Promise.resolve([]),
@@ -310,6 +319,8 @@ export async function POST(
       discoveryParticipant: discoveryParticipant ?? undefined,
       customerInsights: includeCustomerInsights ? customerInsightsData : undefined,
       includeCustomerInsights,
+      allContacts: loadAllHub && allContactsData.length > 0 ? allContactsData : undefined,
+      allRecentComms: loadAllHub && allRecentCommsData.length > 0 ? allRecentCommsData : undefined,
       customerHubContactComms: customerHubContactId ? contactCommsData : undefined,
       includeCustomerHubContact: !!customerHubContactId,
       contactInsights: customerHubContactId && contactInsightsData.length > 0 ? contactInsightsData : undefined,

@@ -20,6 +20,10 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { createOutput } from '@/lib/queries/outputs'
 import { getModelById, DEFAULT_MODEL } from '@/lib/ai/models'
 import { logProjectActivity } from '@/lib/queries/project-activity'
+import { getAllOrgDiscoveryEntries } from '@/lib/queries/discovery-entries'
+import { getContactsForOrg } from '@/lib/queries/contacts'
+import { getRecentCommunicationsForOrg } from '@/lib/queries/contact-communications'
+import { getCustomerInsightsForOrg } from '@/lib/queries/customer-insights'
 
 const schema = z.object({
   projectId: z.string().uuid(),
@@ -101,6 +105,7 @@ function buildPrompt(params: {
   narrativesText: string
   terminologyText: string
   topPerformersText: string
+  customerContextText: string
   basePrompt: string
   customRules: string
   cadence: string | null
@@ -110,7 +115,7 @@ function buildPrompt(params: {
   const {
     brand, businessPlanContext, personasContext,
     productContextText, productFeaturesText, currentGoalsText,
-    topPerformersText,
+    topPerformersText, customerContextText,
     basePrompt, customRules, cadence, author, brief,
   } = params
 
@@ -147,6 +152,13 @@ function buildPrompt(params: {
     lines.push('[TARGET PERSONAS]')
     lines.push('The following are the target audience personas. Write content that speaks to their goals, frustrations, and language. If multiple personas are listed, write for all of them or the most relevant one given the brief.')
     lines.push(personasContext)
+  }
+
+  if (customerContextText) {
+    lines.push('')
+    lines.push('[CUSTOMER INTELLIGENCE — real signal from discovery and customer hub]')
+    lines.push('Use this to ground content in actual customer language, problems, and evidence.')
+    lines.push(customerContextText)
   }
 
   if (currentGoalsText) {
@@ -267,8 +279,8 @@ export async function POST(request: Request) {
 
   if (!project) return Response.json({ error: 'Project not found' }, { status: 404 })
 
-  // Fetch brand context, business plan, personas, and new context in parallel
-  const [brand, businessPlan, personas, productContext, productFeatures, activeGoalPeriod, competitors, socialProof, narratives, terminology, topPerformers] = await Promise.all([
+  // Fetch all OS context in parallel
+  const [brand, businessPlan, personas, productContext, productFeatures, activeGoalPeriod, competitors, socialProof, narratives, terminology, topPerformers, discoveryEntries, hubContacts, hubComms, hubInsights] = await Promise.all([
     getBrandContext(org.id),
     getBusinessPlan(org.id),
     getPersonas(org.id),
@@ -280,6 +292,10 @@ export async function POST(request: Request) {
     getAiVisibleNarratives(org.id),
     getTerminologyForAi(org.id),
     getTopPerformingOutputs(org.id, 3),
+    getAllOrgDiscoveryEntries(org.id),
+    getContactsForOrg(org.id),
+    getRecentCommunicationsForOrg(org.id, 60),
+    getCustomerInsightsForOrg(org.id),
   ])
   if (!brand || !brand.mission || !brand.vision) {
     return Response.json(
@@ -404,6 +420,49 @@ export async function POST(request: Request) {
     return t.context ? `${line} (${t.context})` : line
   }).join('\n')
 
+  // Build customer intelligence text from discovery + hub
+  const customerContextParts: string[] = []
+  if (discoveryEntries.length > 0) {
+    customerContextParts.push('Customer discovery entries:')
+    discoveryEntries.slice(0, 30).forEach((entry) => {
+      const date = entry.entry_date ? ` (${entry.entry_date})` : ''
+      const who = entry.participant ? ` — ${entry.participant}` : ''
+      const seg = entry.user_segment ? ` · ${entry.user_segment}` : ''
+      const sent = entry.sentiment ? ` · ${entry.sentiment}` : ''
+      customerContextParts.push(`- [${entry.entry_type}${who}${seg}${sent}${date}] ${entry.raw_content.slice(0, 600)}`)
+      if (entry.key_quote_1) customerContextParts.push(`  Quote: "${entry.key_quote_1}"`)
+      if (entry.jtbd) customerContextParts.push(`  JTBD: ${entry.jtbd}`)
+    })
+  }
+  if (hubInsights.length > 0) {
+    customerContextParts.push('')
+    customerContextParts.push('Validated customer insights:')
+    hubInsights.slice(0, 30).forEach((insight) => {
+      const src = insight.source_contact_name ? ` (${insight.source_contact_name})` : ''
+      customerContextParts.push(`- [${insight.category.replace(/_/g, ' ')} · ${insight.impact}] ${insight.content}${src}`)
+    })
+  }
+  if (hubContacts.length > 0) {
+    customerContextParts.push('')
+    customerContextParts.push('Known contacts:')
+    hubContacts.slice(0, 40).forEach((c) => {
+      const seg = c.segment ? ` · ${c.segment.replace(/_/g, ' ')}` : ''
+      const stage = c.funnel_stage ? ` · funnel: ${c.funnel_stage.replace(/_/g, ' ')}` : ''
+      customerContextParts.push(`- ${c.name}${seg}${stage}${c.notes ? `: ${c.notes.slice(0, 300)}` : ''}`)
+    })
+  }
+  if (hubComms.length > 0) {
+    customerContextParts.push('')
+    customerContextParts.push('Recent customer communications:')
+    hubComms.slice(0, 40).forEach((comm) => {
+      const date = comm.sent_at ? ` (${comm.sent_at.slice(0, 10)})` : ''
+      const who = comm.contact_name ? ` · ${comm.contact_name}` : ''
+      const dir = comm.direction === 'inbound' ? '→' : comm.direction === 'outbound' ? '←' : '📝'
+      customerContextParts.push(`- [${dir}${who} · ${comm.channel}${date}] ${comm.content.slice(0, 400)}`)
+    })
+  }
+  const customerContextText = customerContextParts.join('\n')
+
   // Build top performers text
   const topPerformersText = topPerformers.length > 0
     ? topPerformers.map((o, i) => {
@@ -429,6 +488,7 @@ export async function POST(request: Request) {
     narrativesText,
     terminologyText,
     topPerformersText,
+    customerContextText,
     basePrompt,
     customRules: contentType.custom_rules,
     cadence,

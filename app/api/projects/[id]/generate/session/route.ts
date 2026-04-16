@@ -7,11 +7,22 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getBusinessPlan } from '@/lib/queries/business-plan'
+import { getBrandContext } from '@/lib/queries/brand-context'
+import { getPersonas } from '@/lib/queries/personas'
+import { getProductContext } from '@/lib/queries/product-context'
+import { getAiVisibleProductFeatures } from '@/lib/queries/product-features'
+import { getActiveGoalPeriod } from '@/lib/queries/goal-periods'
+import { getAiVisibleCompetitors } from '@/lib/queries/competitors'
+import { getApprovedSocialProof } from '@/lib/queries/social-proof'
 import { getProjectMaterials } from '@/lib/queries/project-materials'
 import { getOutputsForProject, createDraftOutput, updateDraftOutput } from '@/lib/queries/outputs'
 import { DEFAULT_MODEL, getModelById } from '@/lib/ai/models'
 import { buildProjectOutputSessionSystemPrompt } from '@/lib/ai/prompts'
 import { fetchFullTextsForMaterials } from '@/lib/retrieval/search'
+import { getAllOrgDiscoveryEntries } from '@/lib/queries/discovery-entries'
+import { getContactsForOrg } from '@/lib/queries/contacts'
+import { getRecentCommunicationsForOrg } from '@/lib/queries/contact-communications'
+import { getCustomerInsightsForOrg } from '@/lib/queries/customer-insights'
 
 const schema = z.object({
   outputType: z.string().min(1).max(100),
@@ -63,11 +74,21 @@ export async function POST(
 
     if (!project) return Response.json({ error: 'Project not found' }, { status: 404 })
 
-    const [materialsRaw, businessPlan, previousOutputs] = await Promise.all([
+    const [materialsRaw, businessPlan, previousOutputs, brand, personas, productContext, productFeatures, currentGoals, competitors, socialProof, discoveryEntries, hubContacts, hubComms, hubInsights] = await Promise.all([
       getProjectMaterials(projectId, org.id),
       getBusinessPlan(org.id),
-      // Published outputs only for AI context — drafts are not ready to reference
       getOutputsForProject(projectId, org.id),
+      getBrandContext(org.id),
+      getPersonas(org.id),
+      getProductContext(org.id),
+      getAiVisibleProductFeatures(org.id),
+      getActiveGoalPeriod(org.id),
+      getAiVisibleCompetitors(org.id),
+      getApprovedSocialProof(org.id),
+      getAllOrgDiscoveryEntries(org.id),
+      getContactsForOrg(org.id),
+      getRecentCommunicationsForOrg(org.id, 60),
+      getCustomerInsightsForOrg(org.id),
     ])
 
     const materials = materialsRaw.map((m) => ({
@@ -100,6 +121,17 @@ export async function POST(
       businessPlanSections: businessPlan?.sections ?? null,
       previousOutputs: previousOutputsForPrompt,
       fileFullTexts: fileFullTexts.length > 0 ? fileFullTexts : undefined,
+      brand: brand ?? null,
+      personas,
+      productSections: productContext?.sections ?? null,
+      productFeatures,
+      currentGoals: currentGoals ?? null,
+      competitors,
+      socialProof,
+      discoveryEntries: discoveryEntries.length > 0 ? discoveryEntries : undefined,
+      customerInsights: hubInsights.length > 0 ? hubInsights : undefined,
+      allContacts: hubContacts.length > 0 ? hubContacts : undefined,
+      allRecentComms: hubComms.length > 0 ? hubComms : undefined,
     })
 
     const apiKey = process.env.ANTHROPIC_API_KEY

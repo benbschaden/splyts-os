@@ -1451,8 +1451,21 @@ export function buildProjectOutputSessionSystemPrompt(params: {
   businessPlanSections: BusinessPlanSections | null
   previousOutputs?: Array<{ brief: string; content: string; createdAt: string }>
   fileFullTexts?: Array<{ title: string; content: string }>
+  brand?: { company_name: string; mission?: string | null; vision?: string | null; voice?: string | null; tone?: string | null; target_audience?: string | null; values?: string | null; guardrails?: string | null } | null
+  personas?: PersonaRow[]
+  productSections?: ProductSections | null
+  productFeatures?: ProductFeatureRow[]
+  currentGoals?: GoalPeriodWithGoals | null
+  competitors?: CompetitorRow[]
+  socialProof?: SocialProofRow[]
+  discoveryEntries?: DiscoveryEntryRow[]
+  customerInsights?: CustomerInsightRow[]
+  allContacts?: ContactRow[]
+  allRecentComms?: ContactCommunicationRow[]
 }): string {
-  const { projectName, projectDescription, outputType, materials, businessPlanSections, previousOutputs, fileFullTexts } = params
+  const { projectName, projectDescription, outputType, materials, businessPlanSections, previousOutputs, fileFullTexts,
+    brand, personas, productSections, productFeatures, currentGoals, competitors, socialProof,
+    discoveryEntries, customerInsights, allContacts, allRecentComms } = params
   const { materialsBlock, planBlock } = buildProjectMaterialsAndPlanBlocks(materials, businessPlanSections)
 
   const fileFullTextsBlock = fileFullTexts && fileFullTexts.length > 0
@@ -1488,11 +1501,120 @@ export function buildProjectOutputSessionSystemPrompt(params: {
     ? 'the full email draft (subject + body in markdown as above)'
     : `a complete ${outputType} using markdown: ## for section headings, - for bullets, **bold** for key terms or actions`
 
+  // Build OS-wide context blocks
+  const brandBlock = brand
+    ? [
+        brand.company_name ? `Company: ${brand.company_name}` : '',
+        brand.mission ? `Mission: ${brand.mission}` : '',
+        brand.vision ? `Vision: ${brand.vision}` : '',
+        brand.voice ? `Brand voice: ${brand.voice}` : '',
+        brand.tone ? `Brand tone: ${brand.tone}` : '',
+        brand.target_audience ? `Target audience: ${brand.target_audience}` : '',
+        brand.values ? `Values: ${brand.values}` : '',
+        brand.guardrails ? `Guardrails (never violate): ${brand.guardrails}` : '',
+      ].filter(Boolean).join('\n')
+    : null
+
+  const personasBlock = personas && personas.length > 0
+    ? personas.filter((p) => p.include_in_ai).map((p) => {
+        const parts = [`Persona: ${p.name}`]
+        if (p.tagline) parts.push(`Summary: ${p.tagline}`)
+        if (p.goals) parts.push(`Goals: ${p.goals}`)
+        if (p.frustrations) parts.push(`Frustrations: ${p.frustrations}`)
+        if (p.motivations) parts.push(`Motivations: ${p.motivations}`)
+        return parts.join('\n')
+      }).join('\n\n')
+    : null
+
+  const productBlock = productSections
+    ? Object.entries(productSections)
+        .filter(([, v]) => typeof v === 'string' && v.trim())
+        .map(([k, v]) => `${k}: ${(v as string).trim()}`)
+        .join('\n')
+    : null
+
+  const featuresBlock = productFeatures && productFeatures.length > 0
+    ? productFeatures.filter((f) => f.include_in_ai).map((f) => f.tagline ? `- ${f.name}: ${f.tagline}` : `- ${f.name}`).join('\n')
+    : null
+
+  const goalsBlock = currentGoals
+    ? [
+        `Period: ${currentGoals.period_label}`,
+        currentGoals.focus_areas?.trim() ? `Focus: ${currentGoals.focus_areas.trim()}` : '',
+        currentGoals.goals.length > 0 ? `Goals:\n${currentGoals.goals.map((g) => `  - ${g.title}`).join('\n')}` : '',
+      ].filter(Boolean).join('\n')
+    : null
+
+  const competitorsBlock = competitors && competitors.length > 0
+    ? competitors.filter((c) => c.include_in_ai).map((c) => {
+        const parts = [`${c.name}`]
+        if (c.positioning) parts.push(`Positioning: ${c.positioning}`)
+        if (c.weaknesses) parts.push(`Weaknesses: ${c.weaknesses}`)
+        return parts.join(' — ')
+      }).join('\n')
+    : null
+
+  const socialProofBlock = socialProof && socialProof.length > 0
+    ? socialProof.filter((p) => p.approved && p.include_in_ai).map((p) => {
+        if (p.proof_type === 'metric') return `${p.metric_value ?? ''} ${p.metric_label ?? ''}`.trim()
+        return p.quote ? `"${p.quote}"${p.attribution ? ` — ${p.attribution}` : ''}` : ''
+      }).filter(Boolean).join('\n')
+    : null
+
+  const discoveryBlock = discoveryEntries && discoveryEntries.length > 0
+    ? discoveryEntries.slice(0, 30).map((entry) => {
+        const date = entry.entry_date ? ` (${entry.entry_date})` : ''
+        const who = entry.participant ? ` — ${entry.participant}` : ''
+        const seg = entry.user_segment ? ` · ${entry.user_segment}` : ''
+        const sent = entry.sentiment ? ` · ${entry.sentiment}` : ''
+        const lines = [`- [${entry.entry_type}${who}${seg}${sent}${date}] ${entry.raw_content.slice(0, 600)}`]
+        if (entry.key_quote_1) lines.push(`  Quote: "${entry.key_quote_1}"`)
+        if (entry.jtbd) lines.push(`  JTBD: ${entry.jtbd}`)
+        return lines.join('\n')
+      }).join('\n')
+    : null
+
+  const insightsBlock = customerInsights && customerInsights.length > 0
+    ? customerInsights.slice(0, 30).map((i) => {
+        const src = i.source_contact_name ? ` (${i.source_contact_name})` : ''
+        return `- [${i.category.replace(/_/g, ' ')} · ${i.impact}] ${i.content}${src}`
+      }).join('\n')
+    : null
+
+  const contactsBlock = allContacts && allContacts.length > 0
+    ? allContacts.slice(0, 40).map((c) => {
+        const seg = c.segment ? ` · ${c.segment.replace(/_/g, ' ')}` : ''
+        const stage = c.funnel_stage ? ` · funnel: ${c.funnel_stage.replace(/_/g, ' ')}` : ''
+        return `- ${c.name}${seg}${stage}${c.notes ? `: ${c.notes.slice(0, 300)}` : ''}`
+      }).join('\n')
+    : null
+
+  const recentCommsBlock = allRecentComms && allRecentComms.length > 0
+    ? allRecentComms.slice(0, 40).map((comm) => {
+        const date = comm.sent_at ? ` (${comm.sent_at.slice(0, 10)})` : ''
+        const who = comm.contact_name ? ` · ${comm.contact_name}` : ''
+        const dir = comm.direction === 'inbound' ? '→' : comm.direction === 'outbound' ? '←' : '📝'
+        return `- [${dir}${who} · ${comm.channel}${date}] ${comm.content.slice(0, 400)}`
+      }).join('\n')
+    : null
+
   return `You are a sharp, experienced professional helping a team produce project deliverables. You are clear, specific, well-structured, and immediately actionable.
+You have full access to the company's OS data loaded below — use it to ground every deliverable in real context, evidence, and customer intelligence.
 
 PROJECT: ${projectName}${projectDescription ? `\nCONTEXT: ${projectDescription}` : ''}
 
 DELIVERABLE TYPE: ${outputType}
+${brandBlock ? `\n[COMPANY & BRAND]\n${brandBlock}` : ''}
+${personasBlock ? `\n[TARGET PERSONAS]\n${personasBlock}` : ''}
+${productBlock ? `\n[PRODUCT CONTEXT]\n${productBlock}` : ''}
+${featuresBlock ? `\n[PRODUCT FEATURES]\n${featuresBlock}` : ''}
+${goalsBlock ? `\n[CURRENT GOALS]\n${goalsBlock}` : ''}
+${competitorsBlock ? `\n[COMPETITIVE LANDSCAPE]\n${competitorsBlock}` : ''}
+${socialProofBlock ? `\n[SOCIAL PROOF]\n${socialProofBlock}` : ''}
+${discoveryBlock ? `\n[CUSTOMER DISCOVERY — real interviews, surveys, and feedback]\n${discoveryBlock}` : ''}
+${insightsBlock ? `\n[CUSTOMER INSIGHTS — validated learnings]\n${insightsBlock}` : ''}
+${contactsBlock ? `\n[CUSTOMER HUB — known contacts]\n${contactsBlock}` : ''}
+${recentCommsBlock ? `\n[RECENT CUSTOMER COMMUNICATIONS]\n${recentCommsBlock}` : ''}
 ${fileFullTextsBlock ? `\nPROJECT FILES — full content (read in full before answering):\n${fileFullTextsBlock}` : ''}
 ${materialsBlock ? `\nPROJECT MATERIALS (use as source and reference):\n${materialsBlock}` : ''}
 ${planBlock ? `\nBUSINESS CONTEXT (background reference):\n${planBlock}` : ''}

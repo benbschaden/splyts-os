@@ -566,7 +566,9 @@ export function buildChatSystemPrompt(params: {
       const who = comm.contact_name ? ` · ${comm.contact_name}` : ''
       const subject = comm.subject ? ` · ${comm.subject}` : ''
       const dir = comm.direction === 'inbound' ? '→ Received' : comm.direction === 'outbound' ? '← Sent' : '📝 Note'
-      lines.push(`- [${dir}${who} · ${comm.channel}${subject}${date}] ${comm.content.slice(0, 500)}`)
+      const preview = comm.content.slice(0, 800)
+      const truncated = comm.content.length > 800 ? `${preview}… (truncated)` : preview
+      lines.push(`- [${dir}${who} · ${comm.channel}${subject}${date}] ${truncated}`)
     })
     lines.push('')
   }
@@ -583,7 +585,8 @@ export function buildChatSystemPrompt(params: {
         const date = comm.sent_at ? ` (${comm.sent_at.slice(0, 10)})` : ''
         const subject = comm.subject ? ` · ${comm.subject}` : ''
         const dir = comm.direction === 'inbound' ? '→ Received' : comm.direction === 'outbound' ? '← Sent' : '📝 Note'
-        lines.push(`- [${dir} · ${comm.channel}${subject}${date}] ${comm.content.slice(0, 600)}`)
+        const body = comm.content.length > 4000 ? `${comm.content.slice(0, 4000)}… (truncated)` : comm.content
+        lines.push(`- [${dir} · ${comm.channel}${subject}${date}] ${body}`)
       })
       lines.push('')
     }
@@ -622,7 +625,8 @@ export function buildChatSystemPrompt(params: {
         const who = comm.contact_name ? ` · ${comm.contact_name}` : ''
         const subject = comm.subject ? ` · ${comm.subject}` : ''
         const dir = comm.direction === 'inbound' ? '→ Received' : comm.direction === 'outbound' ? '← Sent' : '📝 Note'
-        lines.push(`- [${dir}${who}${subject}${date}] ${comm.content.slice(0, 400)}`)
+        const segBody = comm.content.length > 600 ? `${comm.content.slice(0, 600)}… (truncated)` : comm.content
+        lines.push(`- [${dir}${who}${subject}${date}] ${segBody}`)
       })
       lines.push('')
     }

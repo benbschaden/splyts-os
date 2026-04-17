@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      contact_chat_summaries: {
+        Row: {
+          id: string
+          organization_id: string
+          session_id: string
+          contact_id: string | null
+          segment: string | null
+          title: string
+          content: string
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          session_id: string
+          contact_id?: string | null
+          segment?: string | null
+          title: string
+          content: string
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          session_id?: string
+          contact_id?: string | null
+          segment?: string | null
+          title?: string
+          content?: string
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       author_profiles: {
         Row: {
           id: string

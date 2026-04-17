@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Send, Sparkles, Loader2, Trash2, CheckCircle } from 'lucide-react'
+import { Send, Sparkles, Loader2, Trash2, CheckCircle, FileText, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils'
 import type { ChatSessionRow, ChatMessageRow } from '@/lib/queries/chat'
 import type { CustomerInsightRow, InsightCategory, InsightImpact } from '@/lib/queries/customer-insights'
+import type { ContactChatSummaryRow } from '@/lib/queries/contact-chat-summaries'
 
 interface DraftInsight {
   content: string
@@ -32,6 +33,7 @@ type PanelStatus =
   | 'extracting'
   | 'reviewing'
   | 'saving'
+  | 'summarizing'
   | 'error'
 
 const CATEGORY_LABELS: Record<InsightCategory, string> = {
@@ -59,6 +61,8 @@ export function HubChatPanel({ contactId, segment, placeholder, onInsightsExtrac
   const [drafts, setDrafts] = useState<DraftInsight[]>([])
   const [sourceContactId, setSourceContactId] = useState<string | null>(null)
   const [sourceSegment, setSourceSegment] = useState<string | null>(null)
+  const [summary, setSummary] = useState<ContactChatSummaryRow | null>(null)
+  const [summaryExpanded, setSummaryExpanded] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -67,6 +71,7 @@ export function HubChatPanel({ contactId, segment, placeholder, onInsightsExtrac
     async function initSession() {
       setStatus('loading')
       setError(null)
+      setSummary(null)
       try {
         const url = contactId
           ? `/api/contacts/${contactId}/chat-session`
@@ -81,8 +86,14 @@ export function HubChatPanel({ contactId, segment, placeholder, onInsightsExtrac
         if (data.session) {
           setSession(data.session)
           setMessages(data.messages ?? [])
+
+          // Load existing summary for this session
+          const summaryRes = await fetch(`/api/chat/sessions/${data.session.id}/summarize`)
+          if (!cancelled && summaryRes.ok) {
+            const summaryData = await summaryRes.json()
+            setSummary(summaryData.summary ?? null)
+          }
         } else {
-          // No session yet — create one on first message
           setSession(null)
           setMessages([])
         }
@@ -196,6 +207,30 @@ export function HubChatPanel({ contactId, segment, placeholder, onInsightsExtrac
     }
   }
 
+  async function handleSummarize() {
+    if (!session) return
+    setStatus('summarizing')
+    setError(null)
+
+    try {
+      const res = await fetch(`/api/chat/sessions/${session.id}/summarize`, { method: 'POST' })
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error ?? 'Summary failed.')
+        setStatus('ready')
+        return
+      }
+
+      setSummary(data.summary ?? null)
+      setSummaryExpanded(true)
+      setStatus('ready')
+    } catch {
+      setError('Summary failed.')
+      setStatus('ready')
+    }
+  }
+
   async function handleSaveInsights() {
     if (drafts.length === 0) return
     setStatus('saving')
@@ -248,7 +283,7 @@ export function HubChatPanel({ contactId, segment, placeholder, onInsightsExtrac
     }
   }
 
-  const isWorking = status === 'sending' || status === 'extracting' || status === 'saving'
+  const isWorking = status === 'sending' || status === 'extracting' || status === 'saving' || status === 'summarizing'
 
   if (status === 'loading') {
     return (
@@ -341,6 +376,52 @@ export function HubChatPanel({ contactId, segment, placeholder, onInsightsExtrac
 
   return (
     <div className="flex flex-col h-full">
+      {/* Pinned summary */}
+      {summary && (
+        <div className="shrink-0 border-b border-border">
+          <div className="flex items-center justify-between px-4 py-2.5 bg-muted/40">
+            <div className="flex items-center gap-2">
+              <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs font-medium text-foreground">Chat summary</span>
+              <span className="text-[10px] text-muted-foreground">
+                {new Date(summary.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={handleSummarize}
+                disabled={isWorking}
+                title="Re-summarize"
+                className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50"
+              >
+                {status === 'summarizing' ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3 w-3" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSummaryExpanded((v) => !v)}
+                className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                aria-label={summaryExpanded ? 'Collapse summary' : 'Expand summary'}
+              >
+                {summaryExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              </button>
+            </div>
+          </div>
+
+          {summaryExpanded && (
+            <div className="px-4 py-3 max-h-80 overflow-y-auto">
+              <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{summary.content}</ReactMarkdown>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Message thread */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {messages.length === 0 && status !== 'sending' && (
@@ -398,14 +479,27 @@ export function HubChatPanel({ contactId, segment, placeholder, onInsightsExtrac
       {/* Input bar */}
       <div className="shrink-0 border-t border-border px-4 py-3">
         {messages.length > 0 && (
-          <div className="flex justify-end mb-2">
+          <div className="flex justify-end gap-2 mb-2">
+            <button
+              type="button"
+              onClick={handleSummarize}
+              disabled={isWorking}
+              className="flex items-center gap-1.5 rounded-md bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors disabled:opacity-50"
+            >
+              {status === 'summarizing' ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <FileText className="h-3 w-3" />
+              )}
+              {summary ? 'Re-summarize' : 'Summarize chat'}
+            </button>
             <button
               type="button"
               onClick={handleExtract}
               disabled={isWorking}
               className="flex items-center gap-1.5 rounded-md bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
             >
-              {isWorking ? (
+              {status === 'extracting' ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
                 <Sparkles className="h-3 w-3" />

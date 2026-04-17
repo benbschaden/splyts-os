@@ -1062,6 +1062,57 @@ export function buildExtractPrompt(params: {
   return lines.join('\n')
 }
 
+export function buildContactChatSummaryPrompt(params: {
+  conversationText: string
+  scope: string
+  brand: BrandContext | null
+}): string {
+  const { conversationText, scope, brand } = params
+
+  const lines: string[] = []
+
+  lines.push(`You are reviewing a conversation about ${scope}.`)
+  if (brand) {
+    lines.push(`This is for ${brand.company_name}.`)
+  }
+  lines.push('')
+  lines.push('[CONVERSATION]')
+  lines.push(conversationText)
+  lines.push('')
+  lines.push('---')
+  lines.push(`Produce a comprehensive summary document capturing everything learned and decided in this conversation about ${scope}.`)
+  lines.push('')
+  lines.push('The goal is a complete reference that someone can read instead of going through the entire chat.')
+  lines.push('Include every meaningful thing — this document can be long. Only leave out the back-and-forth process of arriving at conclusions.')
+  lines.push('')
+  lines.push('Structure the document with these sections, including only those that have relevant content:')
+  lines.push('')
+  lines.push('## Overview')
+  lines.push('A short paragraph summarising the purpose of this conversation and the key themes covered.')
+  lines.push('')
+  lines.push('## What We Learned')
+  lines.push('Everything discovered about this contact or group — their situation, goals, challenges, behaviour, opinions, history, and context.')
+  lines.push('Use sub-headings to organise if there are multiple distinct topics.')
+  lines.push('')
+  lines.push('## Decisions Made')
+  lines.push('Any explicit decisions, directions chosen, or conclusions reached. Each as a clear statement.')
+  lines.push('')
+  lines.push('## Key Context')
+  lines.push('Background facts, data points, numbers, or important context that should be remembered for future conversations.')
+  lines.push('')
+  lines.push('## Open Questions')
+  lines.push('Anything left unresolved or worth following up on.')
+  lines.push('')
+  lines.push('## Next Steps')
+  lines.push('Concrete actions or follow-ups identified, if any.')
+  lines.push('')
+  lines.push('Format in clean markdown. Use ## for section headings, bullet points for lists, and bold for key terms.')
+  lines.push('Write in a clear, direct style — this is an internal reference document.')
+  lines.push('Output only the document content — no preamble, no explanation, no "Here is your summary" opener.')
+
+  return lines.join('\n')
+}
+
 export function buildProjectArchivePrompt(params: {
   projectName: string
   materials: ProjectMaterialForPrompt[]

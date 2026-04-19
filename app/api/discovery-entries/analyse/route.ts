@@ -42,7 +42,7 @@ export async function POST(request: Request): Promise<Response> {
 
     const prompt = buildDiscoveryEntryAnalysisPrompt({ rawContent: raw_content, entryType: entry_type, availableTags: available_tags })
 
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY!, maxRetries: 4 })
     const response = await anthropic.messages.create({
       model: 'claude-opus-4-6',
       max_tokens: 1024,

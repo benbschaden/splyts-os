@@ -49,7 +49,7 @@ export async function POST(req: Request): Promise<Response> {
     })
   }
 
-  const anthropic = new Anthropic({ apiKey })
+  const anthropic = new Anthropic({ apiKey, maxRetries: 4 })
   const systemPrompt = buildSystemPrompt(org.name)
   const userPrompt = buildUserPrompt(query, activityData)
 

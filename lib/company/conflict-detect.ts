@@ -38,7 +38,7 @@ export async function detectConflicts(docs: KnowledgeDoc[]): Promise<DetectedCon
     return []
   }
 
-  const anthropic = new Anthropic({ apiKey })
+  const anthropic = new Anthropic({ apiKey, maxRetries: 4 })
   const prompt = buildConflictDetectPrompt(docs)
 
   let raw: string

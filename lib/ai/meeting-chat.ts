@@ -15,7 +15,7 @@ export async function runMeetingChatCompletion(params: {
   if (model.provider === 'anthropic') {
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) throw new Error('Anthropic is not configured')
-    const anthropic = new Anthropic({ apiKey })
+    const anthropic = new Anthropic({ apiKey, maxRetries: 4 })
     const anthropicMessages: Anthropic.MessageParam[] = messages.map((m) => ({
       role: m.role,
       content: m.content,

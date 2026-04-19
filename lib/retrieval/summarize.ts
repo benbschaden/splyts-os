@@ -8,7 +8,7 @@ export async function generateDocumentSummary(content: string, title: string): P
     return content.slice(0, 300).trim()
   }
 
-  const anthropic = new Anthropic({ apiKey })
+  const anthropic = new Anthropic({ apiKey, maxRetries: 4 })
 
   // Truncate very long documents for summary generation
   const truncatedContent = content.length > 8000 ? content.slice(0, 8000) + '…' : content

@@ -70,7 +70,7 @@ export async function POST(
       companyContextBlock: companyContextBlock || null,
     })
 
-    const anthropic = new Anthropic({ apiKey })
+    const anthropic = new Anthropic({ apiKey, maxRetries: 4 })
     const response = await anthropic.messages.create({
       model: model.id,
       max_tokens: 4096,

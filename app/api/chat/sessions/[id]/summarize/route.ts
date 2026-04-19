@@ -86,7 +86,7 @@ export async function POST(
       .join('\n\n')
 
     const prompt = buildContactChatSummaryPrompt({ conversationText, scope, brand })
-    const anthropic = new Anthropic({ apiKey })
+    const anthropic = new Anthropic({ apiKey, maxRetries: 4 })
 
     let summaryContent: string
     try {

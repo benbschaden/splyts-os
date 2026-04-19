@@ -71,7 +71,7 @@ export async function POST(
       return Response.json({ error: 'AI is not configured' }, { status: 503 })
     }
 
-    const anthropic = new Anthropic({ apiKey })
+    const anthropic = new Anthropic({ apiKey, maxRetries: 4 })
     let archiveContent: string
 
     try {

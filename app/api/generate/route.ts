@@ -501,7 +501,7 @@ export async function POST(request: Request) {
   if (model.provider === 'anthropic') {
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) return Response.json({ error: 'AI generation is not configured' }, { status: 503 })
-    const anthropic = new Anthropic({ apiKey })
+    const anthropic = new Anthropic({ apiKey, maxRetries: 4 })
     try {
       const message = await anthropic.messages.create({
         model: model.id,

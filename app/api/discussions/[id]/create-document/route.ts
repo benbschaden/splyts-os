@@ -59,7 +59,7 @@ export async function POST(
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) return Response.json({ error: 'AI not configured' }, { status: 503 })
 
-    const anthropic = new Anthropic({ apiKey })
+    const anthropic = new Anthropic({ apiKey, maxRetries: 4 })
     const response = await anthropic.messages.create({
       model: DEFAULT_MODEL.id,
       max_tokens: 4096,

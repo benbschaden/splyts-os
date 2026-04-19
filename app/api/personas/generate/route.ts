@@ -44,7 +44,7 @@ export async function POST(_request: Request) {
       existingPersonaNames: existingPersonas.map((p) => p.name),
     })
 
-    const anthropic = new Anthropic({ apiKey })
+    const anthropic = new Anthropic({ apiKey, maxRetries: 4 })
     const message = await anthropic.messages.create({
       model: DEFAULT_MODEL.id,
       max_tokens: 8000,

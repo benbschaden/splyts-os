@@ -141,7 +141,7 @@ export async function POST(
       return Response.json({ error: 'Messages cannot be empty' }, { status: 400 })
     }
 
-    const anthropic = new Anthropic({ apiKey })
+    const anthropic = new Anthropic({ apiKey, maxRetries: 4 })
 
     let assistantContent: string
     try {

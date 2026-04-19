@@ -385,7 +385,7 @@ export async function POST(
       } else {
         const apiKey = process.env.ANTHROPIC_API_KEY
         if (!apiKey) return Response.json({ error: 'AI is not configured' }, { status: 503 })
-        const anthropic = new Anthropic({ apiKey })
+        const anthropic = new Anthropic({ apiKey, maxRetries: 4 })
         assistantContent = browserEnabled
           ? await runWithBrowser(anthropic, model.id, systemPrompt, messageHistory)
           : await runWithoutBrowser(anthropic, model.id, systemPrompt, messageHistory)

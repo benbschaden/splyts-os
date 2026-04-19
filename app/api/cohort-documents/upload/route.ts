@@ -293,7 +293,7 @@ async function runPerRespondentExtractionBatched(
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) return []
 
-  const anthropic = new Anthropic({ apiKey })
+  const anthropic = new Anthropic({ apiKey, maxRetries: 4 })
 
   // Build the global key → original survey row map upfront
   const globalRows: Array<{ key: string; row: SurveyRow }> = survey.rows.map((row, i) => ({
@@ -384,7 +384,7 @@ async function runConsolidation(
   })
 
   try {
-    const anthropic = new Anthropic({ apiKey })
+    const anthropic = new Anthropic({ apiKey, maxRetries: 4 })
     const message = await anthropic.messages.create({
       model: DEFAULT_MODEL.id,
       max_tokens: 16000,
@@ -456,7 +456,7 @@ async function runAiExtraction(
   if (!apiKey) return []
 
   const prompt = buildCohortExtractionPrompt({ documentText: text, segment, fileName })
-  const anthropic = new Anthropic({ apiKey })
+  const anthropic = new Anthropic({ apiKey, maxRetries: 4 })
 
   try {
     const message = await anthropic.messages.create({

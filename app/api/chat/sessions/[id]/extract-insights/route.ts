@@ -46,7 +46,7 @@ export async function POST(
       .join('\n\n')
 
     const prompt = buildExtractInsightsPrompt({ conversationText, scope })
-    const anthropic = new Anthropic({ apiKey })
+    const anthropic = new Anthropic({ apiKey, maxRetries: 4 })
 
     const message = await anthropic.messages.create({
       model: DEFAULT_MODEL.id,

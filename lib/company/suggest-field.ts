@@ -32,7 +32,7 @@ export async function suggestField(input: SuggestFieldInput): Promise<SuggestFie
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY not configured')
 
-  const anthropic = new Anthropic({ apiKey })
+  const anthropic = new Anthropic({ apiKey, maxRetries: 4 })
   const prompt = buildSuggestFieldPrompt(input)
 
   const message = await anthropic.messages.create({

@@ -7,6 +7,10 @@ import { getOutputsForProject } from '@/lib/queries/outputs'
 import { getBrandContext } from '@/lib/queries/brand-context'
 import { createDocument } from '@/lib/queries/documents'
 import { buildProjectArchivePrompt } from '@/lib/ai/prompts'
+import {
+  fetchFullTextsForProjectMaterials,
+  type ProjectMaterialForFullTextFetch,
+} from '@/lib/retrieval/search'
 import { DEFAULT_MODEL } from '@/lib/ai/models'
 import { isAtLeastAdmin } from '@/lib/auth/roles'
 
@@ -54,6 +58,22 @@ export async function POST(
       link_url: m.link_url,
     }))
 
+    const materialFullTexts =
+      materials.length > 0
+        ? await fetchFullTextsForProjectMaterials(
+            materials.map(
+              (m): ProjectMaterialForFullTextFetch => ({
+                id: m.id,
+                material_type: m.material_type as ProjectMaterialForFullTextFetch['material_type'],
+                title: m.title,
+                content: m.content,
+                file_name: m.file_name,
+              }),
+            ),
+            org.id,
+          )
+        : []
+
     const outputSummaries = outputs.map((o) => ({
       brief: o.brief,
       content: o.content,
@@ -62,6 +82,7 @@ export async function POST(
     const prompt = buildProjectArchivePrompt({
       projectName: project.name,
       materials: materialsForPrompt,
+      materialFullTexts: materialFullTexts.length > 0 ? materialFullTexts : undefined,
       outputSummaries,
       brand,
     })

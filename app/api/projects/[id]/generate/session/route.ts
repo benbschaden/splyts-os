@@ -18,7 +18,10 @@ import { getProjectMaterials } from '@/lib/queries/project-materials'
 import { getOutputsForProject, createDraftOutput, updateDraftOutput } from '@/lib/queries/outputs'
 import { DEFAULT_MODEL, getModelById } from '@/lib/ai/models'
 import { buildProjectOutputSessionSystemPrompt } from '@/lib/ai/prompts'
-import { fetchFullTextsForMaterials } from '@/lib/retrieval/search'
+import {
+  fetchFullTextsForProjectMaterials,
+  type ProjectMaterialForFullTextFetch,
+} from '@/lib/retrieval/search'
 import { getAllOrgDiscoveryEntries } from '@/lib/queries/discovery-entries'
 import { getContactsForOrg } from '@/lib/queries/contacts'
 import { getRecentCommunicationsForOrg } from '@/lib/queries/contact-communications'
@@ -99,12 +102,21 @@ export async function POST(
       link_url: m.link_url,
     }))
 
-    const fileMaterials = materialsRaw
-      .filter((m) => m.material_type === 'file')
-      .map((m) => ({ id: m.id, title: m.title, file_name: m.file_name }))
-    const fileFullTexts = fileMaterials.length > 0
-      ? await fetchFullTextsForMaterials(fileMaterials, org.id)
-      : []
+    const materialFullTexts =
+      materialsRaw.length > 0
+        ? await fetchFullTextsForProjectMaterials(
+            materialsRaw.map(
+              (m): ProjectMaterialForFullTextFetch => ({
+                id: m.id,
+                material_type: m.material_type as ProjectMaterialForFullTextFetch['material_type'],
+                title: m.title,
+                content: m.content,
+                file_name: m.file_name,
+              }),
+            ),
+            org.id,
+          )
+        : []
 
     // Pass up to the 5 most recent outputs as context (newest first from query)
     const previousOutputsForPrompt = previousOutputs.slice(0, 5).map((o) => ({
@@ -120,7 +132,7 @@ export async function POST(
       materials,
       businessPlanSections: businessPlan?.sections ?? null,
       previousOutputs: previousOutputsForPrompt,
-      fileFullTexts: fileFullTexts.length > 0 ? fileFullTexts : undefined,
+      fileFullTexts: materialFullTexts.length > 0 ? materialFullTexts : undefined,
       brand: brand ?? null,
       personas,
       productSections: productContext?.sections ?? null,

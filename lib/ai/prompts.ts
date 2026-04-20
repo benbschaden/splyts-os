@@ -189,16 +189,17 @@ function buildProjectMaterialsBlock(materials: ProjectMaterialForPrompt[]): stri
   const lines: string[] = []
 
   if (grouped['note']) {
-    lines.push('Notes:')
+    lines.push(
+      'Notes (titles only — full text of each note is in the [PROJECT MATERIALS — full content] section above):',
+    )
     for (const m of grouped['note']) {
       const title = m.title ? m.title.slice(0, 200) : 'Untitled note'
       lines.push(`- ${title}`)
-      if (m.content) lines.push(`  ${m.content.slice(0, 500)}`)
     }
   }
 
   if (grouped['file']) {
-    lines.push('Files (full content searchable via retrieval — relevant passages will appear below):')
+    lines.push('Files (full text is in [PROJECT MATERIALS — full content] above; searchable chunks may also appear in retrieval):')
     for (const m of grouped['file']) {
       const label = m.title ?? m.file_name ?? 'Unnamed file'
       lines.push(`- ${label}`)
@@ -457,8 +458,10 @@ export function buildChatSystemPrompt(params: {
   }
 
   if (fileFullTexts && fileFullTexts.length > 0) {
-    lines.push('[PROJECT FILES — full content]')
-    lines.push('The following files are attached to this project. Read them in full before answering.')
+    lines.push('[PROJECT MATERIALS — full content]')
+    lines.push(
+      'The following uploaded files and project notes contain the complete text. Read them in full before answering.',
+    )
     lines.push('')
     for (const file of fileFullTexts) {
       lines.push(`--- ${file.title} ---`)
@@ -849,8 +852,10 @@ export function buildGenerationSystemPrompt(params: {
   }
 
   if (fileFullTexts && fileFullTexts.length > 0) {
-    lines.push('[PROJECT FILES — full content]')
-    lines.push('The following files are attached to this project. Use them as primary source material and evidence for the content. Read them in full.')
+    lines.push('[PROJECT MATERIALS — full content]')
+    lines.push(
+      'The following uploaded files and project notes are attached to this project. Use them as primary source material and evidence. Read them in full.',
+    )
     lines.push('')
     for (const file of fileFullTexts) {
       lines.push(`--- ${file.title} ---`)
@@ -1116,10 +1121,12 @@ export function buildContactChatSummaryPrompt(params: {
 export function buildProjectArchivePrompt(params: {
   projectName: string
   materials: ProjectMaterialForPrompt[]
+  /** Full text of file + note materials (same ordering as project page). */
+  materialFullTexts?: Array<{ title: string; content: string }>
   outputSummaries: { brief: string; content: string }[]
   brand: BrandContext | null
 }): string {
-  const { projectName, materials, outputSummaries, brand } = params
+  const { projectName, materials, materialFullTexts, outputSummaries, brand } = params
 
   const lines: string[] = []
 
@@ -1130,10 +1137,21 @@ export function buildProjectArchivePrompt(params: {
   }
   lines.push('')
 
+  if (materialFullTexts && materialFullTexts.length > 0) {
+    lines.push('[PROJECT MATERIALS — full content]')
+    lines.push('Complete text of project notes and uploaded files (read in full).')
+    lines.push('')
+    for (const item of materialFullTexts) {
+      lines.push(`--- ${item.title} ---`)
+      lines.push(item.content)
+      lines.push('')
+    }
+  }
+
   if (materials.length > 0) {
     const materialsBlock = buildProjectMaterialsBlock(materials)
     if (materialsBlock) {
-      lines.push('[PROJECT MATERIALS]')
+      lines.push('[PROJECT MATERIALS — index]')
       lines.push(materialsBlock)
       lines.push('')
     }
@@ -1475,8 +1493,12 @@ function buildProjectMaterialsAndPlanBlocks(
   const materialsBlock = materials.length > 0
     ? materials
         .map((m) => {
-          if (m.material_type === 'file') return `[FILE] ${m.title ?? m.file_name ?? 'Uploaded file'} (full content included in PROJECT FILES section below)`
-          if (m.content) return `[${m.material_type.toUpperCase()}] ${m.title ?? 'Note'}:\n${m.content.slice(0, 3000)}`
+          if (m.material_type === 'file') {
+            return `[FILE] ${m.title ?? m.file_name ?? 'Uploaded file'} (full text in PROJECT MATERIALS — full content section above)`
+          }
+          if (m.material_type === 'note') {
+            return `[NOTE] ${m.title?.trim() || 'Untitled note'} (full text in PROJECT MATERIALS — full content section above)`
+          }
           if (m.link_url) return `[LINK] ${m.title ?? m.link_url}: ${m.link_url}`
           return null
         })
@@ -1670,8 +1692,8 @@ ${discoveryBlock ? `\n[CUSTOMER DISCOVERY — real interviews, surveys, and feed
 ${insightsBlock ? `\n[CUSTOMER INSIGHTS — validated learnings]\n${insightsBlock}` : ''}
 ${contactsBlock ? `\n[CUSTOMER HUB — known contacts]\n${contactsBlock}` : ''}
 ${recentCommsBlock ? `\n[RECENT CUSTOMER COMMUNICATIONS]\n${recentCommsBlock}` : ''}
-${fileFullTextsBlock ? `\nPROJECT FILES — full content (read in full before answering):\n${fileFullTextsBlock}` : ''}
-${materialsBlock ? `\nPROJECT MATERIALS (use as source and reference):\n${materialsBlock}` : ''}
+${fileFullTextsBlock ? `\nPROJECT MATERIALS — full content (read in full before answering):\n${fileFullTextsBlock}` : ''}
+${materialsBlock ? `\nPROJECT MATERIALS — index (use as source and reference; full text of files and notes is in the section above):\n${materialsBlock}` : ''}
 ${planBlock ? `\nBUSINESS CONTEXT (background reference):\n${planBlock}` : ''}
 ${previousOutputsBlock ? `\nPREVIOUSLY GENERATED OUTPUTS FOR THIS PROJECT (read for context, avoid repeating verbatim):\n${previousOutputsBlock}` : ''}
 ${emailBlock}

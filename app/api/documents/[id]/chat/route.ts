@@ -4,12 +4,13 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getDocumentById } from '@/lib/queries/documents'
 import { getBrandContext } from '@/lib/queries/brand-context'
+import { CHAT_MESSAGE_CONTENT_MAX_CHARS } from '@/lib/ai/chat-limits'
 import { buildDocumentChatSystemPrompt } from '@/lib/ai/prompts'
 import { DEFAULT_MODEL } from '@/lib/ai/models'
 
 const messageSchema = z.object({
   role: z.enum(['user', 'assistant']),
-  content: z.string().min(1).max(20000),
+  content: z.string().min(1).max(CHAT_MESSAGE_CONTENT_MAX_CHARS),
 })
 
 const schema = z.object({

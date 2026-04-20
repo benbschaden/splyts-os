@@ -11,6 +11,7 @@ import {
   type SuggestedProjectLink,
 } from '@/lib/queries/meetings'
 import { buildMeetingProcessingPrompt } from '@/lib/ai/prompts'
+import { DEFAULT_MODEL } from '@/lib/ai/models'
 import { createUntypedServiceClient } from '@/lib/supabase/service'
 import { z } from 'zod'
 
@@ -95,7 +96,7 @@ export async function POST(
 
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY!, maxRetries: 4 })
     const response = await anthropic.messages.create({
-      model: 'claude-opus-4-6',
+      model: DEFAULT_MODEL.id,
       max_tokens: 4096,
       messages: [{ role: 'user', content: prompt }],
     })

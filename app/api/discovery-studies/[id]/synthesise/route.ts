@@ -4,6 +4,7 @@ import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getDiscoveryEntries } from '@/lib/queries/discovery-entries'
 import { updateDiscoveryStudy } from '@/lib/queries/discovery-studies'
 import { buildStudySynthesisPrompt } from '@/lib/ai/prompts'
+import { DEFAULT_MODEL } from '@/lib/ai/models'
 import type { StudyEntryDigest } from '@/lib/ai/prompts'
 import { createUntypedServiceClient } from '@/lib/supabase/service'
 
@@ -78,7 +79,7 @@ export async function POST(
 
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY!, maxRetries: 4 })
     const response = await anthropic.messages.create({
-      model: 'claude-opus-4-6',
+      model: DEFAULT_MODEL.id,
       max_tokens: 4096,
       messages: [{ role: 'user', content: prompt }],
     })

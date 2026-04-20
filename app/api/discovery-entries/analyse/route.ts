@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { buildDiscoveryEntryAnalysisPrompt } from '@/lib/ai/prompts'
+import { DEFAULT_MODEL } from '@/lib/ai/models'
 
 const requestSchema = z.object({
   raw_content: z.string().min(1).max(100000),
@@ -44,7 +45,7 @@ export async function POST(request: Request): Promise<Response> {
 
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY!, maxRetries: 4 })
     const response = await anthropic.messages.create({
-      model: 'claude-opus-4-6',
+      model: DEFAULT_MODEL.id,
       max_tokens: 1024,
       messages: [{ role: 'user', content: prompt }],
     })

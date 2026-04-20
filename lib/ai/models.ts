@@ -8,15 +8,27 @@ export interface AIModel {
   description: string
   default?: boolean
   openaiApi?: OpenAIApiType
+  /**
+   * When `false`, callers must not send `temperature` on Anthropic Messages API requests.
+   * (e.g. Claude Opus 4.7 does not support temperature.)
+   */
+  supportsAnthropicTemperature?: boolean
 }
 
 export const AI_MODELS: AIModel[] = [
   {
-    id: 'claude-opus-4-6',
+    id: 'claude-opus-4-7',
     provider: 'anthropic',
     label: 'Claude Opus',
     description: 'Most capable — best for polished, high-stakes content',
     default: true,
+    supportsAnthropicTemperature: false,
+  },
+  {
+    id: 'claude-opus-4-6',
+    provider: 'anthropic',
+    label: 'Claude Opus 4.6',
+    description: 'Previous Opus — for legacy outputs that pinned 4.6',
   },
   {
     id: 'claude-sonnet-4-5',

@@ -16,6 +16,7 @@ import { getAiVisibleCompetitors } from '@/lib/queries/competitors'
 import { getApprovedSocialProof } from '@/lib/queries/social-proof'
 import { getProjectMaterials } from '@/lib/queries/project-materials'
 import { getOutputsForProject, createDraftOutput, updateDraftOutput } from '@/lib/queries/outputs'
+import { DISCUSS_AI_MAX_OUTPUT_TOKENS } from '@/lib/ai/chat-limits'
 import { DEFAULT_MODEL, getModelById } from '@/lib/ai/models'
 import { buildProjectOutputSessionSystemPrompt } from '@/lib/ai/prompts'
 import {
@@ -159,7 +160,7 @@ export async function POST(
     try {
       const response = await anthropic.messages.create({
         model: model.id,
-        max_tokens: 4096,
+        max_tokens: DISCUSS_AI_MAX_OUTPUT_TOKENS,
         system: systemPrompt,
         messages,
       })

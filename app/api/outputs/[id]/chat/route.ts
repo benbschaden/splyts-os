@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
 import { getOutputById } from '@/lib/queries/outputs'
 import { getBrandContext } from '@/lib/queries/brand-context'
-import { CHAT_MESSAGE_CONTENT_MAX_CHARS } from '@/lib/ai/chat-limits'
+import { CHAT_MESSAGE_CONTENT_MAX_CHARS, DISCUSS_AI_MAX_OUTPUT_TOKENS } from '@/lib/ai/chat-limits'
 import { buildOutputChatSystemPrompt } from '@/lib/ai/prompts'
 import { DEFAULT_MODEL } from '@/lib/ai/models'
 
@@ -65,7 +65,7 @@ export async function POST(
     const anthropic = new Anthropic({ apiKey, maxRetries: 4 })
     const response = await anthropic.messages.create({
       model: DEFAULT_MODEL.id,
-      max_tokens: 4096,
+      max_tokens: DISCUSS_AI_MAX_OUTPUT_TOKENS,
       system: systemPrompt,
       messages: messages.map((m) => ({ role: m.role, content: m.content })),
     })

@@ -28,6 +28,13 @@ type DiscoveryEntryContext = {
   sentiment: string | null
   tags: string[]
   organization_id: string
+  study_id: string | null
+}
+
+type StudyContext = {
+  name: string
+  goal: string | null
+  notes_markdown: string | null
 }
 
 export async function POST(
@@ -54,7 +61,7 @@ export async function POST(
     const serviceClient = createUntypedServiceClient()
     const { data: entryData, error: entryError } = await serviceClient
       .from('discovery_entries')
-      .select('entry_type, participant, entry_date, raw_content, jtbd, key_quote_1, key_quote_2, key_quote_3, sentiment, tags, organization_id')
+      .select('entry_type, participant, entry_date, raw_content, jtbd, key_quote_1, key_quote_2, key_quote_3, sentiment, tags, organization_id, study_id')
       .eq('id', id)
       .eq('organization_id', org.id)
       .is('deleted_at', null)
@@ -65,7 +72,21 @@ export async function POST(
     }
 
     const entry = entryData as DiscoveryEntryContext
-    const systemPrompt = buildEntryDiscussionPrompt({ entry: { ...entry, tags: entry.tags ?? [] } })
+
+    // Fetch study context if this entry belongs to a study
+    let study: StudyContext | null = null
+    if (entry.study_id) {
+      const { data: studyData } = await serviceClient
+        .from('discovery_studies')
+        .select('name, goal, notes_markdown')
+        .eq('id', entry.study_id)
+        .eq('organization_id', org.id)
+        .is('deleted_at', null)
+        .single()
+      if (studyData) study = studyData as StudyContext
+    }
+
+    const systemPrompt = buildEntryDiscussionPrompt({ entry: { ...entry, tags: entry.tags ?? [] }, study })
 
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY!, maxRetries: 4 })
     const response = await anthropic.messages.create({

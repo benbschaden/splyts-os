@@ -2648,14 +2648,33 @@ export function buildEntryDiscussionPrompt(params: {
     sentiment: string | null
     tags: string[]
   }
+  study?: {
+    name: string
+    goal: string | null
+    notes_markdown: string | null
+  } | null
 }): string {
-  const { entry } = params
+  const { entry, study } = params
   const lines: string[] = []
 
   lines.push('You are a world-class customer discovery expert. You are helping analyse a specific discovery entry.')
   lines.push('Answer questions about this entry only. Do not invent details not present in the content.')
   lines.push('Be specific, direct, and commercially minded. Reference exact quotes when relevant.')
   lines.push('Format every reply in clean Markdown: use `##` / `###` headings, bullet lists, and bold for emphasis where it improves scanability.')
+
+  if (study) {
+    lines.push('')
+    lines.push('--- STUDY CONTEXT ---')
+    lines.push(`Study: ${study.name}`)
+    if (study.goal) lines.push(`Research goal: ${study.goal}`)
+    if (study.notes_markdown?.trim()) {
+      lines.push('')
+      lines.push('Researcher notes and hypotheses:')
+      lines.push(study.notes_markdown.slice(0, 3000))
+    }
+    lines.push('--- END STUDY CONTEXT ---')
+  }
+
   lines.push('')
   lines.push(`Entry type: ${entry.entry_type}`)
   if (entry.participant) lines.push(`Participant: ${entry.participant}`)
@@ -2677,9 +2696,10 @@ export function buildEntryDiscussionPrompt(params: {
 export function buildDiscussionSummarizePrompt(params: {
   entryType: string
   participant: string | null
+  studyGoal: string | null
   messages: Array<{ role: 'user' | 'assistant'; content: string }>
 }): string {
-  const { entryType, participant, messages } = params
+  const { entryType, participant, studyGoal, messages } = params
   const lines: string[] = []
 
   lines.push('You are a world-class customer discovery analyst. A researcher has had a conversation with an AI about a specific discovery entry.')
@@ -2688,6 +2708,7 @@ export function buildDiscussionSummarizePrompt(params: {
   lines.push('')
   lines.push(`Entry type: ${entryType}`)
   if (participant) lines.push(`Participant: ${participant}`)
+  if (studyGoal) lines.push(`Study goal: ${studyGoal}`)
   lines.push('')
   lines.push('--- CONVERSATION ---')
   messages.forEach((m) => {

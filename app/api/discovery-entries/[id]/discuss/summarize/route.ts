@@ -39,7 +39,7 @@ export async function POST(
     const serviceClient = createUntypedServiceClient()
     const { data: entryData, error: entryError } = await serviceClient
       .from('discovery_entries')
-      .select('entry_type, participant, organization_id')
+      .select('entry_type, participant, organization_id, study_id')
       .eq('id', id)
       .eq('organization_id', org.id)
       .is('deleted_at', null)
@@ -49,11 +49,25 @@ export async function POST(
       return Response.json({ error: 'Not found' }, { status: 404 })
     }
 
-    const entry = entryData as { entry_type: string; participant: string | null; organization_id: string }
+    const entry = entryData as { entry_type: string; participant: string | null; organization_id: string; study_id: string | null }
+
+    // Fetch study context if this entry belongs to a study
+    let studyGoal: string | null = null
+    if (entry.study_id) {
+      const { data: studyData } = await serviceClient
+        .from('discovery_studies')
+        .select('goal')
+        .eq('id', entry.study_id)
+        .eq('organization_id', org.id)
+        .is('deleted_at', null)
+        .single()
+      if (studyData) studyGoal = (studyData as { goal: string | null }).goal
+    }
 
     const systemPrompt = buildDiscussionSummarizePrompt({
       entryType: entry.entry_type,
       participant: entry.participant,
+      studyGoal,
       messages: parsed.data.messages,
     })
 

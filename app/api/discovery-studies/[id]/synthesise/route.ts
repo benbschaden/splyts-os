@@ -26,7 +26,7 @@ export async function POST(
     const serviceClient = createUntypedServiceClient()
     const { data: studyData, error: studyError } = await serviceClient
       .from('discovery_studies')
-      .select('id, name, goal, method, project_id, organization_id')
+      .select('id, name, goal, method, notes_markdown, project_id, organization_id')
       .eq('id', id)
       .eq('organization_id', org.id)
       .is('deleted_at', null)
@@ -41,6 +41,7 @@ export async function POST(
       name: string
       goal: string | null
       method: string | null
+      notes_markdown: string | null
       project_id: string
       organization_id: string
     }
@@ -74,6 +75,7 @@ export async function POST(
       studyName: study.name,
       studyGoal: study.goal,
       method: study.method,
+      notesMarkdown: study.notes_markdown,
       entries: digests,
     })
 

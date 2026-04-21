@@ -2655,6 +2655,7 @@ export function buildEntryDiscussionPrompt(params: {
   lines.push('You are a world-class customer discovery expert. You are helping analyse a specific discovery entry.')
   lines.push('Answer questions about this entry only. Do not invent details not present in the content.')
   lines.push('Be specific, direct, and commercially minded. Reference exact quotes when relevant.')
+  lines.push('Format every reply in clean Markdown: use `##` / `###` headings, bullet lists, and bold for emphasis where it improves scanability.')
   lines.push('')
   lines.push(`Entry type: ${entry.entry_type}`)
   if (entry.participant) lines.push(`Participant: ${entry.participant}`)
@@ -2669,6 +2670,48 @@ export function buildEntryDiscussionPrompt(params: {
   lines.push('--- FULL CONTENT ---')
   lines.push(entry.raw_content.slice(0, 30000))
   lines.push('--- END ---')
+
+  return lines.join('\n')
+}
+
+export function buildDiscussionSummarizePrompt(params: {
+  entryType: string
+  participant: string | null
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>
+}): string {
+  const { entryType, participant, messages } = params
+  const lines: string[] = []
+
+  lines.push('You are a world-class customer discovery analyst. A researcher has had a conversation with an AI about a specific discovery entry.')
+  lines.push('Your job is to extract the most valuable decisions, learnings, open questions, and signals from that conversation.')
+  lines.push('Write only what is actually present in the conversation — do not add assumptions or general knowledge.')
+  lines.push('')
+  lines.push(`Entry type: ${entryType}`)
+  if (participant) lines.push(`Participant: ${participant}`)
+  lines.push('')
+  lines.push('--- CONVERSATION ---')
+  messages.forEach((m) => {
+    lines.push(`${m.role === 'user' ? 'Researcher' : 'AI'}: ${m.content}`)
+    lines.push('')
+  })
+  lines.push('--- END ---')
+  lines.push('')
+  lines.push('Write a concise summary in clean Markdown using these sections (omit any section that has nothing to say):')
+  lines.push('')
+  lines.push('## Key learnings')
+  lines.push('Bullet list of the most important things established or confirmed in this conversation.')
+  lines.push('')
+  lines.push('## Decisions & actions')
+  lines.push('Any specific decisions made or follow-up actions identified.')
+  lines.push('')
+  lines.push('## Open questions')
+  lines.push('Questions that were raised but not fully resolved.')
+  lines.push('')
+  lines.push('## Signals worth noting')
+  lines.push('Any commercial signals, sentiment shifts, or patterns that stood out.')
+  lines.push('')
+  lines.push('Keep each section tight — prefer 2–4 bullets over exhaustive lists.')
+  lines.push('Output ONLY the Markdown. No preamble.')
 
   return lines.join('\n')
 }
@@ -2693,9 +2736,10 @@ export function buildStudySynthesisPrompt(params: {
   studyName: string
   studyGoal: string | null
   method: string | null
+  notesMarkdown: string | null
   entries: StudyEntryDigest[]
 }): string {
-  const { studyName, studyGoal, method, entries } = params
+  const { studyName, studyGoal, method, notesMarkdown, entries } = params
   const lines: string[] = []
 
   lines.push('You are a world-class qualitative research synthesiser with deep expertise in customer discovery, Jobs to be Done theory, and commercial signal detection.')
@@ -2703,6 +2747,12 @@ export function buildStudySynthesisPrompt(params: {
   lines.push(`You are synthesising the findings from a research study titled "${studyName}".`)
   if (studyGoal) lines.push(`Study goal: ${studyGoal}`)
   if (method) lines.push(`Method: ${method}`)
+  if (notesMarkdown?.trim()) {
+    lines.push('')
+    lines.push('--- RESEARCHER NOTES & CONTEXT ---')
+    lines.push(notesMarkdown.slice(0, 3000))
+    lines.push('--- END NOTES ---')
+  }
   lines.push(`Total entries: ${entries.length}`)
   lines.push('')
   lines.push('Your job is to identify patterns ACROSS participants — not summarise individual entries. Look for:')

@@ -2,7 +2,7 @@ import { z } from 'zod'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
-import { buildEntryDiscussionPrompt } from '@/lib/ai/prompts'
+import { buildDiscussionSummarizePrompt } from '@/lib/ai/prompts'
 import { CHAT_MESSAGE_CONTENT_MAX_CHARS, DISCUSS_AI_MAX_OUTPUT_TOKENS } from '@/lib/ai/chat-limits'
 import { DEFAULT_MODEL } from '@/lib/ai/models'
 import { createUntypedServiceClient } from '@/lib/supabase/service'
@@ -15,20 +15,6 @@ const messageSchema = z.object({
 const requestSchema = z.object({
   messages: z.array(messageSchema).min(1).max(50),
 })
-
-type DiscoveryEntryContext = {
-  entry_type: string
-  participant: string | null
-  entry_date: string | null
-  raw_content: string
-  jtbd: string | null
-  key_quote_1: string | null
-  key_quote_2: string | null
-  key_quote_3: string | null
-  sentiment: string | null
-  tags: string[]
-  organization_id: string
-}
 
 export async function POST(
   request: Request,
@@ -50,11 +36,10 @@ export async function POST(
       return Response.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 })
     }
 
-    // Fetch the entry and verify org ownership
     const serviceClient = createUntypedServiceClient()
     const { data: entryData, error: entryError } = await serviceClient
       .from('discovery_entries')
-      .select('entry_type, participant, entry_date, raw_content, jtbd, key_quote_1, key_quote_2, key_quote_3, sentiment, tags, organization_id')
+      .select('entry_type, participant, organization_id')
       .eq('id', id)
       .eq('organization_id', org.id)
       .is('deleted_at', null)
@@ -64,29 +49,52 @@ export async function POST(
       return Response.json({ error: 'Not found' }, { status: 404 })
     }
 
-    const entry = entryData as DiscoveryEntryContext
-    const systemPrompt = buildEntryDiscussionPrompt({ entry: { ...entry, tags: entry.tags ?? [] } })
+    const entry = entryData as { entry_type: string; participant: string | null; organization_id: string }
+
+    const systemPrompt = buildDiscussionSummarizePrompt({
+      entryType: entry.entry_type,
+      participant: entry.participant,
+      messages: parsed.data.messages,
+    })
 
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY!, maxRetries: 4 })
     const response = await anthropic.messages.create({
       model: DEFAULT_MODEL.id,
       max_tokens: DISCUSS_AI_MAX_OUTPUT_TOKENS,
-      system: systemPrompt,
-      messages: parsed.data.messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      })),
+      messages: [{ role: 'user', content: systemPrompt }],
     })
 
-    const content = response.content
+    const summary = response.content
       .filter((c) => c.type === 'text')
       .map((c) => (c as { type: 'text'; text: string }).text)
       .join('')
       .trim()
 
-    return Response.json({ data: { content } })
+    // Append to discussion_notes (prepend with date header so multiple summaries stack)
+    const { data: currentEntry } = await serviceClient
+      .from('discovery_entries')
+      .select('discussion_notes')
+      .eq('id', id)
+      .single()
+
+    const existing = (currentEntry as { discussion_notes: string | null } | null)?.discussion_notes?.trim() ?? ''
+    const dateHeader = `## Summary — ${new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
+    const combined = existing ? `${existing}\n\n---\n\n${dateHeader}\n\n${summary}` : `${dateHeader}\n\n${summary}`
+
+    const { error: saveError } = await serviceClient
+      .from('discovery_entries')
+      .update({ discussion_notes: combined, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('organization_id', org.id)
+
+    if (saveError) {
+      console.error('[discuss/summarize] Failed to save discussion notes:', saveError)
+      return Response.json({ error: 'Summary generated but failed to save' }, { status: 500 })
+    }
+
+    return Response.json({ data: { summary, discussion_notes: combined } })
   } catch (err) {
-    console.error('[discuss] Unexpected error:', err)
+    console.error('[discuss/summarize] Unexpected error:', err)
     return Response.json({ error: 'Internal error' }, { status: 500 })
   }
 }

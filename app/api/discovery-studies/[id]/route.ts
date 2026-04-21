@@ -13,6 +13,7 @@ const patchSchema = z.object({
     .optional(),
   script_markdown: z.string().max(50000).nullable().optional(),
   analysis_markdown: z.string().max(50000).nullable().optional(),
+  notes_markdown: z.string().max(50000).nullable().optional(),
   status: z.enum(['active', 'complete', 'archived']).optional(),
 })
 

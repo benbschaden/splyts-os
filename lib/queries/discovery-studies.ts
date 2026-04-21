@@ -16,6 +16,7 @@ export type DiscoveryStudyRow = {
   method: DiscoveryStudyMethod | null
   script_markdown: string | null
   analysis_markdown: string | null
+  notes_markdown: string | null
   status: DiscoveryStudyStatus
   sort_order: number
   created_at: string
@@ -23,7 +24,7 @@ export type DiscoveryStudyRow = {
 }
 
 const SELECT_COLUMNS =
-  'id, organization_id, project_id, created_by, name, goal, method, script_markdown, analysis_markdown, status, sort_order, created_at, updated_at'
+  'id, organization_id, project_id, created_by, name, goal, method, script_markdown, analysis_markdown, notes_markdown, status, sort_order, created_at, updated_at'
 
 export async function getDiscoveryStudies(
   projectId: string,
@@ -79,6 +80,7 @@ export type UpdateDiscoveryStudyParams = {
   method?: DiscoveryStudyMethod | null
   script_markdown?: string | null
   analysis_markdown?: string | null
+  notes_markdown?: string | null
   status?: DiscoveryStudyStatus
 }
 

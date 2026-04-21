@@ -71,7 +71,7 @@ export const CONTENT_REGISTRY: Record<string, ContentTypeConfig> = {
   discovery_study: {
     deriveText: (row) => ({
       title: str(row.name || row.goal || ''),
-      summary: truncate(`${str(row.goal)} ${str(row.script_markdown)} ${str(row.analysis_markdown)}`, 500),
+      summary: truncate(`${str(row.goal)} ${str(row.notes_markdown)} ${str(row.script_markdown)} ${str(row.analysis_markdown)}`, 500),
     }),
     deriveMetadata: (row) => ({
       project_id: row.project_id ?? null,

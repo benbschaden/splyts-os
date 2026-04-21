@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Pencil, FileText, List, BarChart3, Sparkles, Loader2, PenLine, Eye } from 'lucide-react'
+import { ArrowLeft, Pencil, FileText, List, BarChart3, Sparkles, Loader2, PenLine, Eye, StickyNote } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils'
@@ -28,7 +28,7 @@ const METHOD_COLORS: Record<DiscoveryStudyMethod, string> = {
   mixed: 'bg-muted text-muted-foreground border-border',
 }
 
-type StudyTab = 'script' | 'entries' | 'analysis'
+type StudyTab = 'notes' | 'script' | 'entries' | 'analysis'
 
 interface DiscoveryStudyDetailProps {
   study: DiscoveryStudyRow
@@ -48,8 +48,11 @@ export function DiscoveryStudyDetail({
   onChatWithParticipant,
 }: DiscoveryStudyDetailProps) {
   const [activeTab, setActiveTab] = useState<StudyTab>('entries')
+  const [notes, setNotes] = useState(study.notes_markdown ?? '')
   const [script, setScript] = useState(study.script_markdown ?? '')
   const [analysis, setAnalysis] = useState(study.analysis_markdown ?? '')
+  const [savingNotes, setSavingNotes] = useState(false)
+  const [notesSaved, setNotesSaved] = useState(false)
   const [savingScript, setSavingScript] = useState(false)
   const [savingAnalysis, setSavingAnalysis] = useState(false)
   const [scriptSaved, setScriptSaved] = useState(false)
@@ -61,6 +64,7 @@ export function DiscoveryStudyDetail({
   const [analysisEditing, setAnalysisEditing] = useState(false)
 
   useEffect(() => {
+    setNotes(study.notes_markdown ?? '')
     setScript(study.script_markdown ?? '')
     setAnalysis(study.analysis_markdown ?? '')
   }, [study.id])
@@ -74,6 +78,17 @@ export function DiscoveryStudyDetail({
     if (!res.ok) return null
     const json = (await res.json()) as { data: DiscoveryStudyRow }
     return json.data
+  }
+
+  async function saveNotes() {
+    setSavingNotes(true)
+    const updated = await patchStudy({ notes_markdown: notes })
+    setSavingNotes(false)
+    if (updated) {
+      onStudyUpdated(updated)
+      setNotesSaved(true)
+      setTimeout(() => setNotesSaved(false), 2000)
+    }
   }
 
   async function saveScript() {
@@ -122,6 +137,7 @@ export function DiscoveryStudyDetail({
   }
 
   const tabs: { id: StudyTab; label: string; Icon: typeof FileText }[] = [
+    { id: 'notes', label: 'Notes', Icon: StickyNote },
     { id: 'script', label: 'Script', Icon: FileText },
     { id: 'entries', label: `Entries (${entries.length})`, Icon: List },
     { id: 'analysis', label: 'Analysis', Icon: BarChart3 },
@@ -205,6 +221,34 @@ export function DiscoveryStudyDetail({
             </button>
           ))}
         </nav>
+
+        {/* Notes */}
+        {activeTab === 'notes' && (
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Capture your research hypotheses, stakeholder context, what you are trying to decide, and any constraints. This is visible to all AI tools — Claude reads it when synthesising findings.
+            </p>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={20}
+              placeholder={
+                '## Research goal\nWhat decision does this study need to inform?\n\n## Hypotheses\n- We believe...\n- We expect to find...\n\n## Context\nWho is involved, what prompted this study?\n\n## Constraints\nTimeline, budget, scope limits...'
+              }
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground font-mono resize-y placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={saveNotes}
+                disabled={savingNotes}
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {notesSaved ? 'Saved ✓' : savingNotes ? 'Saving…' : 'Save notes'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Script */}
         {activeTab === 'script' && (

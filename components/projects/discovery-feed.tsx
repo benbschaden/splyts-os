@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Pencil, Trash2, Sparkles, MessageSquare, Star, ChevronDown, ChevronRight, Send, Loader2, BookmarkCheck, Users } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils'
 import type { DiscoveryEntryRow, DiscoveryEntryType, DiscoverySentiment } from '@/lib/queries/discovery-entries'
 import type { DeepgramWord } from '@/lib/discovery/speaker-metrics'
@@ -100,6 +102,8 @@ function EntryCard({
   const [chatLoading, setChatLoading] = useState(false)
   const [savingNotes, setSavingNotes] = useState(false)
   const [notesSaved, setNotesSaved] = useState(false)
+  const [summarizing, setSummarizing] = useState(false)
+  const [summarized, setSummarized] = useState(false)
   const [togglingAi, setTogglingAi] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -146,6 +150,23 @@ function EntryCard({
       setNotesSaved(true)
       setEntry((prev) => ({ ...prev, discussion_notes: notes }))
       setTimeout(() => setNotesSaved(false), 2500)
+    }
+  }
+
+  async function summarizeDiscussion() {
+    if (messages.length === 0) return
+    setSummarizing(true)
+    const res = await fetch(`/api/discovery-entries/${entry.id}/discuss/summarize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages }),
+    })
+    setSummarizing(false)
+    if (res.ok) {
+      const json = await res.json() as { data: { discussion_notes: string } }
+      setEntry((prev) => ({ ...prev, discussion_notes: json.data.discussion_notes }))
+      setSummarized(true)
+      setTimeout(() => setSummarized(false), 3000)
     }
   }
 
@@ -328,7 +349,7 @@ function EntryCard({
           {discussOpen && (
             <div className="rounded-lg border border-border bg-muted/10 overflow-hidden">
               {/* Chat messages */}
-              <div className="max-h-64 overflow-y-auto p-3 space-y-3">
+              <div className="max-h-[min(28rem,70vh)] overflow-y-auto p-3 space-y-3">
                 {messages.length === 0 && (
                   <p className="text-[11px] text-muted-foreground text-center py-4">
                     Ask anything about this interview. Claude has full access to the transcript.
@@ -338,9 +359,15 @@ function EntryCard({
                   <div key={i} className={cn('flex', m.role === 'user' ? 'justify-end' : 'justify-start')}>
                     <div className={cn(
                       'max-w-[85%] rounded-lg px-3 py-2 text-xs leading-relaxed',
-                      m.role === 'user' ? 'bg-foreground text-background' : 'bg-background border border-border text-foreground'
+                      m.role === 'user'
+                        ? 'bg-foreground text-background whitespace-pre-wrap'
+                        : 'bg-background border border-border text-foreground prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:text-xs prose-headings:font-semibold prose-headings:mt-2 prose-headings:mb-1 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0',
                     )}>
-                      {m.content}
+                      {m.role === 'assistant' ? (
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
+                      ) : (
+                        m.content
+                      )}
                     </div>
                   </div>
                 ))}
@@ -355,14 +382,19 @@ function EntryCard({
               </div>
 
               {/* Input */}
-              <div className="border-t border-border p-2 flex gap-2">
-                <input
-                  type="text"
+              <div className="border-t border-border p-2 flex gap-2 items-end">
+                <textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-                  placeholder="Ask about this interview…"
-                  className="flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      void sendMessage()
+                    }
+                  }}
+                  placeholder="Ask about this interview… (Shift+Enter for newline)"
+                  rows={2}
+                  className="flex-1 min-h-[2.5rem] max-h-40 resize-y rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring"
                 />
                 <button
                   type="button"
@@ -374,19 +406,35 @@ function EntryCard({
                 </button>
               </div>
 
-              {/* Save notes */}
+              {/* Actions */}
               {messages.length > 0 && (
-                <div className="border-t border-border px-3 py-2 flex items-center justify-between">
-                  <p className="text-[11px] text-muted-foreground">Save this discussion to the interview for future reference.</p>
-                  <button
-                    type="button"
-                    onClick={saveNotes}
-                    disabled={savingNotes || notesSaved}
-                    className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent disabled:opacity-50 transition-colors"
-                  >
-                    <BookmarkCheck className="h-3.5 w-3.5" />
-                    {notesSaved ? 'Saved ✓' : savingNotes ? 'Saving…' : 'Save notes'}
-                  </button>
+                <div className="border-t border-border px-3 py-2 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] text-muted-foreground leading-snug">
+                      <strong className="font-medium text-foreground">Summarize</strong> — Claude extracts key learnings, decisions, and signals and saves them to this interview&apos;s notes (visible to all AI tools).
+                    </p>
+                    <button
+                      type="button"
+                      onClick={summarizeDiscussion}
+                      disabled={summarizing || summarized}
+                      className="flex shrink-0 items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background hover:bg-foreground/90 disabled:opacity-50 transition-colors"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      {summarized ? 'Saved ✓' : summarizing ? 'Summarizing…' : 'Summarize'}
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] text-muted-foreground">Save the raw transcript of this chat to the interview.</p>
+                    <button
+                      type="button"
+                      onClick={saveNotes}
+                      disabled={savingNotes || notesSaved}
+                      className="flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent disabled:opacity-50 transition-colors"
+                    >
+                      <BookmarkCheck className="h-3.5 w-3.5" />
+                      {notesSaved ? 'Saved ✓' : savingNotes ? 'Saving…' : 'Save transcript'}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

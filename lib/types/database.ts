@@ -1369,6 +1369,7 @@ export type Database = {
           id: string
           method: string | null
           name: string
+          notes_markdown: string | null
           organization_id: string
           project_id: string
           script_markdown: string | null
@@ -1385,6 +1386,7 @@ export type Database = {
           id?: string
           method?: string | null
           name: string
+          notes_markdown?: string | null
           organization_id: string
           project_id: string
           script_markdown?: string | null
@@ -1401,6 +1403,7 @@ export type Database = {
           id?: string
           method?: string | null
           name?: string
+          notes_markdown?: string | null
           organization_id?: string
           project_id?: string
           script_markdown?: string | null

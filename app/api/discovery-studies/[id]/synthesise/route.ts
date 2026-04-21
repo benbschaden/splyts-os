@@ -69,6 +69,7 @@ export async function POST(
       problem_severity: e.problem_severity ?? null,
       adoption_willingness: e.adoption_willingness ?? null,
       raw_content_excerpt: e.raw_content.slice(0, 500) + (e.raw_content.length > 500 ? '…' : ''),
+      context_notes: e.context_notes ?? null,
     }))
 
     const prompt = buildStudySynthesisPrompt({

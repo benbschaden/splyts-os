@@ -47,6 +47,8 @@ export type DiscoveryEntryRow = {
   wtp_price_points: number[] | null
   problem_severity: number | null
   adoption_willingness: number | null
+  // Free-form researcher notes on this entry (relationship, context, known biases, etc.)
+  context_notes: string | null
   // Saved AI discussion transcript
   discussion_notes: string | null
   // Persona match (Claude-powered)
@@ -60,7 +62,7 @@ export type DiscoveryEntryRow = {
 }
 
 const SELECT_COLUMNS =
-  'id, organization_id, project_id, created_by, entry_type, source, entry_date, raw_content, sentiment, tags, include_in_ai, user_segment, key_quote_1, key_quote_2, key_quote_3, jtbd, star_rating, platform, source_material_id, study_id, participant, audio_url, diarized_transcript, interviewer_talk_pct, interviewee_talk_pct, interviewer_wpm, interviewee_wpm, interviewer_turns, interviewee_turns, total_interruptions, ijl_median_s, ijl_mean_s, isr_pct, spr_pct, wtp_signal, wtp_price_points, problem_severity, adoption_willingness, discussion_notes, persona_id, persona_match_name, persona_match_score, persona_match_reasoning, persona_matched_at, created_at, updated_at'
+  'id, organization_id, project_id, created_by, entry_type, source, entry_date, raw_content, sentiment, tags, include_in_ai, user_segment, key_quote_1, key_quote_2, key_quote_3, jtbd, star_rating, platform, source_material_id, study_id, participant, audio_url, diarized_transcript, interviewer_talk_pct, interviewee_talk_pct, interviewer_wpm, interviewee_wpm, interviewer_turns, interviewee_turns, total_interruptions, ijl_median_s, ijl_mean_s, isr_pct, spr_pct, wtp_signal, wtp_price_points, problem_severity, adoption_willingness, context_notes, discussion_notes, persona_id, persona_match_name, persona_match_score, persona_match_reasoning, persona_matched_at, created_at, updated_at'
 
 export async function getDiscoveryEntries(
   projectId: string,

@@ -32,6 +32,7 @@ interface FormData {
   source: string
   entry_date: string
   raw_content: string
+  context_notes: string
   sentiment: DiscoverySentiment | ''
   tags: string[]
   include_in_ai: boolean
@@ -87,6 +88,7 @@ const EMPTY: FormData = {
   source: '',
   entry_date: '',
   raw_content: '',
+  context_notes: '',
   sentiment: '',
   tags: [],
   include_in_ai: false,
@@ -268,6 +270,7 @@ export function DiscoveryDrawer({
           source: editing.source ?? '',
           entry_date: editing.entry_date ?? '',
           raw_content: editing.raw_content,
+          context_notes: editing.context_notes ?? '',
           sentiment: editing.sentiment ?? '',
           tags: editing.tags ?? [],
           include_in_ai: editing.include_in_ai,
@@ -490,6 +493,7 @@ export function DiscoveryDrawer({
       source: form.source.trim() || null,
       entry_date: form.entry_date || null,
       raw_content: form.raw_content.trim(),
+      context_notes: form.context_notes.trim() || null,
       sentiment: form.sentiment || null,
       tags: form.tags,
       include_in_ai: form.include_in_ai,
@@ -737,6 +741,25 @@ export function DiscoveryDrawer({
                   ? 'Paste the email content here…'
                   : 'Describe the pattern or theme you observed…'
               }
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground resize-none placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+
+          {/* Context notes */}
+          <div className="space-y-1.5">
+            <label htmlFor="entry-context-notes" className="text-xs font-medium text-foreground">
+              Context notes <span className="font-normal text-muted-foreground">(optional)</span>
+            </label>
+            <p className="text-[11px] text-muted-foreground -mt-0.5">
+              Capture anything that helps interpret this entry — e.g. "friend and early beta user", "prospect who hasn't signed up yet", "known to be biased toward feature X".
+              All AI tools read this when analysing the transcript.
+            </p>
+            <textarea
+              id="entry-context-notes"
+              value={form.context_notes}
+              onChange={(e) => set('context_notes', e.target.value)}
+              rows={2}
+              placeholder="e.g. Friend and early beta tester — likely to be overly positive. Works in B2B sales."
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground resize-none placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>

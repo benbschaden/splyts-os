@@ -2647,6 +2647,7 @@ export function buildEntryDiscussionPrompt(params: {
     key_quote_3: string | null
     sentiment: string | null
     tags: string[]
+    context_notes?: string | null
   }
   study?: {
     name: string
@@ -2679,6 +2680,14 @@ export function buildEntryDiscussionPrompt(params: {
   lines.push(`Entry type: ${entry.entry_type}`)
   if (entry.participant) lines.push(`Participant: ${entry.participant}`)
   if (entry.entry_date) lines.push(`Date: ${entry.entry_date}`)
+  if (entry.context_notes?.trim()) {
+    lines.push('')
+    lines.push('--- RESEARCHER CONTEXT NOTES ---')
+    lines.push(entry.context_notes.trim())
+    lines.push('--- END CONTEXT NOTES ---')
+    lines.push('IMPORTANT: Use these researcher notes to calibrate how you interpret this entry. They may describe the participant relationship, known biases, session conditions, or other context that affects how the data should be read.')
+    lines.push('')
+  }
   if (entry.sentiment) lines.push(`Sentiment: ${entry.sentiment}`)
   if (entry.tags.length > 0) lines.push(`Tags: ${entry.tags.join(', ')}`)
   if (entry.jtbd) lines.push(`JTBD: ${entry.jtbd}`)
@@ -2751,6 +2760,7 @@ export type StudyEntryDigest = {
   problem_severity: number | null
   adoption_willingness: number | null
   raw_content_excerpt: string
+  context_notes: string | null
 }
 
 export function buildStudySynthesisPrompt(params: {
@@ -2791,6 +2801,7 @@ export function buildStudySynthesisPrompt(params: {
 
   entries.forEach((e, i) => {
     lines.push(`[Entry ${i + 1}${e.participant ? ` — ${e.participant}` : ''}] (${e.entry_type})`)
+    if (e.context_notes?.trim()) lines.push(`  Researcher context: ${e.context_notes.trim()}`)
     if (e.sentiment) lines.push(`  Sentiment: ${e.sentiment}`)
     if (e.tags.length > 0) lines.push(`  Tags: ${e.tags.join(', ')}`)
     if (e.jtbd) lines.push(`  JTBD: ${e.jtbd}`)
@@ -2856,6 +2867,7 @@ export interface StudyChatEntry {
   key_quote_2: string | null
   key_quote_3: string | null
   jtbd: string | null
+  context_notes: string | null
   discussion_notes: string | null
   raw_content: string
 }
@@ -2924,6 +2936,7 @@ export function buildStudyChatSystemPrompt(params: {
   entries.forEach((e, i) => {
     const label = e.participant ? `Entry ${i + 1} — ${e.participant}` : `Entry ${i + 1}`
     lines.push(`### ${label} (${e.entry_type})`)
+    if (e.context_notes?.trim()) lines.push(`Researcher context: ${e.context_notes.trim()}`)
     if (e.sentiment) lines.push(`Sentiment: ${e.sentiment}`)
     if (e.tags.length > 0) lines.push(`Tags: ${e.tags.join(', ')}`)
     if (e.jtbd) lines.push(`JTBD: ${e.jtbd}`)

@@ -27,6 +27,7 @@ type DiscoveryEntryContext = {
   key_quote_3: string | null
   sentiment: string | null
   tags: string[]
+  context_notes: string | null
   organization_id: string
   study_id: string | null
 }
@@ -61,7 +62,7 @@ export async function POST(
     const serviceClient = createUntypedServiceClient()
     const { data: entryData, error: entryError } = await serviceClient
       .from('discovery_entries')
-      .select('entry_type, participant, entry_date, raw_content, jtbd, key_quote_1, key_quote_2, key_quote_3, sentiment, tags, organization_id, study_id')
+      .select('entry_type, participant, entry_date, raw_content, jtbd, key_quote_1, key_quote_2, key_quote_3, sentiment, tags, context_notes, organization_id, study_id')
       .eq('id', id)
       .eq('organization_id', org.id)
       .is('deleted_at', null)

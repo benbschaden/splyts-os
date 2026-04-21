@@ -82,6 +82,7 @@ export async function POST(
       key_quote_2: e.key_quote_2,
       key_quote_3: e.key_quote_3,
       jtbd: e.jtbd,
+      context_notes: e.context_notes ?? null,
       discussion_notes: e.discussion_notes ?? null,
       raw_content: e.raw_content ?? '',
     }))

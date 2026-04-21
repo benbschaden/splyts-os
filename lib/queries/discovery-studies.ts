@@ -28,6 +28,21 @@ export type DiscoveryStudyRow = {
 const SELECT_COLUMNS =
   'id, organization_id, project_id, created_by, name, goal, method, script_markdown, analysis_markdown, notes_markdown, report_markdown, chat_session_id, status, sort_order, created_at, updated_at'
 
+export async function getAllOrgDiscoveryStudies(
+  organizationId: string,
+): Promise<DiscoveryStudyRow[]> {
+  const supabase = createUntypedServiceClient()
+  const { data, error } = await supabase
+    .from('discovery_studies')
+    .select(SELECT_COLUMNS)
+    .eq('organization_id', organizationId)
+    .is('deleted_at', null)
+    .order('updated_at', { ascending: false })
+
+  if (error) return []
+  return (data ?? []) as unknown as DiscoveryStudyRow[]
+}
+
 export async function getDiscoveryStudies(
   projectId: string,
   organizationId: string,

@@ -28,6 +28,7 @@ const DEFAULT_CONTEXT: ContextConfig = {
   project_materials: false,
   discovery_entries: false,
   discovery_participant: null,
+  discovery_studies: false,
   customer_insights: false,
   customer_hub_contact_id: null,
   customer_hub_segment: null,
@@ -76,10 +77,11 @@ const CONTEXT_CATEGORIES = [
   },
   {
     label: 'Research',
-    description: 'Customer discovery entries (interviews, emails, surveys)',
-    keys: ['discovery_entries'] as const,
+    description: 'Customer discovery entries and study analyses',
+    keys: ['discovery_entries', 'discovery_studies'] as const,
     items: [
       { key: 'discovery_entries' as const, label: 'Customer discovery' },
+      { key: 'discovery_studies' as const, label: 'Study analyses' },
     ],
   },
 ]

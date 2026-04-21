@@ -21,6 +21,7 @@ import { getKpiDefinitions } from '@/lib/queries/kpi-definitions'
 import { getLatestSnapshot } from '@/lib/queries/kpi-snapshots'
 import { getProjectMaterials } from '@/lib/queries/project-materials'
 import { getDiscoveryEntries, getAllOrgDiscoveryEntries, getParticipantDiscoveryEntries } from '@/lib/queries/discovery-entries'
+import { getDiscoveryStudies, getAllOrgDiscoveryStudies } from '@/lib/queries/discovery-studies'
 import { getCustomerInsightsForOrg, getInsightsForContact, getInsightsForSegment, type InsightSourceSegment } from '@/lib/queries/customer-insights'
 import { getCommunicationsForContact, getCommunicationsForSegment, getRecentCommunicationsForOrg, getSignedAttachmentUrls } from '@/lib/queries/contact-communications'
 import { getContactsForOrg, type ContactRow } from '@/lib/queries/contacts'
@@ -170,6 +171,7 @@ export async function POST(
       project_materials: includeProjectMaterials = false,
       discovery_entries: includeDiscoveryEntries = false,
       discovery_participant: discoveryParticipant = null,
+      discovery_studies: includeDiscoveryStudies = false,
       customer_insights: includeCustomerInsights = false,
       customer_hub_contact_id: customerHubContactId = null,
       customer_hub_segment: customerHubSegment = null,
@@ -182,6 +184,8 @@ export async function POST(
     const shouldLoadDiscovery = includeDiscoveryEntries
     // Customer Hub: when no specific contact/segment, load all org contacts + recent comms
     const loadAllHub = includeCustomerInsights && !customerHubContactId && !customerHubSegment
+
+    const shouldLoadStudies = includeDiscoveryStudies
 
     const [
       brand,
@@ -201,6 +205,7 @@ export async function POST(
       kpiSnapshot,
       projectMaterials,
       discoveryEntries,
+      discoveryStudiesData,
       customerInsightsData,
       allContactsData,
       allRecentCommsData,
@@ -229,6 +234,11 @@ export async function POST(
         ? discoveryParticipant && session.project_id
           ? getParticipantDiscoveryEntries(session.project_id, org.id, discoveryParticipant)
           : getAllOrgDiscoveryEntries(org.id)
+        : Promise.resolve([]),
+      shouldLoadStudies
+        ? session.project_id
+          ? getDiscoveryStudies(session.project_id, org.id)
+          : getAllOrgDiscoveryStudies(org.id)
         : Promise.resolve([]),
       includeCustomerInsights ? getCustomerInsightsForOrg(org.id) : Promise.resolve([]),
       loadAllHub ? getContactsForOrg(org.id) : Promise.resolve([] as ContactRow[]),
@@ -329,6 +339,8 @@ export async function POST(
       discoveryEntries: shouldLoadDiscovery ? discoveryEntries : undefined,
       includeDiscoveryEntries: shouldLoadDiscovery,
       discoveryParticipant: discoveryParticipant ?? undefined,
+      discoveryStudies: shouldLoadStudies ? discoveryStudiesData : undefined,
+      includeDiscoveryStudies: shouldLoadStudies,
       customerInsights: includeCustomerInsights ? customerInsightsData : undefined,
       includeCustomerInsights,
       allContacts: loadAllHub && allContactsData.length > 0 ? allContactsData : undefined,

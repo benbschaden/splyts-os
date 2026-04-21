@@ -284,6 +284,8 @@ export function buildChatSystemPrompt(params: {
   discoveryEntries?: DiscoveryEntryRow[]
   includeDiscoveryEntries?: boolean
   discoveryParticipant?: string | null
+  discoveryStudies?: import('@/lib/queries/discovery-studies').DiscoveryStudyRow[]
+  includeDiscoveryStudies?: boolean
   customerInsights?: CustomerInsightRow[]
   includeCustomerInsights?: boolean
   allContacts?: ContactRow[]
@@ -305,6 +307,7 @@ export function buildChatSystemPrompt(params: {
     includeCurrentGoals, includeFiledDocs, includeCompetitors, includeSocialProof,
     includeKpis, projectMaterials, includeProjectMaterials,
     discoveryEntries, includeDiscoveryEntries, discoveryParticipant,
+    discoveryStudies, includeDiscoveryStudies,
     customerInsights, includeCustomerInsights,
     allContacts, allRecentComms,
     customerHubContactComms, includeCustomerHubContact, contactInsights,
@@ -332,6 +335,7 @@ export function buildChatSystemPrompt(params: {
   if (includeKpis) inventory.push(`${kpiDefinitions.length} KPI definitions`)
   if (includeProjectMaterials) inventory.push(`${projectMaterials?.length ?? 0} project materials`)
   if (includeDiscoveryEntries) inventory.push(`${discoveryEntries?.length ?? 0} customer discovery entries`)
+  if (includeDiscoveryStudies) inventory.push(`${discoveryStudies?.length ?? 0} discovery study analyses`)
   if (includeCustomerInsights) inventory.push(`${customerInsights?.length ?? 0} customer insights`)
   inventory.push(`${allContacts?.length ?? 0} Customer Hub contacts`)
   inventory.push(`${allRecentComms?.length ?? 0} recent customer communications`)
@@ -530,6 +534,32 @@ export function buildChatSystemPrompt(params: {
       }
       if (typeof row.discussion_notes === 'string' && row.discussion_notes) {
         lines.push(`  AI discussion notes: ${row.discussion_notes.slice(0, 400)}`)
+      }
+    })
+    lines.push('')
+  }
+
+  if (includeDiscoveryStudies && discoveryStudies && discoveryStudies.length > 0) {
+    lines.push('[DISCOVERY STUDY ANALYSES]')
+    lines.push('The following are structured research studies with AI-synthesised analyses. Use these to answer questions about research findings, customer insights, and validated or invalidated hypotheses.')
+    discoveryStudies.forEach((study) => {
+      lines.push(``)
+      lines.push(`## Study: ${study.name}`)
+      if (study.goal) lines.push(`Goal: ${study.goal}`)
+      if (study.method) lines.push(`Method: ${study.method}`)
+      if (study.status) lines.push(`Status: ${study.status}`)
+      if (study.notes_markdown?.trim()) {
+        lines.push(`Researcher notes: ${study.notes_markdown.trim().slice(0, 800)}`)
+      }
+      if (study.analysis_markdown?.trim()) {
+        lines.push(``)
+        lines.push(`Analysis:`)
+        lines.push(study.analysis_markdown.trim().slice(0, 6000) + (study.analysis_markdown.length > 6000 ? '\n…(truncated)' : ''))
+      }
+      if (study.report_markdown?.trim()) {
+        lines.push(``)
+        lines.push(`Research report (from chat):`)
+        lines.push(study.report_markdown.trim().slice(0, 3000) + (study.report_markdown.length > 3000 ? '\n…(truncated)' : ''))
       }
     })
     lines.push('')

@@ -1566,13 +1566,14 @@ export function buildProjectOutputSessionSystemPrompt(params: {
   competitors?: CompetitorRow[]
   socialProof?: SocialProofRow[]
   discoveryEntries?: DiscoveryEntryRow[]
+  discoveryStudies?: import('@/lib/queries/discovery-studies').DiscoveryStudyRow[]
   customerInsights?: CustomerInsightRow[]
   allContacts?: ContactRow[]
   allRecentComms?: ContactCommunicationRow[]
 }): string {
   const { projectName, projectDescription, outputType, materials, businessPlanSections, previousOutputs, fileFullTexts,
     brand, personas, productSections, productFeatures, currentGoals, competitors, socialProof,
-    discoveryEntries, customerInsights, allContacts, allRecentComms } = params
+    discoveryEntries, discoveryStudies, customerInsights, allContacts, allRecentComms } = params
   const { materialsBlock, planBlock } = buildProjectMaterialsAndPlanBlocks(materials, businessPlanSections)
 
   const fileFullTextsBlock = fileFullTexts && fileFullTexts.length > 0
@@ -1681,6 +1682,23 @@ export function buildProjectOutputSessionSystemPrompt(params: {
       }).join('\n')
     : null
 
+  const discoveryStudiesBlock = discoveryStudies && discoveryStudies.length > 0
+    ? discoveryStudies.map((study) => {
+        const parts: string[] = [`## Study: ${study.name}`]
+        if (study.goal) parts.push(`Goal: ${study.goal}`)
+        if (study.method) parts.push(`Method: ${study.method}`)
+        if (study.status) parts.push(`Status: ${study.status}`)
+        if (study.notes_markdown?.trim()) parts.push(`Researcher notes: ${study.notes_markdown.trim().slice(0, 600)}`)
+        if (study.analysis_markdown?.trim()) {
+          parts.push(`\nSynthesis:\n${study.analysis_markdown.trim().slice(0, 6000) + (study.analysis_markdown.length > 6000 ? '\n…(truncated)' : '')}`)
+        }
+        if (study.report_markdown?.trim()) {
+          parts.push(`\nResearch report:\n${study.report_markdown.trim().slice(0, 3000) + (study.report_markdown.length > 3000 ? '\n…(truncated)' : '')}`)
+        }
+        return parts.join('\n')
+      }).join('\n\n')
+    : null
+
   const insightsBlock = customerInsights && customerInsights.length > 0
     ? customerInsights.slice(0, 30).map((i) => {
         const src = i.source_contact_name ? ` (${i.source_contact_name})` : ''
@@ -1719,6 +1737,7 @@ ${goalsBlock ? `\n[CURRENT GOALS]\n${goalsBlock}` : ''}
 ${competitorsBlock ? `\n[COMPETITIVE LANDSCAPE]\n${competitorsBlock}` : ''}
 ${socialProofBlock ? `\n[SOCIAL PROOF]\n${socialProofBlock}` : ''}
 ${discoveryBlock ? `\n[CUSTOMER DISCOVERY — real interviews, surveys, and feedback]\n${discoveryBlock}` : ''}
+${discoveryStudiesBlock ? `\n[DISCOVERY STUDY ANALYSES — synthesised research findings]\nThese are AI-synthesised analyses across all interviews and sessions in each study. Use them to ground claims in validated research.\n${discoveryStudiesBlock}` : ''}
 ${insightsBlock ? `\n[CUSTOMER INSIGHTS — validated learnings]\n${insightsBlock}` : ''}
 ${contactsBlock ? `\n[CUSTOMER HUB — known contacts]\n${contactsBlock}` : ''}
 ${recentCommsBlock ? `\n[RECENT CUSTOMER COMMUNICATIONS]\n${recentCommsBlock}` : ''}

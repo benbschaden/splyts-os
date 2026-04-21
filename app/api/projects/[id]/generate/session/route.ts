@@ -24,6 +24,7 @@ import {
   type ProjectMaterialForFullTextFetch,
 } from '@/lib/retrieval/search'
 import { getAllOrgDiscoveryEntries } from '@/lib/queries/discovery-entries'
+import { getDiscoveryStudies } from '@/lib/queries/discovery-studies'
 import { getContactsForOrg } from '@/lib/queries/contacts'
 import { getRecentCommunicationsForOrg } from '@/lib/queries/contact-communications'
 import { getCustomerInsightsForOrg } from '@/lib/queries/customer-insights'
@@ -78,7 +79,7 @@ export async function POST(
 
     if (!project) return Response.json({ error: 'Project not found' }, { status: 404 })
 
-    const [materialsRaw, businessPlan, previousOutputs, brand, personas, productContext, productFeatures, currentGoals, competitors, socialProof, discoveryEntries, hubContacts, hubComms, hubInsights] = await Promise.all([
+    const [materialsRaw, businessPlan, previousOutputs, brand, personas, productContext, productFeatures, currentGoals, competitors, socialProof, discoveryEntries, discoveryStudies, hubContacts, hubComms, hubInsights] = await Promise.all([
       getProjectMaterials(projectId, org.id),
       getBusinessPlan(org.id),
       getOutputsForProject(projectId, org.id),
@@ -90,6 +91,7 @@ export async function POST(
       getAiVisibleCompetitors(org.id),
       getApprovedSocialProof(org.id),
       getAllOrgDiscoveryEntries(org.id),
+      getDiscoveryStudies(projectId, org.id),
       getContactsForOrg(org.id),
       getRecentCommunicationsForOrg(org.id, 60),
       getCustomerInsightsForOrg(org.id),
@@ -142,6 +144,7 @@ export async function POST(
       competitors,
       socialProof,
       discoveryEntries: discoveryEntries.length > 0 ? discoveryEntries : undefined,
+      discoveryStudies: discoveryStudies.length > 0 ? discoveryStudies : undefined,
       customerInsights: hubInsights.length > 0 ? hubInsights : undefined,
       allContacts: hubContacts.length > 0 ? hubContacts : undefined,
       allRecentComms: hubComms.length > 0 ? hubComms : undefined,

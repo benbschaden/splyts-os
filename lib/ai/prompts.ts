@@ -2770,9 +2770,11 @@ export function buildStudySynthesisPrompt(params: {
   if (method) lines.push(`Method: ${method}`)
   if (notesMarkdown?.trim()) {
     lines.push('')
-    lines.push('--- RESEARCHER NOTES & CONTEXT ---')
+    lines.push('--- RESEARCHER NOTES & HYPOTHESES ---')
     lines.push(notesMarkdown.slice(0, 3000))
     lines.push('--- END NOTES ---')
+    lines.push('')
+    lines.push('IMPORTANT: The researcher has written notes and hypotheses above. You MUST explicitly evaluate each hypothesis against the data — state clearly whether it was supported, refuted, partially supported, or inconclusive, with specific evidence from the entries.')
   }
   lines.push(`Total entries: ${entries.length}`)
   lines.push('')
@@ -2809,6 +2811,13 @@ export function buildStudySynthesisPrompt(params: {
   lines.push('')
   lines.push('Write a synthesis report in clean Markdown. Structure it exactly as follows:')
   lines.push('')
+  if (notesMarkdown?.trim()) {
+    lines.push('# Hypothesis evaluation')
+    lines.push('For each hypothesis or question the researcher identified in their notes, write one bullet.')
+    lines.push('Each bullet must state: the hypothesis → verdict (Supported / Refuted / Partially supported / Inconclusive) → the specific evidence from the data.')
+    lines.push('Be direct. If the data contradicts a hypothesis, say so clearly.')
+    lines.push('')
+  }
   lines.push('# Key findings')
   lines.push('3–5 bullet points summarising the most important cross-cutting insights.')
   lines.push('Each bullet must be a complete, specific statement — not generic.')

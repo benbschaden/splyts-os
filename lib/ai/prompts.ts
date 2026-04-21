@@ -2687,7 +2687,7 @@ export function buildEntryDiscussionPrompt(params: {
   if (entry.key_quote_3) lines.push(`Key quote 3: "${entry.key_quote_3}"`)
   lines.push('')
   lines.push('--- FULL CONTENT ---')
-  lines.push(entry.raw_content.slice(0, 30000))
+  lines.push(entry.raw_content.slice(0, 150000))
   lines.push('--- END ---')
 
   return lines.join('\n')

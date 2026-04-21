@@ -84,7 +84,7 @@ const CONTEXT_CATEGORIES = [
   },
 ]
 
-type ContextKey = keyof Omit<ContextConfig, 'browser' | 'discovery_participant' | 'customer_hub_contact_id' | 'customer_hub_segment'>
+type ContextKey = keyof Omit<ContextConfig, 'browser' | 'discovery_participant' | 'customer_hub_contact_id' | 'customer_hub_segment' | 'discovery_study_id'>
 
 export function ChatSessionsList({ sessions: initialSessions }: ChatSessionsListProps) {
   const router = useRouter()

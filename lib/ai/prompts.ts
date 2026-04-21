@@ -2843,6 +2843,114 @@ export function buildStudySynthesisPrompt(params: {
   return lines.join('\n')
 }
 
+// ---------------------------------------------------------------------------
+// Study-level chat
+// ---------------------------------------------------------------------------
+
+export interface StudyChatEntry {
+  participant: string | null
+  entry_type: string
+  sentiment: string | null
+  tags: string[]
+  key_quote_1: string | null
+  key_quote_2: string | null
+  key_quote_3: string | null
+  jtbd: string | null
+  discussion_notes: string | null
+  raw_content: string
+}
+
+/**
+ * System prompt for the study-level AI chat.
+ * Includes the full study metadata, all entries with raw transcripts, discussion
+ * notes, and the synthesised analysis so the AI can answer any question or draft
+ * any document from this body of research.
+ */
+export function buildStudyChatSystemPrompt(params: {
+  studyName: string
+  studyGoal: string | null
+  method: string | null
+  notesMarkdown: string | null
+  analysisMarkdown: string | null
+  entries: StudyChatEntry[]
+  rawTranscriptMaxChars?: number
+}): string {
+  const {
+    studyName,
+    studyGoal,
+    method,
+    notesMarkdown,
+    analysisMarkdown,
+    entries,
+    rawTranscriptMaxChars = 12_000,
+  } = params
+
+  const lines: string[] = []
+
+  lines.push('You are a senior qualitative researcher and analyst with full access to a research study.')
+  lines.push('You can answer any question about the research, discuss findings, probe deeper into transcripts,')
+  lines.push('and draft any document — summaries, reports, briefs, presentations — grounded in the data.')
+  lines.push('When the user asks you to create a document, produce clean Markdown.')
+  lines.push('Always cite participants by name (or "Participant N" if unnamed) when referencing specific quotes or content.')
+  lines.push('')
+
+  // --- Study metadata -------------------------------------------------------
+  lines.push('## Study')
+  lines.push(`Name: ${studyName}`)
+  if (studyGoal) lines.push(`Goal: ${studyGoal}`)
+  if (method) lines.push(`Method: ${method}`)
+  lines.push('')
+
+  // --- Researcher notes -----------------------------------------------------
+  if (notesMarkdown?.trim()) {
+    lines.push('## Researcher notes & hypotheses')
+    lines.push(notesMarkdown.trim())
+    lines.push('')
+  }
+
+  // --- Synthesised analysis -------------------------------------------------
+  if (analysisMarkdown?.trim()) {
+    lines.push('## AI synthesis (already generated)')
+    lines.push('This is the pre-existing synthesis. Use it as a starting point but always verify against the raw transcripts below.')
+    lines.push(analysisMarkdown.trim())
+    lines.push('')
+  }
+
+  // --- Full entry corpus ----------------------------------------------------
+  lines.push(`## Entry corpus (${entries.length} ${entries.length === 1 ? 'entry' : 'entries'})`)
+  lines.push('The full text of every entry, including raw transcripts, is provided below.')
+  lines.push('')
+
+  entries.forEach((e, i) => {
+    const label = e.participant ? `Entry ${i + 1} — ${e.participant}` : `Entry ${i + 1}`
+    lines.push(`### ${label} (${e.entry_type})`)
+    if (e.sentiment) lines.push(`Sentiment: ${e.sentiment}`)
+    if (e.tags.length > 0) lines.push(`Tags: ${e.tags.join(', ')}`)
+    if (e.jtbd) lines.push(`JTBD: ${e.jtbd}`)
+    if (e.key_quote_1) lines.push(`Key quote 1: "${e.key_quote_1}"`)
+    if (e.key_quote_2) lines.push(`Key quote 2: "${e.key_quote_2}"`)
+    if (e.key_quote_3) lines.push(`Key quote 3: "${e.key_quote_3}"`)
+    if (e.discussion_notes?.trim()) {
+      lines.push('')
+      lines.push('**Discussion notes & summaries (from previous per-entry analysis):**')
+      lines.push(e.discussion_notes.trim())
+    }
+    if (e.raw_content?.trim()) {
+      const raw = e.raw_content.length > rawTranscriptMaxChars
+        ? e.raw_content.slice(0, rawTranscriptMaxChars) + '\n\n[…transcript truncated for context limits…]'
+        : e.raw_content
+      lines.push('')
+      lines.push('**Full transcript / raw content:**')
+      lines.push(raw.trim())
+    }
+    lines.push('')
+    lines.push('---')
+    lines.push('')
+  })
+
+  return lines.join('\n')
+}
+
 export interface ResponseScanResult {
   status: 'needs_response' | 'no_action_needed'
   reason: string

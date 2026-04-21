@@ -19,6 +19,7 @@ export interface ContextConfig {
   customer_insights: boolean
   customer_hub_contact_id: string | null
   customer_hub_segment: string | null
+  discovery_study_id?: string | null
 }
 
 export interface ChatSessionRow {

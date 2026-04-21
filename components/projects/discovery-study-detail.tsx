@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Pencil, FileText, List, BarChart3, Sparkles, Loader2, PenLine, Eye, StickyNote } from 'lucide-react'
+import { ArrowLeft, Pencil, FileText, List, BarChart3, Sparkles, Loader2, PenLine, Eye, StickyNote, MessageSquare } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils'
@@ -9,6 +9,7 @@ import type { DiscoveryStudyRow, DiscoveryStudyMethod } from '@/lib/queries/disc
 import type { DiscoveryEntryRow } from '@/lib/queries/discovery-entries'
 import { DiscoveryFeed } from './discovery-feed'
 import { DiscoveryStudyDrawer } from './discovery-study-drawer'
+import { DiscoveryStudyChat } from './discovery-study-chat'
 
 const METHOD_LABELS: Record<DiscoveryStudyMethod, string> = {
   interview: 'Interviews',
@@ -28,7 +29,7 @@ const METHOD_COLORS: Record<DiscoveryStudyMethod, string> = {
   mixed: 'bg-muted text-muted-foreground border-border',
 }
 
-type StudyTab = 'notes' | 'script' | 'entries' | 'analysis'
+type StudyTab = 'notes' | 'script' | 'entries' | 'analysis' | 'chat'
 
 interface DiscoveryStudyDetailProps {
   study: DiscoveryStudyRow
@@ -51,6 +52,7 @@ export function DiscoveryStudyDetail({
   const [notes, setNotes] = useState(study.notes_markdown ?? '')
   const [script, setScript] = useState(study.script_markdown ?? '')
   const [analysis, setAnalysis] = useState(study.analysis_markdown ?? '')
+  const [currentStudy, setCurrentStudy] = useState(study)
   const [savingNotes, setSavingNotes] = useState(false)
   const [notesSaved, setNotesSaved] = useState(false)
   const [savingScript, setSavingScript] = useState(false)
@@ -67,6 +69,7 @@ export function DiscoveryStudyDetail({
     setNotes(study.notes_markdown ?? '')
     setScript(study.script_markdown ?? '')
     setAnalysis(study.analysis_markdown ?? '')
+    setCurrentStudy(study)
   }, [study.id])
 
   async function patchStudy(updates: Record<string, unknown>): Promise<DiscoveryStudyRow | null> {
@@ -141,6 +144,7 @@ export function DiscoveryStudyDetail({
     { id: 'script', label: 'Script', Icon: FileText },
     { id: 'entries', label: `Entries (${entries.length})`, Icon: List },
     { id: 'analysis', label: 'Analysis', Icon: BarChart3 },
+    { id: 'chat', label: 'Chat', Icon: MessageSquare },
   ]
 
   return (
@@ -290,6 +294,17 @@ export function DiscoveryStudyDetail({
           />
         )}
 
+        {/* Chat */}
+        {activeTab === 'chat' && (
+          <DiscoveryStudyChat
+            study={currentStudy}
+            onStudyUpdated={(updated) => {
+              setCurrentStudy(updated)
+              onStudyUpdated(updated)
+            }}
+          />
+        )}
+
         {/* Analysis */}
         {activeTab === 'analysis' && (
           <div className="space-y-4">
@@ -361,6 +376,21 @@ export function DiscoveryStudyDetail({
                 </button>
               )}
             </div>
+
+            {/* Chat-generated report */}
+            {currentStudy.report_markdown?.trim() && (
+              <div className="space-y-2 pt-2 border-t border-border">
+                <p className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                  <MessageSquare className="h-3.5 w-3.5 text-blue-500" />
+                  Research report (from Chat)
+                </p>
+                <div className="rounded-md border border-blue-200 bg-blue-50/30 px-5 py-5">
+                  <div className="prose prose-sm max-w-none text-foreground prose-headings:font-semibold prose-headings:text-foreground prose-h1:text-base prose-h1:mt-0 prose-h2:text-sm prose-h2:mt-5 prose-h3:text-sm prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 prose-strong:font-semibold prose-strong:text-foreground prose-blockquote:border-border prose-blockquote:text-muted-foreground">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentStudy.report_markdown}</ReactMarkdown>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

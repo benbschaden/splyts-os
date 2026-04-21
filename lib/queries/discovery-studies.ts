@@ -17,6 +17,8 @@ export type DiscoveryStudyRow = {
   script_markdown: string | null
   analysis_markdown: string | null
   notes_markdown: string | null
+  report_markdown: string | null
+  chat_session_id: string | null
   status: DiscoveryStudyStatus
   sort_order: number
   created_at: string
@@ -24,7 +26,7 @@ export type DiscoveryStudyRow = {
 }
 
 const SELECT_COLUMNS =
-  'id, organization_id, project_id, created_by, name, goal, method, script_markdown, analysis_markdown, notes_markdown, status, sort_order, created_at, updated_at'
+  'id, organization_id, project_id, created_by, name, goal, method, script_markdown, analysis_markdown, notes_markdown, report_markdown, chat_session_id, status, sort_order, created_at, updated_at'
 
 export async function getDiscoveryStudies(
   projectId: string,
@@ -81,6 +83,8 @@ export type UpdateDiscoveryStudyParams = {
   script_markdown?: string | null
   analysis_markdown?: string | null
   notes_markdown?: string | null
+  report_markdown?: string | null
+  chat_session_id?: string | null
   status?: DiscoveryStudyStatus
 }
 
@@ -116,4 +120,29 @@ export async function deleteDiscoveryStudy(
 
   if (error) return { error: 'Failed to delete study' }
   return { error: null }
+}
+
+export async function linkStudyChatSession(
+  studyId: string,
+  organizationId: string,
+  sessionId: string,
+): Promise<{ error: string | null }> {
+  const supabase = createUntypedServiceClient()
+  const { error } = await supabase
+    .from('discovery_studies')
+    .update({ chat_session_id: sessionId, updated_at: new Date().toISOString() })
+    .eq('id', studyId)
+    .eq('organization_id', organizationId)
+    .is('deleted_at', null)
+
+  if (error) return { error: 'Failed to link chat session' }
+  return { error: null }
+}
+
+export async function saveStudyReport(
+  studyId: string,
+  organizationId: string,
+  reportMarkdown: string,
+): Promise<{ study: DiscoveryStudyRow | null; error: string | null }> {
+  return updateDiscoveryStudy(studyId, organizationId, { report_markdown: reportMarkdown })
 }

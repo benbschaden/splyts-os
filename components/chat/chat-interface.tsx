@@ -121,6 +121,16 @@ export function ChatInterface({ session, initialMessages, initialPrompt }: ChatI
 
     const exportDoc = isExportDocIntent(content)
 
+    // Capture the last real assistant message before state changes — used for export downloads.
+    const lastAssistantContent = exportDoc
+      ? [...messages].reverse().find((m) => m.role === 'assistant')?.content ?? null
+      : null
+
+    if (exportDoc && !lastAssistantContent) {
+      setError('No previous response to export. Ask me to write something first, then request the doc.')
+      return
+    }
+
     setInput('')
     setError(null)
     setIsSending(true)
@@ -157,10 +167,10 @@ export function ChatInterface({ session, initialMessages, initialPrompt }: ChatI
         data.assistantMessage,
       ])
 
-      // Trigger .docx download if this was an export request
-      if (data.exportDoc && data.assistantMessage?.content) {
+      // Download the last real assistant message as .docx (AI was never involved in the export)
+      if (data.exportDoc && lastAssistantContent) {
         const filename = session.title || 'document'
-        await downloadAsDocx(data.assistantMessage.content, filename)
+        await downloadAsDocx(lastAssistantContent, filename)
       }
     } catch {
       setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id))

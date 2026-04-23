@@ -298,7 +298,6 @@ export function buildChatSystemPrompt(params: {
   hubSegment?: string
   retrievedContext?: RetrievedContext[]
   fileFullTexts?: Array<{ title: string; content: string }>
-  exportDoc?: boolean
 }): string {
   const {
     brand, businessPlanSections, personas, productSections, productFeatures,
@@ -314,7 +313,6 @@ export function buildChatSystemPrompt(params: {
     customerHubContactComms, includeCustomerHubContact, contactInsights,
     segmentComms, segmentInsights, hubSegment,
     retrievedContext, fileFullTexts,
-    exportDoc,
   } = params
 
   const lines: string[] = []
@@ -669,11 +667,6 @@ export function buildChatSystemPrompt(params: {
 
   lines.push('Use the company context above to give grounded, relevant answers.')
   lines.push('When you do not know something, say so — do not make up company details.')
-
-  if (exportDoc) {
-    lines.push('')
-    lines.push('DOCUMENT EXPORT: The system will automatically convert your next response into a downloadable Word document — you do not need any tools or connectors to make this happen. Your only job is to write the content the user asked for. Write ONLY the content itself — no preamble like "here is the document", no explanation, no mention of file creation. Start directly with the content. The system handles the file creation.')
-  }
 
   return lines.join('\n')
 }

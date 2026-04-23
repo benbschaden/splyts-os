@@ -155,6 +155,32 @@ export async function POST(
     }
 
     const { content, export_doc: exportDoc } = parsed.data
+
+    // Export requests skip the AI entirely — save the exchange and signal the client to download.
+    if (exportDoc) {
+      const existingForExport = await getChatMessages(id)
+      const userMsg = await addChatMessage(id, 'user', content)
+      if (userMsg.error) {
+        console.error('[chat/messages] Failed to save export user message')
+        return Response.json({ error: 'Failed to save messages' }, { status: 500 })
+      }
+      const cannedReply = 'Your document is ready — it should be downloading now.'
+      const assistantMsg = await addChatMessage(id, 'assistant', cannedReply)
+      if (assistantMsg.error) {
+        console.error('[chat/messages] Failed to save export assistant message')
+        return Response.json({ error: 'Failed to save messages' }, { status: 500 })
+      }
+      if (existingForExport.length === 0) {
+        const title = content.length > 60 ? content.slice(0, 57) + '…' : content
+        await updateChatSession(id, user.id, { title })
+      }
+      return Response.json({
+        userMessage: userMsg.message,
+        assistantMessage: assistantMsg.message,
+        exportDoc: true,
+      }, { status: 201 })
+    }
+
     const config = session.context_config
     const {
       brand: includeBrand,
@@ -354,7 +380,6 @@ export async function POST(
       hubSegment: customerHubSegment ?? undefined,
       retrievedContext: retrievedContext.length > 0 ? retrievedContext : undefined,
       fileFullTexts: materialFullTexts.length > 0 ? materialFullTexts : undefined,
-      exportDoc: exportDoc ?? false,
     })
 
     // Collect attachment paths from contact-scoped communications so Claude can see images.
@@ -448,7 +473,6 @@ export async function POST(
     return Response.json({
       userMessage: userMsg.message,
       assistantMessage: assistantMsg.message,
-      exportDoc: exportDoc ?? false,
     }, { status: 201 })
   } catch {
     return Response.json({ error: 'Internal error' }, { status: 500 })

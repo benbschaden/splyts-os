@@ -672,7 +672,7 @@ export function buildChatSystemPrompt(params: {
 
   if (exportDoc) {
     lines.push('')
-    lines.push('EXPORT MODE: The user wants to download your response as a document. Respond with ONLY the clean content they want exported. No preamble, no "here is the document", no explanation — start directly with the content.')
+    lines.push('DOCUMENT EXPORT: The system will automatically convert your next response into a downloadable Word document — you do not need any tools or connectors to make this happen. Your only job is to write the content the user asked for. Write ONLY the content itself — no preamble like "here is the document", no explanation, no mention of file creation. Start directly with the content. The system handles the file creation.')
   }
 
   return lines.join('\n')

@@ -36,6 +36,7 @@ import {
 
 const schema = z.object({
   content: z.string().min(1, 'Message cannot be empty').max(10000),
+  export_doc: z.boolean().optional(),
 })
 
 async function runWithBrowser(
@@ -153,7 +154,7 @@ export async function POST(
       return Response.json({ error: parsed.error.errors[0].message }, { status: 400 })
     }
 
-    const { content } = parsed.data
+    const { content, export_doc: exportDoc } = parsed.data
     const config = session.context_config
     const {
       brand: includeBrand,
@@ -353,6 +354,7 @@ export async function POST(
       hubSegment: customerHubSegment ?? undefined,
       retrievedContext: retrievedContext.length > 0 ? retrievedContext : undefined,
       fileFullTexts: materialFullTexts.length > 0 ? materialFullTexts : undefined,
+      exportDoc: exportDoc ?? false,
     })
 
     // Collect attachment paths from contact-scoped communications so Claude can see images.
@@ -446,6 +448,7 @@ export async function POST(
     return Response.json({
       userMessage: userMsg.message,
       assistantMessage: assistantMsg.message,
+      exportDoc: exportDoc ?? false,
     }, { status: 201 })
   } catch {
     return Response.json({ error: 'Internal error' }, { status: 500 })

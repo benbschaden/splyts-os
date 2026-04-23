@@ -9,6 +9,7 @@ import remarkGfm from 'remark-gfm'
 import type { ChatSessionRow, ChatMessageRow } from '@/lib/queries/chat'
 import { CaptureDocumentDialog } from '@/components/chat/capture-document-dialog'
 import { AI_MODELS, DEFAULT_MODEL } from '@/lib/ai/models'
+import { downloadAsDocx, isExportDocIntent } from '@/lib/export/docx'
 
 function CodeBlock({ children }: { children: React.ReactNode }) {
   const [copied, setCopied] = useState(false)
@@ -118,6 +119,8 @@ export function ChatInterface({ session, initialMessages, initialPrompt }: ChatI
     const content = input.trim()
     if (!content || isSending) return
 
+    const exportDoc = isExportDocIntent(content)
+
     setInput('')
     setError(null)
     setIsSending(true)
@@ -136,7 +139,7 @@ export function ChatInterface({ session, initialMessages, initialPrompt }: ChatI
       const res = await fetch(`/api/chat/sessions/${session.id}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, export_doc: exportDoc }),
       })
       const data = await res.json()
 
@@ -153,6 +156,12 @@ export function ChatInterface({ session, initialMessages, initialPrompt }: ChatI
         data.userMessage,
         data.assistantMessage,
       ])
+
+      // Trigger .docx download if this was an export request
+      if (data.exportDoc && data.assistantMessage?.content) {
+        const filename = session.title || 'document'
+        await downloadAsDocx(data.assistantMessage.content, filename)
+      }
     } catch {
       setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id))
       setInput(content)

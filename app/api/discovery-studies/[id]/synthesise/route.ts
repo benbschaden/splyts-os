@@ -1,19 +1,36 @@
-import Anthropic from '@anthropic-ai/sdk'
+import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
-import { getDiscoveryEntries } from '@/lib/queries/discovery-entries'
+import { getDiscoveryEntries, getEntryAnalysisExtras } from '@/lib/queries/discovery-entries'
 import { updateDiscoveryStudy } from '@/lib/queries/discovery-studies'
-import { buildStudySynthesisPrompt } from '@/lib/ai/prompts'
-import { DEFAULT_MODEL } from '@/lib/ai/models'
-import type { StudyEntryDigest } from '@/lib/ai/prompts'
+import { getChunksForEntry } from '@/lib/queries/discovery-chunks'
+import { analyseEntry, synthesiseStudy } from '@/lib/discovery/pipeline'
 import { createUntypedServiceClient } from '@/lib/supabase/service'
 
+export const maxDuration = 300
+
+const schema = z.object({
+  model_id: z.string().optional(),
+  available_tags: z.array(z.string()).max(50).default([]),
+})
+
+/**
+ * POST /api/discovery-studies/[id]/synthesise
+ *
+ * Replaces the old single-call synthesis (which sent a 500-char excerpt of
+ * each entry) with a digest-based reduce-2 step. Per-entry digests come from
+ * the chunked pipeline (`analyseEntry`); any included entry that has not yet
+ * been analysed is analysed first as part of this synthesis run.
+ *
+ * A `discovery_study_synthesis_runs` row is created at start and finalised
+ * with the resulting Markdown plus provenance counts.
+ */
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   try {
-    const { id } = await params
+    const { id: studyId } = await params
 
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -22,12 +39,20 @@ export async function POST(
     const org = await getOrganizationForUser(user.id)
     if (!org) return Response.json({ error: 'Not found' }, { status: 404 })
 
-    // Fetch the study and verify org ownership
-    const serviceClient = createUntypedServiceClient()
-    const { data: studyData, error: studyError } = await serviceClient
+    const body = await request.json().catch(() => ({}))
+    const parsed = schema.safeParse(body)
+    if (!parsed.success) {
+      return Response.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 })
+    }
+
+    const { model_id: modelId, available_tags: availableTags } = parsed.data
+
+    // 1. Fetch the study (untyped because discovery_studies isn't in generated types yet).
+    const db = createUntypedServiceClient()
+    const { data: studyData, error: studyError } = await db
       .from('discovery_studies')
       .select('id, name, goal, method, notes_markdown, project_id, organization_id')
-      .eq('id', id)
+      .eq('id', studyId)
       .eq('organization_id', org.id)
       .is('deleted_at', null)
       .single()
@@ -46,65 +71,126 @@ export async function POST(
       organization_id: string
     }
 
-    // Fetch all entries for this study
+    // 2. Find all entries belonging to this study.
     const allEntries = await getDiscoveryEntries(study.project_id, org.id)
-    const entries = allEntries.filter((e) => e.study_id === id)
-
-    if (entries.length === 0) {
+    const studyEntries = allEntries.filter((e) => e.study_id === studyId)
+    if (studyEntries.length === 0) {
       return Response.json({ error: 'No entries in this study to synthesise' }, { status: 400 })
     }
 
-    // Build digest — avoid sending full raw_content to reduce token cost; send first 500 chars
-    const digests: StudyEntryDigest[] = entries.map((e) => ({
-      participant: e.participant,
-      entry_type: e.entry_type,
-      sentiment: e.sentiment,
-      tags: e.tags ?? [],
-      key_quote_1: e.key_quote_1,
-      key_quote_2: e.key_quote_2,
-      key_quote_3: e.key_quote_3,
-      jtbd: e.jtbd,
-      wtp_signal: e.wtp_signal ?? null,
-      wtp_price_points: (e.wtp_price_points as number[] | null) ?? [],
-      problem_severity: e.problem_severity ?? null,
-      adoption_willingness: e.adoption_willingness ?? null,
-      raw_content_excerpt: e.raw_content.slice(0, 500) + (e.raw_content.length > 500 ? '…' : ''),
-      context_notes: e.context_notes ?? null,
-    }))
+    // 3. Ensure every entry has a verified digest. Run the chunk pipeline for
+    //    any entry that hasn't been analysed yet. Sequential to stay inside
+    //    the Vercel function timeout for studies with many unanalysed entries.
+    const enriched: Array<{
+      entry: (typeof studyEntries)[number]
+      analysis_markdown: string | null
+      chunks_consulted: number
+      quotes_dropped: number
+    }> = []
 
-    const prompt = buildStudySynthesisPrompt({
+    for (const entry of studyEntries) {
+      const extras = await getEntryAnalysisExtras(entry.id, org.id)
+      let analysisMarkdown = extras?.analysis_markdown ?? null
+
+      let chunks = await getChunksForEntry(entry.id, org.id)
+      const allSucceeded = chunks.length > 0 && chunks.every((c) => c.status === 'succeeded')
+      const hasDigest = !!analysisMarkdown && allSucceeded
+
+      if (!hasDigest) {
+        const result = await analyseEntry({
+          entryId: entry.id,
+          organizationId: org.id,
+          rawContent: entry.raw_content,
+          entryType: entry.entry_type,
+          participant: entry.participant,
+          contextNotes: entry.context_notes ?? null,
+          studyGoal: study.goal,
+          availableTags,
+          modelId,
+          reuseIfHashMatches: true,
+        })
+        analysisMarkdown = result.digest.analysis_markdown
+        chunks = await getChunksForEntry(entry.id, org.id)
+      }
+
+      const chunksConsulted = chunks.length
+      const quotesDropped = chunks.reduce(
+        (sum, c) => sum + (c.verification_stats?.total_quotes_dropped ?? 0),
+        0,
+      )
+
+      enriched.push({
+        entry,
+        analysis_markdown: analysisMarkdown,
+        chunks_consulted: chunksConsulted,
+        quotes_dropped: quotesDropped,
+      })
+    }
+
+    // 4. Run the cross-entry synthesis (reduce-2). This persists a synthesis run.
+    const synthRes = await synthesiseStudy({
+      studyId: study.id,
+      organizationId: org.id,
+      userId: user.id,
       studyName: study.name,
       studyGoal: study.goal,
       method: study.method,
       notesMarkdown: study.notes_markdown,
-      entries: digests,
+      modelId,
+      entries: enriched.map((row) => {
+        const e = row.entry
+        return {
+          entry_id: e.id,
+          participant: e.participant,
+          entry_type: e.entry_type,
+          sentiment: e.sentiment,
+          tags: e.tags ?? [],
+          key_quote_1: e.key_quote_1,
+          key_quote_2: e.key_quote_2,
+          key_quote_3: e.key_quote_3,
+          jtbd: e.jtbd,
+          wtp_signal: e.wtp_signal ?? null,
+          wtp_price_points: (e.wtp_price_points as number[] | null) ?? [],
+          problem_severity: e.problem_severity ?? null,
+          adoption_willingness: e.adoption_willingness ?? null,
+          analysis_markdown: row.analysis_markdown,
+          context_notes: e.context_notes ?? null,
+          chunks_consulted: row.chunks_consulted,
+          quotes_dropped: row.quotes_dropped,
+        }
+      }),
     })
 
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY!, maxRetries: 4 })
-    const response = await anthropic.messages.create({
-      model: DEFAULT_MODEL.id,
-      max_tokens: 4096,
-      messages: [{ role: 'user', content: prompt }],
-    })
-
-    const analysisMarkdown = response.content
-      .filter((c) => c.type === 'text')
-      .map((c) => (c as { type: 'text'; text: string }).text)
-      .join('')
-      .trim()
-
-    // Save directly to the study
-    const { study: updated, error: saveError } = await updateDiscoveryStudy(id, org.id, {
-      analysis_markdown: analysisMarkdown,
-    })
+    // 5. Save the synthesis report onto the study's analysis_markdown field.
+    const { study: updated, error: saveError } = await updateDiscoveryStudy(
+      study.id,
+      org.id,
+      { analysis_markdown: synthRes.analysis_markdown },
+    )
 
     if (saveError || !updated) {
-      return Response.json({ error: 'Analysis generated but failed to save' }, { status: 500 })
+      return Response.json(
+        { error: 'Synthesis succeeded but failed to save to the study' },
+        { status: 500 },
+      )
     }
 
-    return Response.json({ data: { analysis_markdown: analysisMarkdown } })
+    return Response.json({
+      data: {
+        analysis_markdown: synthRes.analysis_markdown,
+        run: {
+          id: synthRes.run_id,
+          entries_included: synthRes.entries_included,
+          chunks_consulted: synthRes.chunks_consulted,
+          quotes_dropped: synthRes.quotes_dropped,
+        },
+      },
+    })
   } catch (err) {
-    console.error('[synthesise] Unexpected error:', err)
-    return Response.json({ error: 'Internal error' }, { status: 500 })
+    console.error('[study synthesise] Unexpected error:', err)
+    return Response.json(
+      { error: err instanceof Error ? err.message : 'Internal error' },
+      { status: 500 },
+    )
   }
 }

@@ -1,27 +1,44 @@
 import { z } from 'zod'
-import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationForUser } from '@/lib/queries/organizations'
-import { buildDiscoveryEntryAnalysisPrompt } from '@/lib/ai/prompts'
-import { DEFAULT_MODEL } from '@/lib/ai/models'
+import { getDiscoveryEntryById } from '@/lib/queries/discovery-entries'
+import { analyseEntry, analyseEntryTransient } from '@/lib/discovery/pipeline'
 
-const requestSchema = z.object({
-  raw_content: z.string().min(1).max(100000),
-  entry_type: z.enum(['interview', 'review', 'survey', 'observation', 'email']),
+export const maxDuration = 300
+
+/**
+ * POST /api/discovery-entries/analyse
+ *
+ * Two modes:
+ *
+ * 1. **Saved-entry mode** — body: `{ entry_id, available_tags?, model_id? }`.
+ *    Runs the full chunk → map → verify → reduce pipeline against the entry's
+ *    persisted `raw_content`, persists chunks + verified findings, and writes
+ *    the entry digest back to `discovery_entries.analysis_*` columns.
+ *
+ * 2. **Transient mode** — body: `{ raw_content, entry_type, available_tags?, ... }`.
+ *    Runs the same pipeline in memory without persisting chunks. This keeps the
+ *    new-entry drawer flow working: the drawer calls analyse BEFORE the entry
+ *    is saved.
+ *
+ * Returns the structured digest fields the drawer consumes today, plus
+ * `analysis_markdown` and provenance counts.
+ */
+
+const savedEntrySchema = z.object({
+  entry_id: z.string().uuid(),
   available_tags: z.array(z.string()).max(50).default([]),
+  model_id: z.string().optional(),
 })
 
-const analysisSchema = z.object({
-  sentiment: z.enum(['positive', 'neutral', 'negative', 'mixed']),
-  tags: z.array(z.string()).default([]),
-  key_quote_1: z.string().nullable().default(null),
-  key_quote_2: z.string().nullable().default(null),
-  key_quote_3: z.string().nullable().default(null),
-  jtbd: z.string().nullable().default(null),
-  wtp_signal: z.enum(['strong', 'moderate', 'weak', 'none']).default('none'),
-  wtp_price_points: z.array(z.number()).default([]),
-  problem_severity: z.number().int().min(1).max(5).nullable().default(null),
-  adoption_willingness: z.number().int().min(1).max(5).nullable().default(null),
+const transientSchema = z.object({
+  raw_content: z.string().min(1).max(1_000_000),
+  entry_type: z.enum(['interview', 'review', 'survey', 'observation', 'email']),
+  available_tags: z.array(z.string()).max(50).default([]),
+  participant: z.string().nullable().optional().default(null),
+  context_notes: z.string().nullable().optional().default(null),
+  study_goal: z.string().nullable().optional().default(null),
+  model_id: z.string().optional(),
 })
 
 export async function POST(request: Request): Promise<Response> {
@@ -33,44 +50,79 @@ export async function POST(request: Request): Promise<Response> {
     const org = await getOrganizationForUser(user.id)
     if (!org) return Response.json({ error: 'Not found' }, { status: 404 })
 
-    const body = await request.json()
-    const parsed = requestSchema.safeParse(body)
+    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>
+
+    // Saved-entry mode is preferred; pick it when entry_id is present.
+    if (typeof body.entry_id === 'string') {
+      const parsed = savedEntrySchema.safeParse(body)
+      if (!parsed.success) {
+        return Response.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 })
+      }
+
+      const entry = await getDiscoveryEntryById(parsed.data.entry_id, org.id)
+      if (!entry) return Response.json({ error: 'Not found' }, { status: 404 })
+
+      // Resolve study goal (best effort) — we don't block analyse if absent.
+      const studyGoal = await getStudyGoal(org.id, entry.study_id)
+
+      const result = await analyseEntry({
+        entryId: entry.id,
+        organizationId: org.id,
+        rawContent: entry.raw_content,
+        entryType: entry.entry_type,
+        participant: entry.participant,
+        contextNotes: entry.context_notes ?? null,
+        studyGoal,
+        availableTags: parsed.data.available_tags,
+        modelId: parsed.data.model_id,
+      })
+
+      return Response.json({
+        data: { ...result.digest, provenance: result.provenance },
+      })
+    }
+
+    // Transient mode: in-memory pipeline, nothing persisted.
+    const parsed = transientSchema.safeParse(body)
     if (!parsed.success) {
       return Response.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 })
     }
 
-    const { raw_content, entry_type, available_tags } = parsed.data
-
-    const prompt = buildDiscoveryEntryAnalysisPrompt({ rawContent: raw_content, entryType: entry_type, availableTags: available_tags })
-
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY!, maxRetries: 4 })
-    const response = await anthropic.messages.create({
-      model: DEFAULT_MODEL.id,
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: prompt }],
+    const result = await analyseEntryTransient({
+      organizationId: org.id,
+      rawContent: parsed.data.raw_content,
+      entryType: parsed.data.entry_type,
+      participant: parsed.data.participant,
+      contextNotes: parsed.data.context_notes,
+      studyGoal: parsed.data.study_goal,
+      availableTags: parsed.data.available_tags,
+      modelId: parsed.data.model_id,
     })
 
-    const rawText = response.content
-      .filter((c) => c.type === 'text')
-      .map((c) => (c as { type: 'text'; text: string }).text)
-      .join('')
-      .trim()
-
-    const jsonText = rawText.startsWith('```')
-      ? rawText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '')
-      : rawText
-
-    let analysisData: ReturnType<typeof analysisSchema.parse>
-    try {
-      analysisData = analysisSchema.parse(JSON.parse(jsonText))
-    } catch (parseErr) {
-      console.error('[analyse] Failed to parse AI response:', parseErr, rawText)
-      return Response.json({ error: 'Failed to parse AI analysis' }, { status: 502 })
-    }
-
-    return Response.json({ data: analysisData })
+    return Response.json({
+      data: { ...result.digest, provenance: result.provenance },
+    })
   } catch (err) {
-    console.error('[analyse] Unexpected error:', err)
-    return Response.json({ error: 'Internal error' }, { status: 500 })
+    console.error('[discovery analyse] Unexpected error:', err)
+    return Response.json(
+      { error: err instanceof Error ? err.message : 'Internal error' },
+      { status: 500 },
+    )
   }
+}
+
+async function getStudyGoal(orgId: string, studyId: string | null): Promise<string | null> {
+  if (!studyId) return null
+  // Avoid an extra import of getDiscoveryStudies; fetch the goal field directly.
+  const { createUntypedServiceClient } = await import('@/lib/supabase/service')
+  const supabase = createUntypedServiceClient()
+  const { data, error } = await supabase
+    .from('discovery_studies')
+    .select('goal')
+    .eq('id', studyId)
+    .eq('organization_id', orgId)
+    .is('deleted_at', null)
+    .maybeSingle()
+  if (error || !data) return null
+  return (data as { goal: string | null }).goal
 }

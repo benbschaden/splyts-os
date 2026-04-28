@@ -64,6 +64,11 @@ export function DiscoveryStudyDetail({
   const [synthesising, setSynthesising] = useState(false)
   const [synthesisError, setSynthesisError] = useState<string | null>(null)
   const [analysisEditing, setAnalysisEditing] = useState(false)
+  const [synthesisRun, setSynthesisRun] = useState<{
+    entries_included: number
+    chunks_consulted: number
+    quotes_dropped: number
+  } | null>(null)
 
   useEffect(() => {
     setNotes(study.notes_markdown ?? '')
@@ -119,16 +124,38 @@ export function DiscoveryStudyDetail({
   async function handleSynthesise() {
     setSynthesising(true)
     setSynthesisError(null)
-    const res = await fetch(`/api/discovery-studies/${study.id}/synthesise`, { method: 'POST' })
+    setSynthesisRun(null)
+    const res = await fetch(`/api/discovery-studies/${study.id}/synthesise`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    })
     setSynthesising(false)
     if (!res.ok) {
       const json = await res.json().catch(() => ({})) as { error?: string }
       setSynthesisError(json.error ?? 'Synthesis failed. Please try again.')
       return
     }
-    const json = await res.json() as { data: { analysis_markdown: string } }
+    const json = await res.json() as {
+      data: {
+        analysis_markdown: string
+        run?: {
+          id: string
+          entries_included: number
+          chunks_consulted: number
+          quotes_dropped: number
+        }
+      }
+    }
     setAnalysis(json.data.analysis_markdown)
     setAnalysisEditing(false)
+    if (json.data.run) {
+      setSynthesisRun({
+        entries_included: json.data.run.entries_included,
+        chunks_consulted: json.data.run.chunks_consulted,
+        quotes_dropped: json.data.run.quotes_dropped,
+      })
+    }
     onStudyUpdated({ ...study, analysis_markdown: json.data.analysis_markdown })
   }
 
@@ -315,11 +342,22 @@ export function DiscoveryStudyDetail({
                 {analysis.trim() ? 'Re-synthesise with AI' : 'Synthesise with AI'}
               </p>
               <p className="text-[11px] text-muted-foreground">
-                Claude reads all {entries.length} {entries.length === 1 ? 'entry' : 'entries'} in this study and writes a structured report covering themes, signal strength, gaps, and recommended next steps.
-                {analysis.trim() ? ' This will overwrite the current analysis.' : ''}
+                Each of the {entries.length} {entries.length === 1 ? 'entry' : 'entries'} is processed in chunks
+                so every word of every transcript is read. Quotes returned by the model are verified against
+                the source before being included — anything unverifiable is dropped.
+                {analysis.trim() ? ' Re-running will overwrite the current analysis.' : ''}
               </p>
               {synthesisError && (
                 <p className="text-xs text-destructive">{synthesisError}</p>
+              )}
+              {synthesisRun && !synthesising && (
+                <div className="rounded-md border border-border bg-background px-3 py-2">
+                  <p className="text-[11px] font-medium text-foreground">
+                    Analysed {synthesisRun.entries_included} {synthesisRun.entries_included === 1 ? 'entry' : 'entries'} ·
+                    {' '}{synthesisRun.chunks_consulted} {synthesisRun.chunks_consulted === 1 ? 'chunk' : 'chunks'} consulted ·
+                    {' '}{synthesisRun.quotes_dropped} unverifiable quotes dropped during entry analysis
+                  </p>
+                </div>
               )}
               <button
                 type="button"
@@ -329,7 +367,7 @@ export function DiscoveryStudyDetail({
                 className="flex items-center gap-1.5 rounded-md bg-foreground px-4 py-1.5 text-xs font-medium text-background hover:bg-foreground/90 transition-colors disabled:opacity-50"
               >
                 {synthesising ? (
-                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Synthesising…</>
+                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Synthesising — analysing chunks first if needed…</>
                 ) : (
                   analysis.trim() ? 'Re-synthesise' : 'Synthesise'
                 )}

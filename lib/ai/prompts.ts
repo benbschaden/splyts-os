@@ -2795,7 +2795,224 @@ export function buildDiscussionSummarizePrompt(params: {
   return lines.join('\n')
 }
 
-export type StudyEntryDigest = {
+// ---------------------------------------------------------------------------
+// Discovery chunked analysis pipeline
+//
+// See:
+//   - docs/features/discovery-chunked-analysis.md
+//   - docs/superpowers/specs/2026-04-28-discovery-chunked-analysis-design.md
+// ---------------------------------------------------------------------------
+
+export const DISCOVERY_PROMPT_VERSION = 'v1.2026-04-28'
+
+/**
+ * Map step: extract verbatim findings from a single chunk of one entry's
+ * `raw_content`. Output MUST be parseable as JSON matching the schema in the
+ * prompt itself; quotes returned here go through verbatim string verification
+ * (`lib/discovery/verification.ts`) before reaching the user.
+ */
+export function buildChunkExtractionPrompt(params: {
+  chunkText: string
+  chunkIndex: number
+  totalChunks: number
+  entryType: string
+  participant: string | null
+  studyGoal: string | null
+  contextNotes: string | null
+  availableTags: string[]
+}): string {
+  const {
+    chunkText,
+    chunkIndex,
+    totalChunks,
+    entryType,
+    participant,
+    studyGoal,
+    contextNotes,
+    availableTags,
+  } = params
+
+  const lines: string[] = []
+  lines.push('You are a world-class qualitative researcher trained in Jobs-to-be-Done theory and commercial signal detection.')
+  lines.push('You are extracting structured findings from ONE chunk of a longer customer discovery transcript.')
+  lines.push('')
+  lines.push(`Chunk ${chunkIndex + 1} of ${totalChunks}.`)
+  lines.push(`Entry type: ${entryType}`)
+  if (participant) lines.push(`Participant: ${participant}`)
+  if (studyGoal) lines.push(`Study goal: ${studyGoal}`)
+  if (contextNotes?.trim()) {
+    lines.push('')
+    lines.push('--- RESEARCHER CONTEXT NOTES ---')
+    lines.push(contextNotes.trim())
+    lines.push('--- END CONTEXT NOTES ---')
+    lines.push('Use these notes to calibrate how you interpret the chunk, not as additional source content.')
+  }
+  lines.push('')
+  lines.push('--- CHUNK TEXT ---')
+  lines.push(chunkText)
+  lines.push('--- END CHUNK TEXT ---')
+  lines.push('')
+  if (availableTags.length > 0) {
+    lines.push('Available tags (use only these in `tags` arrays; return [] if none apply):')
+    lines.push(availableTags.join(', '))
+    lines.push('')
+  }
+  lines.push('Return a single JSON object with the following shape and NOTHING else:')
+  lines.push('')
+  lines.push('{')
+  lines.push('  "themes":          [{"label": string, "quote": string, "tags": string[]}],')
+  lines.push('  "jtbd_signals":    [{"jtbd": string, "quote": string}],')
+  lines.push('  "pains":           [{"label": string, "quote": string, "severity_1_5": number | null}],')
+  lines.push('  "wtp_signals":     [{"signal": "strong"|"moderate"|"weak"|"none", "prices": number[], "quote": string}],')
+  lines.push('  "objections":      [{"quote": string}],')
+  lines.push('  "decisions":       [{"quote": string}],')
+  lines.push('  "open_questions":  [{"question": string}],')
+  lines.push('  "sentiment_local": "positive"|"neutral"|"negative"|"mixed"|null,')
+  lines.push('  "adoption_willingness_1_5": number | null,')
+  lines.push('  "notes":           string | null')
+  lines.push('}')
+  lines.push('')
+  lines.push('STRICT RULES:')
+  lines.push('1. Every `quote` MUST be exact verbatim text copied from the chunk above. Do not paraphrase, summarise, or fix typos.')
+  lines.push('2. If a quote needs a few extra words to be a complete standalone statement, expand it to those words — but it must remain exact verbatim text from the chunk.')
+  lines.push('3. If a category has nothing concrete in this chunk, return [] for arrays or null for scalars. Never invent.')
+  lines.push('4. Do not draw on knowledge outside this chunk.')
+  lines.push('5. `notes` is a brief 1–2 sentence factual observation about THIS chunk only, or null.')
+  lines.push('6. Output ONLY the JSON object. No preamble. No markdown fences.')
+
+  return lines.join('\n')
+}
+
+/**
+ * Reduce-1 step: given the verified findings from every chunk of one entry,
+ * produce the entry-level digest the rest of the codebase reads from
+ * (sentiment, tags, key quotes, jtbd, wtp, severity, willingness, plus a
+ * short Markdown summary).
+ */
+export interface ChunkVerifiedFindingsForReduce {
+  chunk_index: number
+  themes: Array<{ label: string; quote: string; tags: string[] }>
+  jtbd_signals: Array<{ jtbd: string; quote: string }>
+  pains: Array<{ label: string; quote: string; severity_1_5: number | null }>
+  wtp_signals: Array<{ signal: string; prices: number[]; quote: string }>
+  objections: Array<{ quote: string }>
+  decisions: Array<{ quote: string }>
+  open_questions: Array<{ question: string }>
+  sentiment_local: string | null
+  adoption_willingness_1_5: number | null
+  notes: string | null
+}
+
+export function buildEntryDigestPrompt(params: {
+  entryType: string
+  participant: string | null
+  studyGoal: string | null
+  contextNotes: string | null
+  availableTags: string[]
+  chunks: ChunkVerifiedFindingsForReduce[]
+}): string {
+  const { entryType, participant, studyGoal, contextNotes, availableTags, chunks } = params
+
+  const lines: string[] = []
+  lines.push('You are a senior qualitative researcher writing the canonical digest for ONE customer discovery entry.')
+  lines.push('You have verified findings from every chunk of the transcript. Every quote in the input below has been confirmed verbatim against the original transcript.')
+  lines.push('')
+  lines.push(`Entry type: ${entryType}`)
+  if (participant) lines.push(`Participant: ${participant}`)
+  if (studyGoal) lines.push(`Study goal: ${studyGoal}`)
+  if (contextNotes?.trim()) {
+    lines.push('')
+    lines.push('--- RESEARCHER CONTEXT NOTES ---')
+    lines.push(contextNotes.trim())
+    lines.push('--- END CONTEXT NOTES ---')
+  }
+  lines.push('')
+  lines.push('--- VERIFIED CHUNK FINDINGS ---')
+  chunks.forEach((c) => {
+    lines.push(`### Chunk ${c.chunk_index + 1}`)
+    if (c.notes) lines.push(`Notes: ${c.notes}`)
+    if (c.themes.length > 0) {
+      lines.push('Themes:')
+      c.themes.forEach((t) => lines.push(`- ${t.label} — "${t.quote}"`))
+    }
+    if (c.jtbd_signals.length > 0) {
+      lines.push('JTBD signals:')
+      c.jtbd_signals.forEach((j) => lines.push(`- ${j.jtbd} — "${j.quote}"`))
+    }
+    if (c.pains.length > 0) {
+      lines.push('Pains:')
+      c.pains.forEach((p) =>
+        lines.push(`- ${p.label}${p.severity_1_5 !== null ? ` (severity ${p.severity_1_5}/5)` : ''} — "${p.quote}"`),
+      )
+    }
+    if (c.wtp_signals.length > 0) {
+      lines.push('WTP signals:')
+      c.wtp_signals.forEach((w) => {
+        const prices = w.prices.length > 0 ? ` prices=${w.prices.join(',')}` : ''
+        lines.push(`- ${w.signal}${prices} — "${w.quote}"`)
+      })
+    }
+    if (c.objections.length > 0) {
+      lines.push('Objections:')
+      c.objections.forEach((o) => lines.push(`- "${o.quote}"`))
+    }
+    if (c.decisions.length > 0) {
+      lines.push('Decisions:')
+      c.decisions.forEach((d) => lines.push(`- "${d.quote}"`))
+    }
+    if (c.open_questions.length > 0) {
+      lines.push('Open questions:')
+      c.open_questions.forEach((q) => lines.push(`- ${q.question}`))
+    }
+    if (c.sentiment_local) lines.push(`Sentiment in this chunk: ${c.sentiment_local}`)
+    if (c.adoption_willingness_1_5 !== null) lines.push(`Adoption willingness in this chunk: ${c.adoption_willingness_1_5}/5`)
+    lines.push('')
+  })
+  lines.push('--- END VERIFIED CHUNK FINDINGS ---')
+  lines.push('')
+  if (availableTags.length > 0) {
+    lines.push('Available tags (use only these in the `tags` array):')
+    lines.push(availableTags.join(', '))
+    lines.push('')
+  }
+  lines.push('Return a single JSON object with this shape and NOTHING else:')
+  lines.push('')
+  lines.push('{')
+  lines.push('  "sentiment":          "positive"|"neutral"|"negative"|"mixed",')
+  lines.push('  "tags":               string[],')
+  lines.push('  "key_quote_1":        string | null,')
+  lines.push('  "key_quote_2":        string | null,')
+  lines.push('  "key_quote_3":        string | null,')
+  lines.push('  "jtbd":               string | null,')
+  lines.push('  "wtp_signal":         "strong"|"moderate"|"weak"|"none",')
+  lines.push('  "wtp_price_points":   number[],')
+  lines.push('  "problem_severity":   number | null,')
+  lines.push('  "adoption_willingness": number | null,')
+  lines.push('  "analysis_markdown":  string')
+  lines.push('}')
+  lines.push('')
+  lines.push('STRICT RULES:')
+  lines.push('1. Every direct quote in `key_quote_*` and `analysis_markdown` MUST appear verbatim in at least one of the verified chunk findings above. Never invent.')
+  lines.push('2. `key_quote_*` should be the three most revealing complete standalone statements across all chunks.')
+  lines.push('3. `jtbd` is in "Help me ___ so I can ___" form, derived from the JTBD signals above. null if no JTBD is supported.')
+  lines.push('4. `wtp_signal` is the strongest signal observed across chunks; `wtp_price_points` is the union of explicit prices.')
+  lines.push('5. `problem_severity` and `adoption_willingness` are integers 1–5 derived from the chunk evidence; null if not assessable.')
+  lines.push('6. `analysis_markdown` is 6–12 short bullet points across these subsections (omit any subsection that has no content): "## Themes", "## Pains", "## JTBD", "## Signals", "## Open questions". Cite verbatim quotes from the chunks.')
+  lines.push('7. Output ONLY the JSON object. No preamble, no markdown fences.')
+
+  return lines.join('\n')
+}
+
+/**
+ * Reduce-2 step: cross-entry synthesis. Takes each entry's already-verified
+ * digest and writes the study-level Markdown report.
+ *
+ * Replaces the previous `buildStudySynthesisPrompt`, which sent a 500-character
+ * `raw_content_excerpt` of each entry to one Anthropic call. The new prompt
+ * reads only verified quotes and structured fields, so every quote in the
+ * report can be traced back to a verified span in a chunk.
+ */
+export interface StudyDigestEntry {
   participant: string | null
   entry_type: string
   sentiment: string | null
@@ -2808,7 +3025,7 @@ export type StudyEntryDigest = {
   wtp_price_points: number[]
   problem_severity: number | null
   adoption_willingness: number | null
-  raw_content_excerpt: string
+  analysis_markdown: string | null
   context_notes: string | null
 }
 
@@ -2817,7 +3034,7 @@ export function buildStudySynthesisPrompt(params: {
   studyGoal: string | null
   method: string | null
   notesMarkdown: string | null
-  entries: StudyEntryDigest[]
+  entries: StudyDigestEntry[]
 }): string {
   const { studyName, studyGoal, method, notesMarkdown, entries } = params
   const lines: string[] = []
@@ -2837,6 +3054,8 @@ export function buildStudySynthesisPrompt(params: {
   }
   lines.push(`Total entries: ${entries.length}`)
   lines.push('')
+  lines.push('Each entry below is a VERIFIED digest. Every quote in these digests has been string-matched against the original transcript chunk it came from — you can trust the quotes are real.')
+  lines.push('')
   lines.push('Your job is to identify patterns ACROSS participants — not summarise individual entries. Look for:')
   lines.push('- Themes that appear in multiple entries (even if worded differently)')
   lines.push('- Contradictions or segment differences worth calling out')
@@ -2845,7 +3064,7 @@ export function buildStudySynthesisPrompt(params: {
   lines.push('')
   lines.push('Do not interpret beyond the data. Do not add assumptions.')
   lines.push('')
-  lines.push('--- ENTRIES ---')
+  lines.push('--- ENTRY DIGESTS ---')
   lines.push('')
 
   entries.forEach((e, i) => {
@@ -2858,23 +3077,26 @@ export function buildStudySynthesisPrompt(params: {
     if (e.key_quote_2) lines.push(`  Quote 2: "${e.key_quote_2}"`)
     if (e.key_quote_3) lines.push(`  Quote 3: "${e.key_quote_3}"`)
     if (e.wtp_signal && e.wtp_signal !== 'none') {
-      const prices = e.wtp_price_points.length > 0 ? ` (prices: ${e.wtp_price_points.map(p => `$${p}`).join(', ')})` : ''
+      const prices = e.wtp_price_points.length > 0 ? ` (prices: ${e.wtp_price_points.map((p) => `$${p}`).join(', ')})` : ''
       lines.push(`  WTP signal: ${e.wtp_signal}${prices}`)
     }
     if (e.problem_severity !== null) lines.push(`  Problem severity: ${e.problem_severity}/5`)
     if (e.adoption_willingness !== null) lines.push(`  Adoption willingness: ${e.adoption_willingness}/5`)
-    if (e.raw_content_excerpt) lines.push(`  Excerpt: ${e.raw_content_excerpt}`)
+    if (e.analysis_markdown?.trim()) {
+      lines.push('  Per-entry analysis:')
+      e.analysis_markdown.trim().split('\n').forEach((line) => lines.push(`    ${line}`))
+    }
     lines.push('')
   })
 
-  lines.push('--- END OF ENTRIES ---')
+  lines.push('--- END OF ENTRY DIGESTS ---')
   lines.push('')
   lines.push('Write a synthesis report in clean Markdown. Structure it exactly as follows:')
   lines.push('')
   if (notesMarkdown?.trim()) {
     lines.push('# Hypothesis evaluation')
     lines.push('For each hypothesis or question the researcher identified in their notes, write one bullet.')
-    lines.push('Each bullet must state: the hypothesis → verdict (Supported / Refuted / Partially supported / Inconclusive) → the specific evidence from the data.')
+    lines.push('Each bullet must state: the hypothesis → verdict (Supported / Refuted / Partially supported / Inconclusive) → the specific evidence from the entry digests.')
     lines.push('Be direct. If the data contradicts a hypothesis, say so clearly.')
     lines.push('')
   }
@@ -2885,7 +3107,7 @@ export function buildStudySynthesisPrompt(params: {
   lines.push('# Themes')
   lines.push('For each recurring theme (2–5 themes), use a ## heading with the theme name.')
   lines.push('Under each theme: 1–2 sentences describing the pattern, supported by the most compelling')
-  lines.push('verbatim quotes from entries. Cite participant name if available.')
+  lines.push('verbatim quotes from the entry digests. Cite participant name if available, e.g. (— James H.).')
   lines.push('')
   lines.push('# Signal summary')
   lines.push('A short paragraph covering: overall sentiment distribution, WTP signal strength across')
@@ -2897,6 +3119,8 @@ export function buildStudySynthesisPrompt(params: {
   lines.push('')
   lines.push('# Recommended next steps')
   lines.push('3–5 specific, actionable next steps based solely on what this data reveals.')
+  lines.push('')
+  lines.push('STRICT RULE: every direct quote you include in the report MUST appear verbatim in at least one of the entry digests above. If you want to make a claim that is not supported by a verified quote, prefix it with "Inferred from patterns:" or omit it.')
   lines.push('')
   lines.push('Output ONLY the Markdown report. No preamble, no explanation outside the report structure.')
 

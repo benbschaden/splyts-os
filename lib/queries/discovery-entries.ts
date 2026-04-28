@@ -320,3 +320,87 @@ export async function deleteDiscoveryEntry(
   if (error) return { error: 'Failed to delete discovery entry' }
   return { error: null }
 }
+
+/**
+ * Writes the verified digest produced by the chunked analysis pipeline back
+ * onto the `discovery_entries` row. Uses the untyped service client because
+ * `analysis_json`, `analysis_markdown`, and `raw_content_hash` are added by
+ * `supabase/migrations/20260428_discovery_chunks_pipeline.sql` and are not
+ * in the generated Database types until the user regenerates them.
+ *
+ * Switch to the typed client once types are regenerated.
+ */
+export interface PipelineEntryAnalysisFields {
+  sentiment: 'positive' | 'neutral' | 'negative' | 'mixed' | null
+  tags: string[]
+  key_quote_1: string | null
+  key_quote_2: string | null
+  key_quote_3: string | null
+  jtbd: string | null
+  wtp_signal: 'strong' | 'moderate' | 'weak' | 'none' | null
+  wtp_price_points: number[]
+  problem_severity: number | null
+  adoption_willingness: number | null
+  analysis_json: unknown
+  analysis_markdown: string
+  raw_content_hash: string
+}
+
+export async function updateEntryFromPipeline(
+  id: string,
+  organizationId: string,
+  fields: PipelineEntryAnalysisFields,
+): Promise<{ error: string | null }> {
+  const supabase = createUntypedServiceClient()
+  const { error } = await supabase
+    .from('discovery_entries')
+    .update({
+      sentiment: fields.sentiment,
+      tags: fields.tags,
+      key_quote_1: fields.key_quote_1,
+      key_quote_2: fields.key_quote_2,
+      key_quote_3: fields.key_quote_3,
+      jtbd: fields.jtbd,
+      wtp_signal: fields.wtp_signal,
+      wtp_price_points: fields.wtp_price_points,
+      problem_severity: fields.problem_severity,
+      adoption_willingness: fields.adoption_willingness,
+      analysis_json: fields.analysis_json,
+      analysis_markdown: fields.analysis_markdown,
+      raw_content_hash: fields.raw_content_hash,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .eq('organization_id', organizationId)
+    .is('deleted_at', null)
+
+  if (error) return { error: 'Failed to write pipeline analysis to entry' }
+  return { error: null }
+}
+
+/**
+ * Reads the pipeline-written columns (`analysis_markdown`, `analysis_json`,
+ * `raw_content_hash`) for one entry. Untyped client until type regen.
+ */
+export interface EntryAnalysisExtras {
+  analysis_markdown: string | null
+  analysis_json: unknown | null
+  raw_content_hash: string | null
+}
+
+export async function getEntryAnalysisExtras(
+  id: string,
+  organizationId: string,
+): Promise<EntryAnalysisExtras | null> {
+  const supabase = createUntypedServiceClient()
+  const { data, error } = await supabase
+    .from('discovery_entries')
+    .select('analysis_markdown, analysis_json, raw_content_hash')
+    .eq('id', id)
+    .eq('organization_id', organizationId)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  if (error || !data) return null
+  return data as unknown as EntryAnalysisExtras
+}

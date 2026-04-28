@@ -72,6 +72,16 @@ type AnalyseResult = {
   wtp_price_points: number[]
   problem_severity: number | null
   adoption_willingness: number | null
+  analysis_markdown?: string
+  provenance?: {
+    chunks_total: number
+    chunks_succeeded: number
+    chunks_failed: number
+    quotes_returned: number
+    quotes_dropped: number
+    prompt_version: string
+    model_id: string
+  }
 }
 
 type MatchState =
@@ -258,6 +268,7 @@ export function DiscoveryDrawer({
   const [analysing, setAnalysing] = useState(false)
   const [analyseError, setAnalyseError] = useState<string | null>(null)
   const [pendingSignals, setPendingSignals] = useState<AnalyseResult | null>(null)
+  const [analyseProvenance, setAnalyseProvenance] = useState<AnalyseResult['provenance'] | null>(null)
   const [matchState, setMatchState] = useState<MatchState>({ status: 'idle' })
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -293,6 +304,8 @@ export function DiscoveryDrawer({
       setTranscribeResult(null)
       setTranscribeError(null)
       setAnalyseError(null)
+      setAnalyseProvenance(null)
+      setPendingSignals(null)
       setMatchState({ status: 'idle' })
     }
   }, [open, editing])
@@ -397,15 +410,29 @@ export function DiscoveryDrawer({
     if (!form.raw_content.trim()) return
     setAnalysing(true)
     setAnalyseError(null)
+    setAnalyseProvenance(null)
+
+    // Saved-entry mode: run the full chunked pipeline against the persisted
+    // raw_content (and persist chunks + verified findings). For new entries
+    // (no `editing.id` yet) we run the pipeline transiently against the
+    // currently-typed raw_content.
+    const body = editing
+      ? {
+          entry_id: editing.id,
+          available_tags: availableTags,
+        }
+      : {
+          raw_content: form.raw_content,
+          entry_type: form.entry_type,
+          available_tags: availableTags,
+          participant: form.participant.trim() || null,
+          context_notes: form.context_notes.trim() || null,
+        }
 
     const res = await fetch('/api/discovery-entries/analyse', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        raw_content: form.raw_content,
-        entry_type: form.entry_type,
-        available_tags: availableTags,
-      }),
+      body: JSON.stringify(body),
     })
     setAnalysing(false)
 
@@ -428,6 +455,7 @@ export function DiscoveryDrawer({
     }))
     // Store extended fields for save
     setPendingSignals(a)
+    setAnalyseProvenance(a.provenance ?? null)
   }
 
   async function handleAssessPersona() {
@@ -772,10 +800,24 @@ export function DiscoveryDrawer({
                 Analyse with AI
               </p>
               <p className="text-[11px] text-muted-foreground">
-                Claude will extract sentiment, tags, key quotes, JTBD, WTP signal, problem severity, and adoption willingness — without bias.
+                Long transcripts are split into ~12k-character chunks and analysed in parallel.
+                Every quote returned by the model is verified verbatim against its source chunk —
+                anything the model invents is dropped before you see it.
               </p>
               {analyseError && (
                 <p className="text-xs text-destructive">{analyseError}</p>
+              )}
+              {analyseProvenance && !analysing && (
+                <div className="space-y-1 rounded-md border border-border bg-background px-3 py-2">
+                  <p className="text-[11px] font-medium text-foreground">
+                    Analysed {analyseProvenance.chunks_total} {analyseProvenance.chunks_total === 1 ? 'chunk' : 'chunks'} · {analyseProvenance.quotes_returned - analyseProvenance.quotes_dropped} quotes verified · {analyseProvenance.quotes_dropped} dropped
+                  </p>
+                  {analyseProvenance.chunks_failed > 0 && (
+                    <p className="text-[11px] text-amber-700 dark:text-amber-400">
+                      {analyseProvenance.chunks_failed} of {analyseProvenance.chunks_total} chunks could not be analysed. The digest is built from the {analyseProvenance.chunks_succeeded} that succeeded.
+                    </p>
+                  )}
+                </div>
               )}
               <button
                 type="button"
@@ -784,9 +826,9 @@ export function DiscoveryDrawer({
                 className="flex items-center gap-1.5 rounded-md bg-blue-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
               >
                 {analysing ? (
-                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Analysing…</>
+                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Analysing in chunks (this can take 30–90s for long transcripts)…</>
                 ) : (
-                  'Analyse with AI'
+                  analyseProvenance ? 'Re-analyse with AI' : 'Analyse with AI'
                 )}
               </button>
             </div>
